@@ -56,11 +56,21 @@ namespace amrex
       {
       }
 
+    virtual FabFactory<EBCellFAB>* make_copy() {return new EBCellFactory(*this);}
+
+    const EBISLayout& ebisL(){
+        return m_ebisl;
+    }
+
   private:
     EBISLayout m_ebisl;
 
     //disallowed constructors and all that
-    EBCellFactory(const EBCellFactory& a_inputs);
+    EBCellFactory(const EBCellFactory& a_inputs)
+    {
+        EBCellFactory( a_inputs.m_ebisl );
+    }
+
 
     EBCellFactory();
 
