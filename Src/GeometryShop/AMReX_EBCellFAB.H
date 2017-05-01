@@ -63,6 +63,37 @@ namespace amrex
     */
     FArrayBox& getFArrayBox();
 
+  /*******************************************************************************/
+  // Routines to provide a consistent interface with FArrayBox
+    //! Gets the FABio::Format set in the program.
+    static FABio::Format getFormat ();
+
+    /**
+    * \brief Writes out the FAB in whatever format you've set.
+    * The default format is ASCII.
+    */
+    void writeOn (std::ostream& of) const;
+    //
+    //! Read FAB from istream.  Format is as it was written out.
+    void readFrom (std::istream& is);
+
+    /**
+    * \brief Read FAB from istream.  Format is as it was written out.
+    * This creates a single component FAB with data from
+    * compIndex of the FAB from the istream.
+    * Returns the number of components available in the fab.
+    */
+    int readFrom (std::istream& is, int compIndex);
+
+    Real* dataPtr (int n = 0) { return getFArrayBox().dataPtr(n); }
+
+    std::size_t nBytes () const { return getFArrayBox().nBytes(); }
+
+
+
+  // End of routines to provide a consistent interface with FArrayBox
+  /*******************************************************************************/
+
     ///
     BaseIVFAB<Real>& getMultiValuedFAB()
       {
@@ -215,9 +246,17 @@ namespace amrex
 
     //! Returns the maximum value in the FAB for the given component.
     Real max(int a_comp = 0) const;
+    Real max(const Box& subbox, int a_comp = 0) const;
 
     //! Returns the minimum value in the FAB for the given component.
     Real min(int a_comp = 0) const;
+    Real min(const Box& subbox, int a_comp = 0) const;
+
+    /**
+     *  Returns reference to the FABio object used by the program as stored in
+     *  the underlying FArrayBox
+     **/
+    static const FABio& getFABio ();
 
 
     //needed for leveldata to compile

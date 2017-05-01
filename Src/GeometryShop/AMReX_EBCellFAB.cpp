@@ -58,6 +58,38 @@ namespace amrex
     (*this) *= -1.0;
     return *this;
   }
+
+  /*******************************************************************************/
+  // Routines to provide a consistent interface with FArrayBox
+   FABio::Format
+   EBCellFAB::getFormat ()
+   {
+       return getFArrayBox().getFormat();
+   }
+
+   void
+   FArrayBox::writeOn (std::ostream& os) const
+   {
+       getFArrayBox().writeOn(os);
+   }
+
+   void
+   FArrayBox::readFrom (std::ostream& os) const
+   {
+       getFArrayBox().readFrom(os);
+   }
+
+   void
+   FArrayBox::readFrom (std::ostream& os, int compIndex) const
+   {
+       getFArrayBox().readFrom(os, int compIndex);
+   }
+
+
+
+
+  // End of routines to provide a consistent interface with FArrayBox
+  /*******************************************************************************/
   /**********************/
   EBCellFAB&
   EBCellFAB::operator+=(const EBCellFAB& a_src)
@@ -416,6 +448,23 @@ namespace amrex
     }
     return val;
   }
+
+  Real
+  EBCellFAB::max(const Box& subbox, int a_comp) const
+  {
+    BL_ASSERT(isDefined());
+    Real val = -1.0e30;
+         
+    // Find the max on irregular cells.
+    const EBISBox& ebbox = getEBISBox();
+    const IntVectSet validCells(subbox);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+      VolIndex vofi = vit();
+      val = std::max(val, (*this)(vofi, a_comp));
+    }
+    return val;
+  }
   //-----------------------------------------------------------------------
          
   //-----------------------------------------------------------------------
@@ -436,4 +485,27 @@ namespace amrex
     }
     return val;
   }
+
+  Real
+  EBCellFAB::min(const Box& subbox, int a_comp) const
+  {
+    BL_ASSERT(isDefined());
+    Real val = 1.0e30;
+         
+    // Find the min on irregular cells.
+    const EBISBox& ebbox = getEBISBox();
+    const IntVectSet validCells(subbox);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+      VolIndex vofi = vit();
+      val = std::min(val, (*this)(vofi, a_comp));
+    }
+    return val;
+  }
 }         
+
+const FABio&
+EBCellFAB::getFABio ()
+{
+    return getFArrayBox().getFABio();
+}
