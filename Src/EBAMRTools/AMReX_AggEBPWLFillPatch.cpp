@@ -151,7 +151,7 @@ namespace amrex
       m_stenLo[idir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
       m_stenHi[idir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
                
-      for (MFIter mfi(m_stenLo[idir]); mfi.isValid(); ++mfi)
+      for (MFIter mfi(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM()); mfi.isValid(); ++mfi)
       {
         std::vector<std::shared_ptr<BaseIndex   > > baseindice(a_srcVoFs[mfi].size());
         std::vector<std::shared_ptr<BaseStencil > > basestenlo(a_srcVoFs[mfi].size());
@@ -185,7 +185,7 @@ namespace amrex
       m_slopeHiNew[idir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
       m_slopeCeNew[idir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
                
-      for (MFIter mfi(m_slopeLoOld[idir]); mfi.isValid(); ++mfi)
+      for (MFIter mfi(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM()); mfi.isValid(); ++mfi)
       {
         const EBGraph& ebgraph = m_eblgCoFi.getEBISL()[mfi].getEBGraph();
         const IntVectSet& ivs = a_irregRegionsCoFi[mfi];
@@ -213,7 +213,7 @@ namespace amrex
     //first get the coarse offsets for the slopes and so on
     m_coarOffsets.define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
 
-    for (MFIter mfi(m_coarOffsets); mfi.isValid(); ++mfi)
+    for (MFIter mfi(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM()); mfi.isValid(); ++mfi)
     {
       m_coarOffsets[mfi].resize(a_srcVoFsCoar[mfi].size());
       for (int ivof = 0; ivof < a_srcVoFsCoar[mfi].size(); ivof++)
@@ -263,7 +263,7 @@ namespace amrex
         //(so we can use the slopes there)
         int coarind = -1;
         bool found = false;
-        VolIndex coarVoF =  m_fineEBISL.coarsen(vof, m_refRat, mfi);
+        VolIndex coarVoF =  m_eblgFine.getEBISL().coarsen(vof, m_refRat, mfi);
         for (int icoar = 0; icoar < a_srcVoFsCoar[mfi].size(); icoar++)
         {
           const VolIndex& listVoF = a_srcVoFsCoar[mfi][icoar];
@@ -296,10 +296,10 @@ namespace amrex
     BL_PROFILE("AggEBPWLFillPatch::getIVS");
     Box domFine = refine(m_coarDomain, m_refRat);
 //    BL_ASSERT(!m_forceNoEBCF);
-    for (MFIter mfi(a_irregRegionsFine); mfi.isValid(); ++mfi)
+    for (MFIter mfi(m_eblgFine.getDBL(), m_eblgFine.getDM()); mfi.isValid(); ++mfi)
     {
       IntVectSet&    localIrregF = a_irregRegionsFine[mfi];
-      const EBISBox&   ebisBoxCF = m_coarsenedFineEBISL[mfi];
+      const EBISBox&   ebisBoxCF = m_eblgCoFi.getEBISL()[mfi];
       //const Box&        regionCF = ebisBoxCF.getRegion();
 
       //NOTE::this needs to be done for ALL boxes that are "near" the EB interface.
@@ -353,9 +353,9 @@ namespace amrex
     //because of the configuration of the coarse layout.
 //    BL_ASSERT(!m_forceNoEBCF);
 
-    for (MFIter mfi(a_coarCeInterp[0]); mfi.isValid(); ++mfi) // 
+    for (MFIter mfi(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM()); mfi.isValid(); ++mfi) // 
     {
-      const Box& fineBox = m_fineGrids.get(mfi.index());
+      const Box& fineBox = m_eblgFine.getDBL()[mfi];
       Box coarsenedFineBox = coarsen(grow(fineBox, m_radius), m_refRat);
       coarsenedFineBox &= m_coarDomain;
                
@@ -427,9 +427,9 @@ namespace amrex
       a_hiStencils[derivDir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
       a_loStencils[derivDir].define(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM());
                
-      for (MFIter mfi(a_loStencils[derivDir]); mfi.isValid(); ++mfi) // 
+      for (MFIter mfi(m_eblgCoFi.getDBL(), m_eblgCoFi.getDM()); mfi.isValid(); ++mfi) // 
       {
-        const EBISBox& ebisBox  =  m_coarsenedFineEBISL[mfi];
+        const EBISBox& ebisBox  =  m_eblgCoFi.getEBISL()[mfi];
         a_loStencils[derivDir][mfi].resize(a_srcVoFs[mfi].size());
         a_hiStencils[derivDir][mfi].resize(a_srcVoFs[mfi].size());
                
@@ -524,6 +524,11 @@ namespace amrex
       //this bit will have to wait until fillpatch gets generalized
     }
                
+     FabArray<EBCellFAB>& castOld= const_cast<FabArray<EBCellFAB>& >(a_coarDataOld); 
+     FabArray<EBCellFAB>& castNew= const_cast<FabArray<EBCellFAB>& >(a_coarDataNew);
+     castOld.FillBoundary();
+     castNew.FillBoundary();
+
 //    if(!m_forceNoEBCF)
     //now we have to do this everywhere
     {
@@ -695,7 +700,7 @@ namespace amrex
     if ((a_coarTimeNew - a_coarTimeOld) > 1.0e-8)
       factor = (a_fineTime - a_coarTimeOld)/(a_coarTimeNew - a_coarTimeOld);
     int endcomp = idst+inco-1;
-    for (int icomp = idst; icomp < endcomp; icomp++)
+    for (int icomp = idst; icomp <= endcomp; icomp++)
     {
       //BaseIVFAB has only one ptr
       const Real* slopPtrsDirOld[SpaceDim];
