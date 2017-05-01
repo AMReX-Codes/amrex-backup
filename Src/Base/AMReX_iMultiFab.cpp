@@ -228,11 +228,20 @@ iMultiFab::define (const BoxArray&            bxs,
 		   int                        nvar,
 		   int                        ngrow,
 		   const MFInfo&              info,
-                   const FabFactory<IArrayBox>& factory)
+                   const FabFactory<IArrayBox>* factory)
 {
     this->FabArray<IArrayBox>::define(bxs,dm,nvar,ngrow,info, factory);
 }
 
+void
+iMultiFab::define (const BoxArray&            bxs,
+                   const DistributionMapping& dm,
+                   int                        nvar,
+                   int                        ngrow,
+                   const FabFactory<IArrayBox>* factory)
+{
+    define(bxs, dm, nvar, ngrow, MFInfo(), factory);
+}
 
 const IArrayBox&
 iMultiFab::operator[] (int K) const

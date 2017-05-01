@@ -333,11 +333,17 @@ public:
 			int             nghost);
 
     virtual void define (const BoxArray&            bxs,
-			 const DistributionMapping& dm,
-			 int                        nvar,
-			 int                        ngrow,
-			 const MFInfo&              info = MFInfo(),
-                         const FabFactory<IArrayBox>& factory = DefaultFabFactory<IArrayBox>()) override;
+            const DistributionMapping& dm,
+            int                        nvar,
+            int                        ngrow,
+            const MFInfo&              info,
+            const FabFactory<IArrayBox>* factory ) override;
+
+    virtual void define (const BoxArray&            bxs,
+            const DistributionMapping& dm,
+            int                        nvar,
+            int                        ngrow,
+            const FabFactory<IArrayBox>* factory ) override;
 
     const IArrayBox& operator[] (int K) const;
 

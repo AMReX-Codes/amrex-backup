@@ -10,6 +10,11 @@
 #include <AMReX_FabArray.H>
 #include <AMReX_Periodicity.H>
 
+#ifdef BL_USE_EB
+#include <AMReX_EBCellFAB.H>
+#include <AMRex_EBCellFactory.H>
+#endif
+
 namespace amrex
 {
 
@@ -26,7 +31,11 @@ namespace amrex
 
 class MultiFab
     :
+#ifdef BL_USE_EB
+    public FabArray<EBCellFAB>
+#else
     public FabArray<FArrayBox>
+#endif
 {
 public:
     //
@@ -77,12 +86,21 @@ public:
     MultiFab& operator= (const MultiFab& rhs) = delete;
     MultiFab& operator= (MultiFab&& rhs) = delete;
 
+#ifdef BL_USE_EB
     virtual void define (const BoxArray&            bxs,
-			 const DistributionMapping& dm,
-			 int                        nvar,
-			 int                        ngrow,
-			 const MFInfo&              info = MFInfo(),
-                         const FabFactory<FArrayBox>& factory = DefaultFabFactory<FArrayBox>()) override;
+                         const DistributionMapping& dm,
+                         int                        nvar,
+                         int                        ngrow,
+                         const MFInfo&              info,
+                         const FabFactory<EBCellFAB>* factory) override;
+#else
+    virtual void define (const BoxArray&            bxs,
+                         const DistributionMapping& dm,
+                         int                        nvar,
+                         int                        ngrow,
+                         const MFInfo&              info = MFInfo(),
+                         const FabFactory<FArrayBox>* factory) override;
+#endif
 
     void operator= (const Real& r);
     //

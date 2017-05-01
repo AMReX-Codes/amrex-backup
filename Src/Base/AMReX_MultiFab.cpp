@@ -414,17 +414,33 @@ MultiFab::operator= (const Real& r)
     setVal(r);
 }
 
+#ifdef BL_USE_EB
 void
 MultiFab::define (const BoxArray&            bxs,
                   const DistributionMapping& dm,
                   int                        nvar,
                   int                        ngrow,
-		  const MFInfo&              info,
+                  const MFInfo&              info,
+                  const FabFactory<EBCellFAB>& factory)
+{
+    this->FabArray<EBCellFAB>::define(bxs,dm,nvar,ngrow,info,factory);
+    if (SharedMemory() && info.alloc) initVal();  // else already done in FArrayBox
+    m_fact = factory;
+}
+#else
+void
+MultiFab::define (const BoxArray&            bxs,
+                  const DistributionMapping& dm,
+                  int                        nvar,
+                  int                        ngrow,
+                  const MFInfo&              info,
                   const FabFactory<FArrayBox>& factory)
 {
     this->FabArray<FArrayBox>::define(bxs,dm,nvar,ngrow,info,factory);
     if (SharedMemory() && info.alloc) initVal();  // else already done in FArrayBox
+    m_fact = factory;
 }
+#endif
 
 void
 MultiFab::initVal ()

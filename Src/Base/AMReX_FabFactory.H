@@ -29,6 +29,10 @@ class FabFactory
 public:
     virtual ~FabFactory () {}
     virtual FAB* create (const Box& box, int ncomps, const FabInfo& info, int box_index) const = 0;
+    virtual FabFactory<FAB>* make_copy() const;
+    FabFactory( ) { }
+    FabFactory( const FabFactory& rhs) { }
+
 };
 
 template <class FAB>
@@ -40,6 +44,8 @@ public:
     {
         return new FAB(box, ncomps, info.alloc, info.shared);
     }
+
+    virtual FabFactory<FAB>* make_copy() {return new DefaultFabFactory();}
 };
 
 }

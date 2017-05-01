@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <set>
 #include <string>
+#include <memory>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -134,8 +135,8 @@ public:
               const DistributionMapping& dm,
               int                        nvar,
               int                        ngrow,
-	      const MFInfo&              info = MFInfo(),
-              const FabFactory<FAB>&     factory = DefaultFabFactory<FAB>());
+              const MFInfo&              info,
+              const FabFactory<FAB>&     factory);
 
     FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp, int ncomp);
 
@@ -156,17 +157,30 @@ public:
     FabArray<FAB>& operator= (FabArray<FAB>&& rhs) = delete;
 
     /**
+     * \brief Return a constant reference to the factory that can be used to build
+     * FABS for this FabArray
+     */
+    const FabFactory<FAB>* Factory() const { return m_fact.get(); }
+
+
+    /**
     * \brief Define this FabArray identically to that performed by
     * the constructor having an analogous function signature.
     * This is only valid if this FabArray was defined using
     * the default constructor.
     */
     virtual void define (const BoxArray& bxs,
-			 const DistributionMapping& dm,
-			 int                        nvar,
-			 int                        ngrow,
-			 const MFInfo&              info = MFInfo(),
-                         const FabFactory<FAB>&     factory = DefaultFabFactory<FAB>());
+            const DistributionMapping& dm,
+            int                        nvar,
+            int                        ngrow,
+            const MFInfo&              info,
+            const FabFactory<FAB>*     factory);
+
+    virtual void define (const BoxArray& bxs,
+            const DistributionMapping& dm,
+            int                        nvar,
+            int                        ngrow,
+            const FabFactory<FAB>*     factory);
 
     /**
     * \brief Return true if the FabArray is well-defined.  That is,
@@ -500,6 +514,10 @@ protected:
     bool SharedMemory () const { return shmem.alloc; }
 
 private:
+    
+
+    std::unique_ptr<FabFactory<FAB>>  m_fact;
+
     typedef typename std::vector<FAB*>::iterator    Iterator;
 
     void AllocFabs (const FabFactory<FAB>& factory);
@@ -921,6 +939,23 @@ FabArray<FAB>::ok () const
     return isok != 0;
 }
 
+/*
+ *
+ * For when MFInfo is not specified to avoid default arguments 
+ *
+ */
+template <class FAB>
+void
+FabArray<FAB>::define (const BoxArray&            bxs,
+                       const DistributionMapping& dm,
+                       int                        nvar,
+                       int                        ngrow,
+                       const FabFactory<FAB>*     factory)
+{
+    define(bxs, dm, nvar, ngrow, MFInfo(), factory);
+}
+
+
 template <class FAB>
 void
 FabArray<FAB>::define (const BoxArray&            bxs,
@@ -928,7 +963,7 @@ FabArray<FAB>::define (const BoxArray&            bxs,
 		       int                        nvar,
 		       int                        ngrow,
 		       const MFInfo&              info,
-                       const FabFactory<FAB>&     factory)
+                       const FabFactory<FAB>*     factory)
 {
     define_function_called = true;
 
@@ -939,7 +974,7 @@ FabArray<FAB>::define (const BoxArray&            bxs,
     addThisBD();
 
     if(info.alloc) {
-        AllocFabs(factory);
+        AllocFabs(*factory);
     }
 
     typename std::map<int, std::map<int, FabArray<FAB> *> >::iterator afapIter = 
@@ -960,6 +995,7 @@ FabArray<FAB>::define (const BoxArray&            bxs,
     } else {
       noallocFAPIds.insert(aFAPId);
     }
+    m_fact = std::unique_ptr<FabFactory<FAB>>(factory->make_copy());
 
 #ifdef BL_USE_TEAM
     if (info.alloc) ParallelDescriptor::MyTeam().MemoryBarrier();
