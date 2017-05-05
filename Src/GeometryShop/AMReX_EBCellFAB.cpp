@@ -247,6 +247,54 @@ namespace amrex
     }
     return *this;
   }
+  
+
+  /*
+   *
+   * Rework of minus to use explicitly specified src and dest boxes,
+   * call BaseFab::minus for regular data. Still use BaseIVFAB<Real>::forall for irregular 
+   * data
+   *
+   */
+
+  EBCellFAB&
+  EBCellFAB::minus(const EBCellFAB& a_src,
+                   const Box&        srcbox,
+                   const Box&        destbox,
+                   int               a_srccomp,
+                   int               a_dstcomp,
+                   int               a_numcomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.minus(a_src.m_regFAB, srcbox, destbox, a_srccomp, a_dstcomp, a_numcomp);
+
+    // Irregular data - if both irrFABs do not contain all of the VOFS in srcbox, and that
+    // box is not the same as the interection between the destbox and the box for the source 
+    // we have a problem. Unlike regular data it isn't so easy to just rework the indexes to
+    // map irregular data with a different index offset into the destination space.
+         
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    // Optimization - if regular boxes are the same as the destination box, 
+    // the BaseIVFAB<Real>::forall will skip look up and operate on l[i], r[i]
+    bool sameRegBox = ((a_src.m_regFAB.box() == m_regFAB.box() ) == destbox);
+         
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest, const Real& src){dest-=src;});
+    }
+    return *this;
+  }
+  
+  
+  
+  
   /**********************/
   EBCellFAB&
   EBCellFAB::operator*=(const EBCellFAB& a_src)

@@ -178,6 +178,18 @@ namespace amrex
 
     ///
     /**
+       done over intersection of srcbox, destbox
+    */
+    EBCellFAB& minus(const EBCellFAB& a_ebfab,
+                     const Box& srcbox,
+                     const Box& destbox,
+                     int a_srccomp,
+                     int a_destcomp,
+                     int a_numcomp);
+
+
+    ///
+    /**
        done over intersection of src, dst
        Both fabs need the same ncomp
     */
