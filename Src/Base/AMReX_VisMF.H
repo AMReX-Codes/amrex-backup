@@ -11,6 +11,13 @@
 #include <AMReX_FArrayBox.H>
 #include <AMReX_FabConv.H>
 
+#ifdef BL_USE_EB
+#include <AMReX_EBISLayout.H>
+#include <AMReX_EBCellFAB.H>
+#define FABARRAY_TEMPL EBCellFAB
+#else
+#define FABARRAY_TEMPL FArrayBox
+#endif
 namespace amrex {
 
 class NFilesIter;
@@ -76,11 +83,19 @@ public:
         //! The default constructor.
         Header ();
         //! Construct from a FabArray<FArrayBox>.
-        Header (const FabArray<FArrayBox>& fafab, VisMF::How how, Version version = Version_v1,
+#ifdef BL_USE_EB
+        Header (const FabArray<FABARRAY_TEMPL>& fafab, VisMF::How how, Version version = Version_v1,
+		bool calcMinMax = true);
+	     //! Calculate the min and max arrays
+	     void CalculateMinMax(const FabArray<FABARRAY_TEMPL>& fafab,
+			     int procToWrite = ParallelDescriptor::IOProcessorNumber());
+#else
+        Header (const FabArray<FABARRAY_TEMPL>& fafab, VisMF::How how, Version version = Version_v1,
 		bool calcMinMax = true);
 	//! Calculate the min and max arrays
-	void CalculateMinMax(const FabArray<FArrayBox>& fafab,
+	void CalculateMinMax(const FabArray<FABARRAY_TEMPL>& fafab,
 			     int procToWrite = ParallelDescriptor::IOProcessorNumber());
+#endif
         //
         // The data.
         //
@@ -90,6 +105,9 @@ public:
         int                  m_ngrow; // The number of ghost cells in MF.
         BoxArray             m_ba;    // The BoxArray of the MF.
         Array< FabOnDisk >   m_fod;   // FabOnDisk info for contained FABs.
+#ifdef BL_USE_EB
+        const FabFactory<FABARRAY_TEMPL> * m_fact;    // The EBIS layout of the MF.
+#endif
 	//
 	// These are not defined if they are not in the header
 	//
@@ -156,7 +174,7 @@ public:
     *         Reads it from disk if necessary.
     *         This reads only the specified component.
     */
-    const FArrayBox& GetFab (int fabIndex,
+    const FABARRAY_TEMPL& GetFab (int fabIndex,
                              int compIndex) const;
     //! Delete()s the FAB at the specified index and component.
     void clear (int fabIndex,
@@ -172,7 +190,7 @@ public:
     * one-half the average of the min and max over the valid region
     * of each contained FAB.
     */
-    static long Write (const FabArray<FArrayBox> &fafab,
+    static long Write (const FabArray<FABARRAY_TEMPL> &fafab,
                        const std::string& name,
                        VisMF::How         how = NFiles,
                        bool               set_ghost = false);
@@ -188,10 +206,17 @@ public:
     * DistributionMapping will be made.  A pre-read FabArray header
     * can be passed in to avoid a read and broadcast.
     */
-    static void Read (FabArray<FArrayBox> &fafab,
+#ifdef BL_USE_EB
+    static void Read (FabArray<FABARRAY_TEMPL> &fafab,
                       const std::string &name,
 		      const char *faHeader = nullptr,
 		      int coordinatorProc = ParallelDescriptor::IOProcessorNumber());
+#else
+    static void Read (FabArray<FABARRAY_TEMPL> &fafab,
+                      const std::string &name,
+		      const char *faHeader = nullptr,
+		      int coordinatorProc = ParallelDescriptor::IOProcessorNumber());
+#endif
 
     //! Read only the header of a FabArray, header will be resized here.
     static void ReadFAHeader (const std::string &fafabName,
@@ -202,10 +227,10 @@ public:
     //! The file offset of the passed ostream.
     static long FileOffset (std::ostream& os);
     //! Read the entire fab (all components).
-    FArrayBox* readFAB (int                fabIndex,
+    FABARRAY_TEMPL* readFAB (int                fabIndex,
                         const std::string& fafabName);
     //! Read the specified fab component.
-    FArrayBox* readFAB (int fabIndex,
+    FABARRAY_TEMPL* readFAB (int fabIndex,
                         int ncomp);
 
     static int  GetNOutFiles ();
@@ -261,7 +286,7 @@ private:
     VisMF (const VisMF&);
     VisMF& operator= (const VisMF&);
 
-    static FabOnDisk Write (const FArrayBox&   fab,
+    static FabOnDisk Write (const FABARRAY_TEMPL&   fab,
                             const std::string& filename,
                             std::ostream&      os,
                             long&              bytes);
@@ -271,7 +296,7 @@ private:
 			     int procToWrite = ParallelDescriptor::IOProcessorNumber());
 
     //! fileNumbers must be passed in for dynamic set selection [proc]
-    static void FindOffsets (const FabArray<FArrayBox> &fafab,
+    static void FindOffsets (const FabArray<FABARRAY_TEMPL> &fafab,
 			     const std::string &fafab_name,
                              VisMF::Header &hdr,
 			     bool groupSets,
@@ -285,12 +310,12 @@ private:
     * whichComp == -1 means reads the whole FAB.
     * Otherwise read just that component.
     */
-    static FArrayBox *readFAB (int                fabIndex,
+    static FABARRAY_TEMPL *readFAB (int                fabIndex,
                                const std::string &fafab_name,
                                const Header      &hdr,
 			       int                whichComp = -1);
     //! Read the whole FAB into fafab[fabIndex]
-    static void readFAB (FabArray<FArrayBox> &fafab,
+    static void readFAB (FabArray<FABARRAY_TEMPL> &fafab,
 			 int                fabIndex,
 			 const std::string &fafab_name,
 			 const Header&      hdr);
@@ -303,7 +328,7 @@ private:
     //! The VisMF header as read from disk.
     Header m_hdr;
     //! We manage the FABs individually.
-    mutable Array< Array<FArrayBox*> > m_pa;
+    mutable Array< Array<FABARRAY_TEMPL*> > m_pa;
     /**
     * \brief Persistent streams.  These open on demand and should
     * be closed when not needed with CloseAllStreams.
