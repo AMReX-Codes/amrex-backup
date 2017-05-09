@@ -124,6 +124,68 @@ namespace amrex
          const EBCellFAB& a_Y,
          const Real& a_A, const Real& a_B);
 
+
+    /**
+     *
+     * this = this + a*src
+     *
+     **/
+    EBCellFAB& saxpy (const Real& a_A,
+                      const EBCellFAB& a_ebfab,
+                      const Box&       srcbox,
+                      const Box&       destbox,
+                      int a_srccomp,
+                      int a_destcomp,
+                      int a_numcomp);
+    /**
+     *
+     * this = a*f1 + b*f2
+     *
+     */
+    EBCellFAB& linComb (const EBCellFAB& f1,
+			            const Box&           b1,
+			            int                  comp1,
+			            const EBCellFAB& f2,
+			            const Box&           b2,
+			            int                  comp2,
+			            Real                 alpha,
+			            Real                 beta,
+			            const Box&           b,
+			            int                  comp,
+			            int                  numcomp);
+
+    /**
+     *
+     * this = a*this + rc
+     *
+     **/
+    EBCellFAB& xpay (const Real& a_A,
+                     const EBCellFAB& a_ebfab,
+                     const Box&       srcbox,
+                     const Box&       destbox,
+                     int a_srccomp,
+                     int a_destcomp,
+                     int a_numcomp);
+
+    /*
+     *
+     * this += src1*src2
+     *
+     */
+
+    EBCellFAB& addproduct (const Box&           destbox,
+			               int                  destcomp,
+			               int                  numcomp,
+			               const EBCellFAB&     src1,
+			               int                  comp1,
+			               const EBCellFAB&     src2,
+			               int                  comp2);
+
+        
+    //! Dot product of x (i.e.,this) and y
+    Real dot (const Box& xbx, int xcomp,
+	   const EBCellFAB& y, const Box& ybx, int ycomp,
+	   int numcomp = 1) const;
     ///
     /**
        done over intersection of src, dst
@@ -203,6 +265,13 @@ namespace amrex
                      int a_srccomp,
                      int a_destcomp,
                      int a_numcomp);
+
+    EBCellFAB&  mult(const EBCellFAB& a_src,
+                     const Box&       srcbox,
+                     const Box&       destbox,
+                     int              a_srccomp,
+                     int              a_destcomp,
+                     int              a_numcomp);
     ///
     /**
        done over intersection of src, dst
@@ -216,6 +285,13 @@ namespace amrex
        done over intersection of src, dst
     */
     EBCellFAB& divide(const EBCellFAB& a_ebfab,
+                      int a_srccomp,
+                      int a_destcomp,
+                      int a_numcomp);
+
+    EBCellFAB& divide(const EBCellFAB& a_ebfab,
+                      const Box&       srcbox,
+                      const Box&       destbox,
                       int a_srccomp,
                       int a_destcomp,
                       int a_numcomp);

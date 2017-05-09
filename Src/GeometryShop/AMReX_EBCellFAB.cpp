@@ -85,6 +85,333 @@ namespace amrex
        getFArrayBox().readFrom(os, int compIndex);
    }
 
+/*
+   *
+   * Rework of minus to use explicitly specified src and dest boxes,
+   * call BaseFab::minus for regular data. Still use BaseIVFAB<Real>::forall for irregular 
+   * data
+   *
+   */
+
+  EBCellFAB&
+  EBCellFAB::minus(const EBCellFAB& a_src,
+                   const Box&        srcbox,
+                   const Box&        destbox,
+                   int               a_srccomp,
+                   int               a_dstcomp,
+                   int               a_numcomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.minus(a_src.m_regFAB, srcbox, destbox, a_srccomp, a_dstcomp, a_numcomp);
+
+    // Irregular data - if both irrFABs do not contain all of the VOFS in srcbox, and that
+    // box is not the same as the interection between the destbox and the box for the source 
+    // we have a problem. Unlike regular data it isn't so easy to just rework the indexes to
+    // map irregular data with a different index offset into the destination space.
+         
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    // Optimization - if regular boxes are the same as the destination box, 
+    // the BaseIVFAB<Real>::forall will skip look up and operate on l[i], r[i]
+    bool sameRegBox = ((a_src.m_regFAB.box() == m_regFAB.box() ) == destbox);
+         
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest, const Real& src){dest-=src;});
+    }
+    return *this;
+  }
+  
+  
+  
+
+/**
+   *
+   * Rework of multiply to use explicitly specified src and dest boxes
+   * call BaseFab::mult for regular data; still use BaseIVFab<Real>::foraall for irregular
+   * data
+   *
+   */
+  EBCellFAB&
+  EBCellFAB::mult(const EBCellFAB& a_src,
+                  const Box&       srcbox,
+                  const Box&       destbox,
+                  int a_srccomp,
+                  int a_dstcomp,
+                  int a_numcomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+
+    m_regFAB.mult(a_src.m_regFAB, srcbox, destbox, a_srccomp, a_dstcomp, a_numcomp);
+
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    bool sameRegBox = (a_src.m_regFAB.box() == m_regFAB.box());
+         
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest, const Real& src){dest*=src;});
+    }
+         
+    return *this;
+  }
+
+ /**
+   *
+   * Rework of divide to use explicitly specified src and dest boxes
+   * call BaseFab::divide for regular data; still use BaseIVFab<Real>::foraall for irregular
+   * data
+   *
+   */
+  EBCellFAB&
+  EBCellFAB::divide(const EBCellFAB& a_src,
+                    const Box&       srcbox,
+                    const Box&       destbox,
+                    int              a_srccomp,
+                    int              a_dstcomp,
+                    int              a_numcomp)
+  {
+         
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+         
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // regular data
+    m_regFAB.divide(a_src.m_regFAB, srcbox, destbox,
+                    a_srccomp, a_dstcomp, a_numcomp);
+         
+    // region for irregular data - only include VOFs in this box
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    // Optimization to skip walking through VOFs
+    bool sameRegBox = (a_src.m_regFAB.box() == m_regFAB.box());
+
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest,
+                      const Real& src){dest/=src;});
+    }
+    return *this;
+  }
+  
+  /**
+   * 
+   * this = this + a*src
+   * optimization through specialization.  Could do as this += a*src but
+   * this version uses the same loop and may be able to use FMA as well as reduce
+   * memory traffic
+   *
+   */
+  EBCellFAB&
+  EBCellFAB::
+  saxpy(const Real& a_A,
+        const EBCellFAB& src,
+        const Box&       srcbox,
+        const Box&       destbox,
+        int              srccomp,
+        int              dstcomp,
+        int              numcomp)
+
+{
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+         
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.saxpy( a_A, src.m_regFAB, srcbox, destbox, srccomp, dstcomp, numcomp);
+
+   // region for irregular data - only include VOFs in this box
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    // Optimization to skip walking through VOFs
+    bool sameRegBox = (a_src.m_regFAB.box() == m_regFAB.box());
+
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest,
+                      const Real& src){dest+=a_A*src;});
+    }
+ 
+    return *this;
+  }
+  
+    /**
+   * 
+   * this = a*this src
+   * optimization through specialization.  Could do as this *= a and += src but
+   * this version uses the same loop and may be able to use FMA as well as reduce
+   * memory traffic
+   *
+   */
+  EBCellFAB&
+  EBCellFAB::
+  xpay(const Real& a_A,
+        const EBCellFAB& src,
+        const Box&       srcbox,
+        const Box&       destbox,
+        int              srccomp,
+        int              dstcomp,
+        int              numcomp)
+
+{
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+         
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.xpay( a_A, src.m_regFAB, srcbox, destbox, srccomp, dstcomp, numcomp);
+
+   // region for irregular data - only include VOFs in this box
+    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
+
+    // Optimization to skip walking through VOFs
+    bool sameRegBox = (a_src.m_regFAB.box() == m_regFAB.box());
+
+    if (!locRegion.isEmpty())
+    {
+      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
+                      a_numcomp, sameRegBox, [](Real& dest,
+                      const Real& src){dest=a_A*dest+src;});
+    }
+ 
+    return *this;
+  }
+
+/**
+ *
+ * this = a_A*X + a_B*Y
+ *
+ */
+EBCellFAB&
+EBCellFAB::linComb (const EBCellFAB& f1,
+        			const Box&       b1,
+        			int              comp1,
+        			const EBCellFAB& f2,
+        			const Box&       b2,
+        			int              comp2,
+        			Real             alpha,
+        			Real             beta,
+        			const Box&       b,
+        			int              comp,
+        			int              numcomp)
+			
+  {
+    // Regular data
+    m_regFAB.linComb (f1, b1,comp1,
+			          f2,b2, comp2,
+                      alpha, beta,
+                        b,comp, numcomp);
+
+    // region for irregular data - only include VOFs in this box
+    Box locRegion = ((f1.getRegion() & f2.getRegion()) & b1) & b2 & b;
+    
+    std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+    for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+    {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex())){
+            for (int icomp = comp; icomp < numcomp; icomp++)
+            {
+                m_irrFAB(vof, icomp) = alpha*f1.m_irrFAB(vof, icomp) 
+                                       + beta*f2.m_irrFAB(vof, icomp);
+            }
+        }
+    }
+    return *this;
+  }
+
+    /*
+     *
+     * this += src1*src2
+     *
+     */
+
+    EBCellFAB& addproduct (const Box&           destbox,
+			               int                  destcomp,
+			               int                  numcomp,
+			               const EBCellFAB&     src1,
+			               int                  comp1,
+			               const EBCellFAB&     src2,
+			               int                  comp2)
+
+{
+    // Regular data
+    m_regFAB.addproduct (destbox, destcomp,
+                         numcomp,
+			             src1, comp1,
+			             src2, comp2);
+        
+
+    // region for irregular data - only include VOFs in this box
+    Box locRegion = ((getRegion() & src1.getRegion()) 
+                      & src2.getRegion) & destbox;
+
+    std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+    for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+    {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex())){
+            for (int icomp = 0; icomp < numcomp; icomp++)
+            {
+                m_irrFAB(vof, destcomp+icomp) = src1.m_irrFAB(vof, comp1+icomp) 
+                    + src2.m_irrFAB(vof, comp1+icomp);
+            }
+        }
+    }
+    return *this;
+}
+
+
+/**
+ *
+ * Dot product of x (i.e.,this) and y
+ *
+ */
+  Real dot (const Box& xbx, int xcomp,
+	   const EBCellFAB& y, const Box& ybx, int ycomp,
+	   int numcomp) const;
+
+  Real
+  EBCellFAB::min(const Box& subbox, int a_comp) const
+  {
+    BL_ASSERT(isDefined());
+    Real val = 0.0;
+         
+    // Dot product on intersection of two boxes
+    const EBISBox& ebbox = getEBISBox();
+    const IntVectSet validCells(xbx & ybx
+    );
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+      VolIndex vofi = vit();
+      for (int icomp=0; icomp<numcomp; ++icomp)
+      {
+          val += (xbx(vofi, xcomp+icomp)*ybx(vofi,ycomp+icomp));
+      } 
+
+    }
+    return val;
+  }
+}   
 
 
 
@@ -101,19 +428,22 @@ namespace amrex
     return *this;
   }
          
+         
+/**
+ *
+ * this = a_A*X + a_B*Y
+ *
+ */
   EBCellFAB&
   EBCellFAB::
   axby(const EBCellFAB& a_X, 
        const EBCellFAB& a_Y,
        const Real& a_A, const Real& a_B)
   {
-    for (BoxIterator boxit(m_region); boxit.ok(); ++boxit)
-      {
-        for (int icomp = 0; icomp < nComp(); icomp++)
-        {
-          m_regFAB(boxit(), icomp) = a_A*a_X.m_regFAB(boxit(), icomp) + a_B*a_Y.m_regFAB(boxit(), icomp); // 
-        }
-      }
+    m_regFAB.linComb( a_X.m_regFAB, a_X.m_regFAB.box(), 0,
+                      a_Y.m_regFAB, a_Y.m_regFAB.box(), 0,
+                      a_A, b_B,
+                      m_regFAB.box(), 0, nComp() )
 
     std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
     for(int ivof = 0; ivof < irrvofs.size(); ivof++)
@@ -249,50 +579,6 @@ namespace amrex
   }
   
 
-  /*
-   *
-   * Rework of minus to use explicitly specified src and dest boxes,
-   * call BaseFab::minus for regular data. Still use BaseIVFAB<Real>::forall for irregular 
-   * data
-   *
-   */
-
-  EBCellFAB&
-  EBCellFAB::minus(const EBCellFAB& a_src,
-                   const Box&        srcbox,
-                   const Box&        destbox,
-                   int               a_srccomp,
-                   int               a_dstcomp,
-                   int               a_numcomp)
-  {
-    BL_ASSERT(isDefined());
-    BL_ASSERT(a_src.isDefined());
-    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
-    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
-
-    // Regular data
-    m_regFAB.minus(a_src.m_regFAB, srcbox, destbox, a_srccomp, a_dstcomp, a_numcomp);
-
-    // Irregular data - if both irrFABs do not contain all of the VOFS in srcbox, and that
-    // box is not the same as the interection between the destbox and the box for the source 
-    // we have a problem. Unlike regular data it isn't so easy to just rework the indexes to
-    // map irregular data with a different index offset into the destination space.
-         
-    Box locRegion = ((a_src.getRegion() & getRegion()) & destbox) & srcbox;
-
-    // Optimization - if regular boxes are the same as the destination box, 
-    // the BaseIVFAB<Real>::forall will skip look up and operate on l[i], r[i]
-    bool sameRegBox = ((a_src.m_regFAB.box() == m_regFAB.box() ) == destbox);
-         
-    if (!locRegion.isEmpty())
-    {
-      m_irrFAB.forall(a_src.m_irrFAB, locRegion, a_srccomp, a_dstcomp,
-                      a_numcomp, sameRegBox, [](Real& dest, const Real& src){dest-=src;});
-    }
-    return *this;
-  }
-  
-  
   
   
   /**********************/
@@ -339,6 +625,9 @@ namespace amrex
          
     return *this;
   }
+
+  
+
   /**********************/
   EBCellFAB&
   EBCellFAB::operator/=(const EBCellFAB& a_src)
@@ -387,6 +676,8 @@ namespace amrex
     }
     return *this;
   }
+
+ 
   /**********************/
   EBCellFAB&
   EBCellFAB::operator+=(const Real& a_src)
