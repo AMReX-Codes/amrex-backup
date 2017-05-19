@@ -119,7 +119,7 @@ public:
 
     // if FAB is a BaseFab or its child, value_type = FAB::value_type
     // else                              value_type = FAB;
-    using value_type = typename std::conditional<IsBaseFab<FAB>::value, FAB, FABType>::type::value_type;
+    using value_type = typename std::conditional<IsXFab<FAB>::value, FAB, FABType>::type::value_type;
 
     //
     // Constructs an empty FabArray<FAB>.

@@ -27,15 +27,15 @@ namespace amrex
 
 
     // Always exists
-    template <class A, class Enable = void> struct  IsContainer : std::false_type {};
+    template <class A, class Enable = void> struct  IsXFab : std::false_type {};
 
     // Exists if IsBaseEBCEllFAB<D> exists
     template <class D>
-    struct IsContainer<D, typename std::enable_if<IsBaseEBCellFAB<D>::value>::type > : std::true_type {};
+    struct IsXFab<D, typename std::enable_if<IsBaseEBCellFAB<D>::value>::type > : std::true_type {};
 
     //// Exists if IsBaseFab<D> exists - but fails with 
     template <class D>   
-    struct IsContainer<D, typename std::enable_if<IsBaseFab<D>::value>::type > : std::true_type {};
+    struct IsXFab<D, typename std::enable_if<IsBaseFab<D>::value>::type > : std::true_type {};
 
 }
 
