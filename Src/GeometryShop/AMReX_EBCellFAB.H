@@ -220,7 +220,19 @@ namespace amrex
         return *this;
       }
     
+    void plus (Real r, const Box& bx, int comp, int ncomp);
+    void plus (Real r, const Box& bx);
+    void mult (Real r, const Box& bx, int comp, int ncomp);
 
+
+    EBCellFAB& invert (Real       val,
+                       const Box& subbox,
+                       int        comp,
+                       int        numcomp);
+
+    EBCellFAB& negate (const Box& b,
+                       int        comp,
+                       int        numcomp);
 
     ///
     /**
@@ -249,7 +261,35 @@ namespace amrex
                      int a_destcomp,
                      int a_numcomp);
 
+    ///
+    /**
+       done over bx
+    */
+    EBCellFAB& minus(const EBCellFAB& a_ebfab,
+                     const Box& bx,
+                     int a_srccomp,
+                     int a_destcomp,
+                     int a_numcomp);
+   /**
+     *
+     * Set the initial value - either to initval or NaN
+     * 
+     */
+    void initVal ();
 
+    bool contains_nan(const Box& bx, int scomp, int ncomp) const;
+    bool contains_inf(const Box& bx, int scomp, int ncomp) const; 
+
+    static bool set_do_initval (bool tf);
+    static bool get_do_initval ();
+    static Real set_initval    (Real iv);
+    static Real get_initval    ();
+
+    IntVect minIndex (const Box& box, int comp) const;
+    IntVect maxIndex (const Box& box, int comp) const;
+
+    Real norm (const Box& bx, int p, int comp, int ncomp) const;
+    Real sum (const Box& bx, int comp, int ncomp) const;
     ///
     /**
        done over intersection of src, dst
@@ -292,6 +332,12 @@ namespace amrex
     EBCellFAB& divide(const EBCellFAB& a_ebfab,
                       const Box&       srcbox,
                       const Box&       destbox,
+                      int a_srccomp,
+                      int a_destcomp,
+                      int a_numcomp);
+
+    EBCellFAB& divide(const EBCellFAB& a_ebfab,
+                      const Box&       bx,
                       int a_srccomp,
                       int a_destcomp,
                       int a_numcomp);
@@ -362,6 +408,10 @@ namespace amrex
     EBCellFAB(const EBCellFAB& ebcin);
     void operator=(const EBCellFAB& fabin);
 
+    // 
+    static const bool do_initval = true;
+    static constexpr Real initval = 0.0;
+  
   };
 
 

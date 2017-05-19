@@ -128,7 +128,166 @@ namespace amrex
     return *this;
   }
   
+  EBCellFAB&
+  EBCellFAB::minus(const EBCellFAB& a_src,
+                   const Box&        bx,
+                   int               a_srccomp,
+                   int               a_dstcomp,
+                   int               a_numcomp)
+  {
+    return minus( a_src, bx, bx, a_srccomp, a_dstcomp, a_numcomp);
+   
+  }
   
+  EBCellFAB&
+  EBCellFAB::invert (Real val
+                    const Box& bx,
+                    int        comp,
+                    int        ncomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.invert(val, bx, comp, ncomp);
+
+    // Irregular data - if both irrFABs do not contain all of the VOFS in srcbox, and that
+    // box is not the same as the interection between the destbox and the box for the source 
+    // we have a problem. Unlike regular data it isn't so easy to just rework the indexes to
+    // map irregular data with a different index offset into the destination space.
+         
+    Box locRegion =  getRegion() & bx;
+
+    // Optimization - if regular boxes are the same as the destination box, 
+    // the BaseIVFAB<Real>::forall will skip look up and operate on l[i], r[i]
+    bool sameRegBox = ((a_src.m_regFAB.box() == m_regFAB.box() ) == destbox);
+
+    if (!locRegion.isEmpty())
+    {
+      std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+      for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+      {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex()))
+        {
+          for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+          {
+            m_irrFAB(vof, icomp) = a / m_irrFAB(vof, icomp);
+          }
+        }
+      }
+      return *this;
+    }
+  }
+
+  EBCellFAB&
+  EBCellFAB::negate (const Box& bx,
+                     int        comp,
+                     int        ncomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(a_src.isDefined());
+    BL_ASSERT(a_srccomp + a_numcomp <= a_src.nComp());
+    BL_ASSERT(a_dstcomp + a_numcomp <= nComp());
+
+    // Regular data
+    m_regFAB.negate(bx, comp, ncomp);
+
+    // Irregular data - if both irrFABs do not contain all of the VOFS in srcbox, and that
+    // box is not the same as the interection between the destbox and the box for the source 
+    // we have a problem. Unlike regular data it isn't so easy to just rework the indexes to
+    // map irregular data with a different index offset into the destination space.
+         
+    Box locRegion =  getRegion() & bx;
+
+    // Optimization - if regular boxes are the same as the destination box, 
+    // the BaseIVFAB<Real>::forall will skip look up and operate on l[i], r[i]
+    bool sameRegBox = ((a_src.m_regFAB.box() == m_regFAB.box() ) == destbox);
+
+    if (!locRegion.isEmpty())
+    {
+      std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+      for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+      {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex()))
+        {
+          for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+          {
+            m_irrFAB(vof, icomp) = -m_irrFAB(vof, icomp);
+          }
+        }
+      }
+      return *this;
+    }
+  }
+
+  /*
+   *
+   * Scalar addition (a[i] <- a[i] + r) within a Box
+   *
+   */
+
+  void
+  EBCellFAB::plus (Real r, const Box& bx, int comp, int ncomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(comp + ncomp <= nComp());
+
+
+    m_regFAB.plus(r, bx, comp, ncomp);
+
+    Box locRegion = getRegion() & bx;
+    bool sameRegBox = (m_regFAB.box()  == bx);
+
+    std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+    for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+      {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex()))
+        {
+          for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+          {
+            m_irrFAB(vof, icomp) += r;
+          }
+        }
+      }
+  }
+
+  EBCellFAB::plus (Real r, const Box& bx)
+  {
+    plus(r, bx, 0, 1);
+  }
+  
+
+  void
+  EBCellFAB::mult (Real r, const Box& bx, int comp, int ncomp)
+  {
+    BL_ASSERT(isDefined());
+    BL_ASSERT(comp + ncomp <= nComp());
+
+
+    m_regFAB.mult(r, bx, comp, ncomp);
+
+    Box locRegion = getRegion() & bx;
+    bool sameRegBox = (m_regFAB.box()  == bx);
+
+    std::vector<VolIndex>  irrvofs = m_irrFAB.getVoFs();
+    for(int ivof = 0; ivof < irrvofs.size(); ivof++)
+      {
+        const VolIndex& vof = irrvofs[ivof];
+        if(locRegion.contains(vof.gridIndex()))
+        {
+          for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+          {
+            m_irrFAB(vof, icomp) *= r;
+          }
+        }
+      }
+  }
+
   
 
 /**
@@ -208,6 +367,17 @@ namespace amrex
     return *this;
   }
   
+  
+  EBCellFAB&
+  EBCellFAB::divide(const EBCellFAB& a_src,
+                    const Box&       bx,
+                    int              a_srccomp,
+                    int              a_dstcomp,
+                    int              a_numcomp)
+  {
+      return divide(a_src, bx, bx, a_srccomp, a_dstcomp, a_numcomp);
+  }
+
   /**
    * 
    * this = this + a*src
@@ -388,10 +558,7 @@ EBCellFAB::linComb (const EBCellFAB& f1,
  */
   Real dot (const Box& xbx, int xcomp,
 	   const EBCellFAB& y, const Box& ybx, int ycomp,
-	   int numcomp) const;
-
-  Real
-  EBCellFAB::min(const Box& subbox, int a_comp) const
+	   int numcomp) const
   {
     BL_ASSERT(isDefined());
     Real val = 0.0;
@@ -413,6 +580,206 @@ EBCellFAB::linComb (const EBCellFAB& f1,
   }
 }   
 
+/**
+ *
+ * Set the initial value - either to initval or NaN
+ *
+ */
+void
+EBCellFAB::initVal ()
+{
+  BL_ASSERT(do_initval); // init as NaN not implemented
+  setVal(initval);  
+}
+
+bool
+EBCellFAB::set_do_initval (bool tf)
+{
+    bool o_tf = do_initval;
+    do_initval = tf;
+    return o_tf;
+}
+
+bool
+EBCellFAB::get_do_initval ()
+{
+    return do_initval;
+}
+
+Real
+EBCellFAB::set_initval (Real iv)
+{
+    Real o_iv = initval;
+    initval = iv;
+    return o_iv;
+}
+
+Real
+EBCellFAB::get_initval ()
+{
+    return initval;
+}
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+bool
+EBCellFAB::contains_nan(const Box& bx, int scomp, int ncomp) const
+{
+    BL_ASSERT(isDefined());
+
+    const IntVectSet validCells(bx);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+      VolIndex vofi = vit();
+      for (int icomp = scomp; icomp < ncomp; icomp++)
+       {
+          if (std::isnan( (*this)(vofi, icomp)))
+              return true;
+        }
+    }
+    return false;
+  }
+}
+
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+bool
+EBCellFAB::contains_inf(const Box& bx, int scomp, int ncomp) const
+{
+    BL_ASSERT(isDefined());
+
+    const IntVectSet validCells(bx);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+      VolIndex vofi = vit();
+      for (int icomp = scomp; icomp < ncomp; icomp++)
+       {
+          if (std::isinf( (*this)(vofi, icomp)))
+              return true;
+        }
+    }
+    return false;
+
+}
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+IntVect
+EBCellFAB::minIndex(const Box& bx, int comp) const
+{
+    BL_ASSERT(isDefined());
+    Real val = 1.0e30;
+    IntVect _min_loc(bx.smallEnd());
+
+    const IntVectSet validCells(bx);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+        VolIndex vofi = vit();
+        if ((*this)(vofi, a_comp) < val){
+            val = (*this)(vofi, a_comp);
+            _min_loc = vofi.gridIndex();
+        }
+
+    }
+    return _min_loc;
+
+}
+
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+IntVect
+EBCellFAB::maxIndex(const Box& bx, int comp) const
+{
+    BL_ASSERT(isDefined());
+    Real val = -1.0e30;
+    IntVect _max_loc(bx.smallEnd());
+
+    const IntVectSet validCells(bx);
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+        VolIndex vofi = vit();
+        if ((*this)(vofi, a_comp) > val){
+            val = (*this)(vofi, a_comp);
+            _max_loc = vofi.gridIndex();
+        }
+
+    }
+    return _max_loc;
+
+}
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+Real 
+EBCellFAB::norm (const Box& bx, int p, int comp, int ncomp) const
+{
+    BL_ASSERT(isDefined());
+    BL_ASSERT(comp >= 0 && comp + ncomp <= nvar);
+
+    Real nrm;
+
+    const IntVectSet validCells(bx);
+    nrm = 0.0;
+    if (p == 0 || p == 1)
+    {
+        for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+        {
+            VolIndex vofi = vit();
+            for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+            {
+                nrm = max(nrm, abs((*this)(vofi, icomp)));
+            }
+        }
+    }
+    else if (p ==1)
+    {
+        for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+        {
+            VolIndex vofi = vit();
+            for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+            {
+                nrm += abs((*this)(vofi, icomp));
+            }
+        }
+
+    }
+    else
+    {
+        amrex::Error("EBCellFAB::norm(): only p == 0 or p == 1 are supported");
+    }
+    return nrm;
+
+
+}
+
+// Done by looping over vofs to exclude covered cells in the regular data
+// from the check 
+Real 
+EBCellFAB::sum (const Box& bx, int comp, int ncomp) const
+{
+    BL_ASSERT(isDefined());
+    BL_ASSERT(comp >= 0 && comp + ncomp <= nvar);
+
+    Real sum;
+
+    const IntVectSet validCells(bx);
+    sum = 0.0;
+
+    for (VoFIterator vit(validCells, ebbox.getEBGraph()); vit.ok(); ++vit)
+    {
+        VolIndex vofi = vit();
+        for (int icomp = comp; icomp < (comp+ncomp); ++icomp)
+        {
+            sum += abs((*this)(vofi, icomp));
+        }
+    }
+  
+    return sum;
+
+
+}
 
 
   // End of routines to provide a consistent interface with FArrayBox
