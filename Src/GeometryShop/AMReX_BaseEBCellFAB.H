@@ -42,7 +42,7 @@ namespace amrex
   class BaseEBCellFAB
   {
   public:
-
+    typedef T value_type;
     /// for AggStencil
     int numDataTypes() const
       {
@@ -142,6 +142,15 @@ namespace amrex
                  int        a_nstart,
                  int        a_numcomp);
 
+    /**
+    * \brief This function is analogous to the first form of
+    * setVal above, except that instead of setting values on the
+    * Box b, values are set on the complement of b in the domain.
+    */
+    void setComplement (T          x,
+                        const Box& b,
+                        int        ns,
+                        int        num);
     ///
     bool isDefined() const;
 

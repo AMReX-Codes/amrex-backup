@@ -246,6 +246,22 @@ namespace amrex
       m_regFAB.setVal(a_value,a_box,a_nstart,a_numcomp);
     }
   }
+
+  /**
+   *
+   */
+  template <class T>
+  void
+  BaseEBCellFAB<T>::setComplement (const T   x,
+                                   const Box& b, 
+                                   int ns,
+                                   int num)
+  {
+    BoxList b_lst = amrex::boxDiff(getSingleValuedFAB().box(),b);
+    for (BoxList::iterator bli = b_lst.begin(), End = b_lst.end(); bli != End; ++bli)
+        setVal(x, *bli, ns, num);
+
+  }
       
   /*************/
   /*************/
