@@ -150,6 +150,7 @@ namespace amrex
         define(a_domain, a_grids, a_dm, a_nghost, a_graph, a_data);
       }
 
+
     int getGhost() const
       {
         return m_nghost;
@@ -342,6 +343,11 @@ namespace amrex
       {
         m_implem = std::shared_ptr<EBISLayoutImplem>(new EBISLayoutImplem(a_domain, a_grids, a_dm, a_nghost, a_graph, a_data));
       }
+
+    // EBISLayout(const EBISLayout& rhs)
+    // {
+    //     m_implem = std::shared_ptr<EBISLayoutImplem>(new EBISLayoutImplem(*(rhs.m_implem)));
+    // }
 
     bool isDefined() const
       {
