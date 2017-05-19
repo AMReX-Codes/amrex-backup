@@ -106,6 +106,7 @@ struct MFInfo {
     MFInfo& SetAlloc(bool a) { alloc = a; return *this; }
 };
 
+
 template <class FAB>
 class FabArray
     :
@@ -138,7 +139,8 @@ public:
               const MFInfo&              info,
               const FabFactory<FAB>&     factory);
 
-    FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp, int ncomp);
+    FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp, int ncomp,
+              const FabFactory<FAB>& factory);
 
     template <class = typename std::enable_if<IsBaseFab<FAB>::value> >
     FabArray (const BoxArray&            bxs,
@@ -513,10 +515,11 @@ protected:
 
     bool SharedMemory () const { return shmem.alloc; }
 
+    std::unique_ptr<FabFactory<FAB>>  m_fact;
 private:
     
 
-    std::unique_ptr<FabFactory<FAB>>  m_fact;
+
 
     typedef typename std::vector<FAB*>::iterator    Iterator;
 
@@ -825,26 +828,32 @@ FabArray<FAB>::FabArray (const BoxArray&            bxs,
     : shmem()
 {
     m_FA_stats.recordBuild();
-    define(bxs,dm,nvar,ngrow,info,factory);
+    define(bxs,dm,nvar,ngrow,info,&factory);
 }
 
 template <class FAB>
-FabArray<FAB>::FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp, int ncomp)
+FabArray<FAB>::FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp, int ncomp, const FabFactory<FAB>& factory)
     : shmem()
 {
+
+#ifdef BL_USE_EB
+  amrex::Error("Aliasing of EBCellFAB not implemented");
+#else
+
     m_FA_stats.recordBuild();
-    define(rhs.boxArray(), rhs.DistributionMap(), ncomp, rhs.nGrow(), MFInfo().SetAlloc(false));
+    define(rhs.boxArray(), rhs.DistributionMap(), ncomp, rhs.nGrow(), MFInfo().SetAlloc(false), &factory);
 
     if (maketype == amrex::make_alias)
     {
         for (const auto& rhsfab : rhs.m_fabs_v) {
-            m_fabs_v.push_back(new FAB(*rhsfab, amrex::make_alias, scomp, ncomp));
+            m_fabs_v.push_back(new FAB(*rhsfab, amrex::make_alias, scomp, ncomp, &factory));
         }
     }
     else
     {
         amrex::Abort("FabArray: unknown MakeType");
     }
+#endif
 }
 
 template <class FAB>
@@ -963,7 +972,7 @@ FabArray<FAB>::define (const BoxArray&            bxs,
 		       int                        nvar,
 		       int                        ngrow,
 		       const MFInfo&              info,
-                       const FabFactory<FAB>*     factory)
+           const FabFactory<FAB>*     factory)
 {
     define_function_called = true;
 

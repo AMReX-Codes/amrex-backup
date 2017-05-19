@@ -373,29 +373,46 @@ MultiFab::MultiFab (const BoxArray&            bxs,
                     const DistributionMapping& dm,
                     int                        ncomp,
                     int                        ngrow,
-		    const MFInfo&              info)
+		            const MFInfo&              info,
+                    const FabFactory<MF_BASETYPE>& fact)
     :
-    FabArray<FArrayBox>(bxs,dm,ncomp,ngrow,info)
+    FabArray<MF_BASETYPE>(bxs, dm, ncomp, ngrow, info, fact)
+
 {
-    if (SharedMemory() && info.alloc) initVal();  // else already done in FArrayBox
+
+    if (SharedMemory() && info.alloc) initVal();  // else already done in MF_BASETYPE
 #ifdef BL_MEM_PROFILING
     ++num_multifabs;
     num_multifabs_hwm = std::max(num_multifabs_hwm, num_multifabs);
 #endif
 }
 
-MultiFab::MultiFab (const MultiFab& rhs, MakeType maketype, int scomp, int ncomp)
+MultiFab::MultiFab (const BoxArray&            bxs,
+                    const DistributionMapping& dm,
+                    int                        ncomp,
+                    int                        ngrow,
+                    const FabFactory<MF_BASETYPE>& fact)
+
+{
+    const MFInfo& info = MFInfo();
+    MultiFab(bxs,dm,ncomp,ngrow, info, fact);
+}
+
+MultiFab::MultiFab (const MultiFab& rhs, MakeType maketype, int scomp, int ncomp,
+                    const FabFactory<MF_BASETYPE>& fact)
     :
-    FabArray<FArrayBox>(rhs, maketype, scomp, ncomp)
+    FabArray<MF_BASETYPE>(rhs, maketype, scomp, ncomp, fact)
 {
 }
 
+#ifndef BL_USE_EB
 MultiFab::MultiFab (const BoxArray& ba, const DistributionMapping& dm, int ncomp, int ngrow,
                     const Array<Real*>& p)
     :
-    FabArray<FArrayBox>(ba, dm, ncomp, ngrow, p)
+    FabArray<MF_BASETYPE>(ba, dm, ncomp, ngrow, p)
 {
 }
+#endif
 
 MultiFab::~MultiFab()
 {
@@ -421,11 +438,11 @@ MultiFab::define (const BoxArray&            bxs,
                   int                        nvar,
                   int                        ngrow,
                   const MFInfo&              info,
-                  const FabFactory<EBCellFAB>& factory)
+                  const FabFactory<EBCellFAB>* factory)
 {
     this->FabArray<EBCellFAB>::define(bxs,dm,nvar,ngrow,info,factory);
-    if (SharedMemory() && info.alloc) initVal();  // else already done in FArrayBox
-    m_fact = factory;
+    if (SharedMemory() && info.alloc) initVal();  // else already done in MF_BASETYPE
+
 }
 #else
 void
@@ -434,11 +451,10 @@ MultiFab::define (const BoxArray&            bxs,
                   int                        nvar,
                   int                        ngrow,
                   const MFInfo&              info,
-                  const FabFactory<FArrayBox>& factory)
+                  const FabFactory<MF_BASETYPE>* factory)
 {
-    this->FabArray<FArrayBox>::define(bxs,dm,nvar,ngrow,info,factory);
-    if (SharedMemory() && info.alloc) initVal();  // else already done in FArrayBox
-    m_fact = factory;
+    this->FabArray<MF_BASETYPE>::define(bxs,dm,nvar,ngrow,info,factory);
+    if (SharedMemory() && info.alloc) initVal();  // else already done in MF_BASETYPE
 }
 #endif
 
@@ -474,7 +490,7 @@ MultiFab::contains_nan (int scomp,
     {
 	const Box& bx = mfi.growntilebox(ngrow);
 	
-	if (this->FabArray<FArrayBox>::get(mfi).contains_nan(bx,scomp,ncomp))
+	if (this->FabArray<MF_BASETYPE>::get(mfi).contains_nan(bx,scomp,ncomp))
 	    r = true;
     }
 
@@ -510,7 +526,7 @@ MultiFab::contains_inf (int scomp,
     {
 	const Box& bx = mfi.growntilebox(ngrow);
 	
-	if (this->FabArray<FArrayBox>::get(mfi).contains_inf(bx,scomp,ncomp))
+	if (this->FabArray<MF_BASETYPE>::get(mfi).contains_inf(bx,scomp,ncomp))
 	    r = true;
     }
 
@@ -905,7 +921,7 @@ MultiFab::norm2 (int comp) const
     BL_ASSERT(ixType().cellCentered());
 
     // Dot expects two MultiDabs. Make a copy to avoid aliasing.
-    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0);
+    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0, *m_fact);
     MultiFab::Copy(tmpmf, *this, comp, 0, 1, 0);
 
     Real nm2 = MultiFab::Dot(*this, comp, tmpmf, 0, 1, 0);
@@ -916,7 +932,7 @@ MultiFab::norm2 (int comp) const
 Real
 MultiFab::norm2 (int comp, const Periodicity& period) const
 {
-    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0);
+    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0, *m_fact);
     MultiFab::Copy(tmpmf, *this, comp, 0, 1, 0);
 
     auto mask = OverlapMask(period);
@@ -955,7 +971,7 @@ MultiFab::norm2 (const Array<int>& comps) const
 	for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
 	{
 	    const Box& bx = mfi.tilebox();
-	    const FArrayBox& fab = get(mfi);
+	    const MF_BASETYPE& fab = get(mfi);
             for (int i=0; i<n; i++) {
 		priv_nm2[tid][i] += fab.dot(bx,comps[i],fab,bx,comps[i]);
             }
@@ -983,7 +999,7 @@ MultiFab::norm2 (const Array<int>& comps) const
 Real
 MultiFab::norm1 (int comp, const Periodicity& period) const
 {
-    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0);
+    MultiFab tmpmf(boxArray(), DistributionMapping(), 1, 0, *m_fact);
     MultiFab::Copy(tmpmf, *this, comp, 0, 1, 0);
 
     auto mask = OverlapMask(period);
@@ -1324,7 +1340,7 @@ MultiFab::SumBoundary (int scomp, int ncomp, const Periodicity& period)
 	// Self copy is safe only for cell-centered MultiFab
 	this->copy(*this,scomp,scomp,ncomp,n_grow,0,period,FabArrayBase::ADD);
     } else {
-	MultiFab tmp(boxArray(), DistributionMap(), ncomp, n_grow);
+	MultiFab tmp(boxArray(), DistributionMap(), ncomp, n_grow, *m_fact);
 	MultiFab::Copy(tmp, *this, scomp, 0, ncomp, n_grow);
 	this->setVal(0.0);
 	this->copy(tmp,0,scomp,ncomp,n_grow,0,period,FabArrayBase::ADD);
@@ -1343,7 +1359,7 @@ MultiFab::OverlapMask (const Periodicity& period) const
     const BoxArray& ba = boxArray();
     const DistributionMapping& dm = DistributionMap();
 
-    std::unique_ptr<MultiFab> p{new MultiFab(ba,dm,1,0)};
+    std::unique_ptr<MultiFab> p{new MultiFab(ba,dm,1,0,*m_fact)};
     p->setVal(0.0);
 
 #ifdef _OPENMP
@@ -1355,7 +1371,7 @@ MultiFab::OverlapMask (const Periodicity& period) const
         
         for (MFIter mfi(*p); mfi.isValid(); ++mfi)
         {
-            FArrayBox& fab = (*p)[mfi];
+            MF_BASETYPE& fab = (*p)[mfi];
             const Box& bx = fab.box();
             for (const auto& iv : pshifts)
             {
@@ -1380,7 +1396,7 @@ MultiFab::AddProcsToComp (int ioProcNumSCS, int ioProcNumAll,
   if(scsMyId != ioProcNumSCS) {
     initialized   = bInit;
   }
-  FabArray<FArrayBox>::AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+  FabArray<MF_BASETYPE>::AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
 }
 
 }
