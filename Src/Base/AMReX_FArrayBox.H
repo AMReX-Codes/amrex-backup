@@ -6,6 +6,7 @@
 #include <AMReX_BaseFab.H>
 #include <AMReX_REAL.H>
 #include <AMReX_SPACE.H>
+#include <AMRex_FabFactory.H>
 
 namespace amrex {
 
@@ -213,7 +214,8 @@ public:
 			bool       alloc=true,
 			bool       shared=false);
 
-    FArrayBox (const FArrayBox& rhs, MakeType make_type, int scomp, int ncomp);
+    FArrayBox (const FArrayBox& rhs, MakeType make_type, 
+               int scomp, int ncomp);
 
     FArrayBox (const Box& b, int ncomp, Real* p);
 

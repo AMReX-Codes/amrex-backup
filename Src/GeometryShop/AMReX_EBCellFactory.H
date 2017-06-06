@@ -43,6 +43,12 @@ namespace amrex
         return new EBCellFAB(ebisBox, box, ncomps);
       }
     ///
+
+    virtual EBCellFAB* create (const EBCellFAB& rhs, MakeType make_type, int scomp, int ncomp)
+    {
+        return new EBCellFAB(rhs, make_type, scomp, ncomp);
+    }
+
     /**
        create the factory with an ispace.  calls full define function
     */

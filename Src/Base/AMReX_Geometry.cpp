@@ -152,15 +152,17 @@ Geometry::Setup (const RealBox* rb, int coord, int* isper)
     amrex::ExecOnFinalize(Geometry::Finalize);
 }
 
+#ifdef NONFUNCTIONAL_FCNS_FACT
 void
 Geometry::GetVolume (MultiFab&       vol,
                      const BoxArray& grds,
-		     const DistributionMapping& dm,
+                     const DistributionMapping& dm,
                      int             ngrow) const
 {
     vol.define(grds,dm,1,ngrow);
     GetVolume(vol);
 }
+#endif
 
 void
 Geometry::GetVolume (MultiFab&       vol) const
@@ -183,6 +185,7 @@ Geometry::GetVolume (FArrayBox&      vol,
     CoordSys::GetVolume(vol, amrex::grow(grds[idx],ngrow));
 }
 
+#ifdef NONFUNCTIONAL_FCNS_FACT
 #if (BL_SPACEDIM <= 2)
 void
 Geometry::GetDLogA (MultiFab&       dloga,
@@ -201,7 +204,9 @@ Geometry::GetDLogA (MultiFab&       dloga,
     }
 }
 #endif
+#endif
 
+#ifdef NONFUNCTIONAL_FCNS_FACT
 void
 Geometry::GetFaceArea (MultiFab&       area,
                        const BoxArray& grds,
@@ -215,6 +220,7 @@ Geometry::GetFaceArea (MultiFab&       area,
 
     GetFaceArea(area, dir);
 }
+#endif
 
 void
 Geometry::GetFaceArea (MultiFab&       area,

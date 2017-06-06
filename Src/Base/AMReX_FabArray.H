@@ -147,7 +147,8 @@ public:
               const DistributionMapping& dm,
               int                        nvar,
               int                        ngrow,
-              const Array<value_type*>&  pval);
+              const Array<value_type*>&  pval,
+              const FabFactory<FAB>&     factory);
 
     //! The destructor -- deletes all FABs in the array.
     virtual ~FabArray ();
@@ -846,7 +847,8 @@ FabArray<FAB>::FabArray (const FabArray<FAB>& rhs, MakeType maketype, int scomp,
     if (maketype == amrex::make_alias)
     {
         for (const auto& rhsfab : rhs.m_fabs_v) {
-            m_fabs_v.push_back(new FAB(*rhsfab, amrex::make_alias, scomp, ncomp, &factory));
+            // m_fabs_v.push_back(new FAB(*rhsfab, amrex::make_alias, scomp, ncomp));
+            m_fabs_v.push_back(factory.create(*rhsfab, amrex::make_alias, scomp, ncomp));
         }
     }
     else
@@ -862,14 +864,15 @@ FabArray<FAB>::FabArray (const BoxArray&            bxs,
                          const DistributionMapping& dm,
                          int                        nvar,
                          int                        ngrow,
-                         const Array<value_type*>&  pval)
+                         const Array<value_type*>&  pval,
+                         const FabFactory<FAB>&     factory)
     : shmem()
 {
     m_FA_stats.recordBuild();
-    define(bxs,dm,nvar,ngrow,MFInfo().SetAlloc(false));
+    define(bxs,dm,nvar,ngrow,MFInfo().SetAlloc(false),&factory);
 
     for (MFIter mfi(*this); mfi.isValid(); ++mfi) {
-        setFab(mfi, new FAB(mfi.fabbox(),nvar,pval[mfi.LocalIndex()]));
+        setFab(mfi, factory.create(mfi.fabbox(),nvar,pval[mfi.LocalIndex()]));
     }
 }
 

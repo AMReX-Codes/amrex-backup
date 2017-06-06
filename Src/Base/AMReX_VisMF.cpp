@@ -645,11 +645,7 @@ VisMF::Header::Header (const FabArray<FABARRAY_TEMPL>& mf,
     // Store a pointer to the factory necessary to build the FABs. 
     // Maybe this should make it's own copy but for now assume
     // that mf will outlive the VisMF
-#ifdef BL_USE_EB
-    m_fact = static_cast<const EBCellFactory*>(mf.Factory());
-#else
-    m_fact = static_cast<const DefaultFabFactory*>(mf.Factory());
-#endif
+    m_fact = static_cast<const FabFactory<FABARRAY_TEMPL>*>(mf.Factory());
     BL_PROFILE("VisMF::Header");
 
     if(version == NoFabHeader_v1) {

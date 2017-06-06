@@ -405,14 +405,14 @@ MultiFab::MultiFab (const MultiFab& rhs, MakeType maketype, int scomp, int ncomp
 {
 }
 
-#ifndef BL_USE_EB
+
 MultiFab::MultiFab (const BoxArray& ba, const DistributionMapping& dm, int ncomp, int ngrow,
-                    const Array<Real*>& p)
+                    const Array<Real*>& p, const FabFactory<MF_BASETYPE>& fact )
     :
-    FabArray<MF_BASETYPE>(ba, dm, ncomp, ngrow, p)
+    FabArray<MF_BASETYPE>(ba, dm, ncomp, ngrow, p, fact )
 {
 }
-#endif
+
 
 MultiFab::~MultiFab()
 {

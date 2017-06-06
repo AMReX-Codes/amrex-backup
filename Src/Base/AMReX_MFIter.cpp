@@ -51,9 +51,9 @@ MFIter::MFIter (const FabArrayBase& fabarray_,
     Initialize();
 }
 
-MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, unsigned char flags_)
+MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, unsigned char flags_, FabFactory<MF_BASETYPE> fact)
     :
-    m_fa(new FabArray<FArrayBox>(ba, dm, 1, 0, MFInfo().SetAlloc(false))),
+    m_fa(new FabArray<MF_BASETYPE>(ba, dm, 1, 0, MFInfo().SetAlloc(false),fact)),
     fabArray(*m_fa),
     tile_size((flags_ & Tiling) ? FabArrayBase::mfiter_tile_size : IntVect::TheZeroVector()),
     flags(flags_),
@@ -66,9 +66,9 @@ MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, unsigned char
     Initialize();
 }
 
-MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, bool do_tiling_)
+MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, bool do_tiling_, FabFactory<MF_BASETYPE> fact)
     :
-    m_fa(new FabArray<FArrayBox>(ba, dm, 1, 0, MFInfo().SetAlloc(false))),
+    m_fa(new FabArray<MF_BASETYPE>(ba, dm, 1, 0, MFInfo().SetAlloc(false),fact)),
     fabArray(*m_fa),
     tile_size((do_tiling_) ? FabArrayBase::mfiter_tile_size : IntVect::TheZeroVector()),
     flags(do_tiling_ ? Tiling : 0),
@@ -83,9 +83,10 @@ MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, bool do_tilin
 
 
 MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm,
-                const IntVect& tilesize_, unsigned char flags_)
+                const IntVect& tilesize_, unsigned char flags_,
+                FabFactory<MF_BASETYPE> fact)
     :
-    m_fa(new FabArray<FArrayBox>(ba, dm, 1, 0, MFInfo().SetAlloc(false))),
+    m_fa(new FabArray<MF_BASETYPE>(ba, dm, 1, 0, MFInfo().SetAlloc(false),fact)),
     fabArray(*m_fa),
     tile_size(tilesize_),
     flags(flags_ | Tiling),

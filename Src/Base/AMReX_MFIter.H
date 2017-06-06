@@ -7,6 +7,15 @@
 #include <AMReX_IntVect.H>
 #include <AMReX_FArrayBox.H>
 
+#include <AMReX_FabFactory.H>
+
+#ifdef BL_USE_EB
+#include <AMReX_EBCellFAB.H>
+#define MF_BASETYPE EBCellFAB
+#else
+#define MF_BASETYPE FArrayBox
+#endif
+
 namespace amrex {
 
 template<class T> class FabArray;
@@ -47,12 +56,12 @@ public:
 	    const IntVect&      tilesize,
 	    unsigned char       flags_=0);
 
-    MFIter (const BoxArray& ba, const DistributionMapping& dm, unsigned char flags_=0);
+    MFIter (const BoxArray& ba, const DistributionMapping& dm, unsigned char flags_=0, FabFactory<MF_BASETYPE> = DefaultFabFactory<MF_BASETYPE>());
 
-    MFIter (const BoxArray& ba, const DistributionMapping& dm, bool do_tiling); 
+    MFIter (const BoxArray& ba, const DistributionMapping& dm, bool do_tiling, FabFactory<MF_BASETYPE> = DefaultFabFactory<MF_BASETYPE>()); 
 
     MFIter (const BoxArray& ba, const DistributionMapping& dm,
-	    const IntVect& tilesize, unsigned char flags_=0);
+	    const IntVect& tilesize, unsigned char flags_=0, FabFactory<MF_BASETYPE> = DefaultFabFactory<MF_BASETYPE>());
 
     MFIter (MFIter&& rhs) = default;
 
@@ -108,7 +117,7 @@ public:
 
 protected:
 
-    std::unique_ptr<FabArray<FArrayBox> > m_fa;  // This must be the first memeber!
+    std::unique_ptr<FabArray<MF_BASETYPE> > m_fa;  // This must be the first memeber!
 
     const FabArrayBase& fabArray;
 
@@ -127,6 +136,7 @@ protected:
     const Array<int>* num_local_tiles;
   
     void Initialize ();
+
 };
 
 //! Iterate over ghost cells.  Lots of MFIter functions do not work.

@@ -42,7 +42,8 @@ public:
 	       const DistributionMapping& dm,
 	       int                        ncomp,
 	       int                        ngrow,
-	       const MFInfo&              info = MFInfo());
+	       const MFInfo&              info = MFInfo(),
+           FabFactory<IArrayBox> factory = DefaultFabFactory<IArrayBox>());
 
     /**
      * \brief Make an alias iMultiFab. maketype must be
@@ -50,7 +51,8 @@ public:
      * alias and ncomp is the number of components in the new aliasing
      * iMultiFab.
      */
-    iMultiFab (const iMultiFab& rhs, MakeType maketype, int scomp, int ncomp);
+    iMultiFab (const iMultiFab& rhs, MakeType maketype, int scomp, int ncomp,
+               FabFactory<IArrayBox> factory = DefaultFabFactory<IArrayBox>());
 
     virtual ~iMultiFab () override = default;
     

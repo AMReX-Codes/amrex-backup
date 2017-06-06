@@ -105,9 +105,9 @@ public:
         int                  m_ngrow; // The number of ghost cells in MF.
         BoxArray             m_ba;    // The BoxArray of the MF.
         Array< FabOnDisk >   m_fod;   // FabOnDisk info for contained FABs.
-#ifdef BL_USE_EB
+
         const FabFactory<FABARRAY_TEMPL> * m_fact;    // The EBIS layout of the MF.
-#endif
+
 	//
 	// These are not defined if they are not in the header
 	//

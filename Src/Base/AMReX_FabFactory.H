@@ -29,6 +29,7 @@ class FabFactory
 public:
     virtual ~FabFactory () {}
     virtual FAB* create (const Box& box, int ncomps, const FabInfo& info, int box_index) const = 0;
+    virtual FAB* create (const FAB& rhs, MakeType make_type, int scomp, int ncomp) const;
     virtual FabFactory<FAB>* make_copy() const;
     FabFactory( ) { }
     FabFactory( const FabFactory& rhs) { }
@@ -43,6 +44,11 @@ public:
     virtual FAB* create (const Box& box, int ncomps, const FabInfo& info, int box_index) const override
     {
         return new FAB(box, ncomps, info.alloc, info.shared);
+    }
+
+    virtual FAB* create (const FAB& rhs, MakeType make_type, int scomp, int ncomp)
+    {
+        return new FAB(*rhs, make_type, scomp, ncomp);
     }
 
     virtual FabFactory<FAB>* make_copy() {return new DefaultFabFactory();}

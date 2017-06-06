@@ -75,15 +75,15 @@ public:
      * alias and ncomp is the number of components in the new aliasing
      * MultiFab.
      */
-    MultiFab (const MultiFab& rhs, MakeType maketype, int scomp, int ncomp, const FabFactory<MF_BASETYPE>& fact);
+    MultiFab (const MultiFab& rhs, MakeType maketype,
+              int scomp, int ncomp, const FabFactory<MF_BASETYPE>& fact);
 
     /**
      * \brief Make an ALIAS MultiFab given an array of Real pointers.
      */
-#ifndef BL_USE_EB
+
     MultiFab (const BoxArray& ba, const DistributionMapping& dm, int ncomp, int ngrow,
-              const Array<Real*>& p);
-#endif
+              const Array<Real*>& p, const FabFactory<MF_BASETYPE>& fact );
 
     virtual ~MultiFab () override;
 
@@ -93,21 +93,15 @@ public:
     MultiFab& operator= (const MultiFab& rhs) = delete;
     MultiFab& operator= (MultiFab&& rhs) = delete;
 
-#ifdef BL_USE_EB
+
     virtual void define (const BoxArray&            bxs,
                          const DistributionMapping& dm,
                          int                        nvar,
                          int                        ngrow,
                          const MFInfo&              info,
-                         const FabFactory<EBCellFAB>* factory) override;
-#else
-    virtual void define (const BoxArray&            bxs,
-                         const DistributionMapping& dm,
-                         int                        nvar,
-                         int                        ngrow,
-                         const MFInfo&              info = MFInfo(),
                          const FabFactory<MF_BASETYPE>* factory) override;
-#endif
+
+
 
     void operator= (const Real& r);
     //

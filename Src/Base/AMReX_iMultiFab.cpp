@@ -204,15 +204,17 @@ iMultiFab::iMultiFab (const BoxArray&            bxs,
                       const DistributionMapping& dm,
                       int                        ncomp,
                       int                        ngrow,
-		      const MFInfo&              info)
+                      const MFInfo&              info,
+                      FabFactory<IArrayBox> factory)
     :
-    FabArray<IArrayBox>(bxs,dm,ncomp,ngrow,info)
+    FabArray<IArrayBox>(bxs,dm,ncomp,ngrow,info,factory)
 {
 }
 
-iMultiFab::iMultiFab (const iMultiFab& rhs, MakeType maketype, int scomp, int ncomp)
+iMultiFab::iMultiFab (const iMultiFab& rhs, MakeType maketype, int scomp, int ncomp,
+                      FabFactory<IArrayBox> factory)
     :
-    FabArray<IArrayBox>(rhs, maketype, scomp, ncomp)
+    FabArray<IArrayBox>(rhs, maketype, scomp, ncomp, factory)
 {
 }
 
