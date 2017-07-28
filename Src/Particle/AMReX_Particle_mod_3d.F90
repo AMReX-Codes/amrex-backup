@@ -1,7 +1,7 @@
 module amrex_particle_module
 
   use iso_c_binding
-  use amrex_fort_module, only : amrex_real
+  use amrex_fort_module, only : amrex_real, amrex_particle_real
 
   implicit none
 
@@ -14,9 +14,9 @@ contains
 
   subroutine amrex_particle_set_position (particles, ns, np, x, y, z) &
        bind(c,name='amrex_particle_set_position')
-    integer(c_int)  , intent(in   ), value :: ns, np
-    real(amrex_real), intent(inout)        :: particles(ns,np)
-    real(amrex_real), intent(in   )        :: x(np), y(np), z(np)
+    integer(c_int)  ,          intent(in   ), value :: ns, np
+    real(amrex_particle_real), intent(inout)        :: particles(ns,np)
+    real(amrex_real),          intent(in   )        :: x(np), y(np), z(np)
 
     integer :: i
 
@@ -29,9 +29,9 @@ contains
 
   subroutine amrex_particle_get_position (particles, ns, np, x, y, z) &
        bind(c,name='amrex_particle_get_position')
-    integer(c_int)  , intent(in   ), value :: ns, np
-    real(amrex_real), intent(in   )        :: particles(ns,np)
-    real(amrex_real), intent(  out)        :: x(np), y(np), z(np)
+    integer(c_int)  ,          intent(in   ), value :: ns, np
+    real(amrex_particle_real), intent(in   )        :: particles(ns,np)
+    real(amrex_real),          intent(  out)        :: x(np), y(np), z(np)
 
     integer :: i
 
@@ -42,17 +42,17 @@ contains
     end do
   end subroutine amrex_particle_get_position
 
-  subroutine amrex_deposit_cic(particles, ns, np, rho, lo, hi, plo, dx) &
+  subroutine amrex_deposit_cic(particles, ns, np, nc, rho, lo, hi, plo, dx) &
        bind(c,name='amrex_deposit_cic')
-    integer, value       :: ns, np
-    real(amrex_real)     :: particles(ns,np)
-    integer              :: lo(3)
-    integer              :: hi(3)
-    real(amrex_real)     :: rho(lo(1):hi(1), lo(2):hi(2), lo(3):hi(3))
-    real(amrex_real)     :: plo(3)
-    real(amrex_real)     :: dx(3)
+    integer, value                :: ns, np, nc
+    real(amrex_particle_real)     :: particles(ns,np)
+    integer                       :: lo(3)
+    integer                       :: hi(3)
+    real(amrex_real)              :: rho(lo(1):hi(1), lo(2):hi(2), lo(3):hi(3),nc)
+    real(amrex_real)              :: plo(3)
+    real(amrex_real)              :: dx(3)
 
-    integer i, j, k, n
+    integer i, j, k, n, comp
     real(amrex_real) wx_lo, wy_lo, wz_lo, wx_hi, wy_hi, wz_hi
     real(amrex_real) lx, ly, lz
     real(amrex_real) inv_dx(3)
@@ -75,14 +75,25 @@ contains
        wy_lo = 1.0d0 - wy_hi
        wz_lo = 1.0d0 - wz_hi
 
-       rho(i-1, j-1, k-1) = rho(i-1, j-1, k-1) + wx_lo*wy_lo*wz_lo*particles(4, n)
-       rho(i-1, j-1, k)   = rho(i-1, j-1, k)   + wx_lo*wy_lo*wz_hi*particles(4, n)
-       rho(i-1, j,   k-1) = rho(i-1, j,   k-1) + wx_lo*wy_hi*wz_lo*particles(4, n)
-       rho(i-1, j,   k)   = rho(i-1, j,   k)   + wx_lo*wy_hi*wz_hi*particles(4, n)
-       rho(i,   j-1, k-1) = rho(i,   j-1, k-1) + wx_hi*wy_lo*wz_lo*particles(4, n)
-       rho(i,   j-1, k)   = rho(i,   j-1, k)   + wx_hi*wy_lo*wz_hi*particles(4, n)
-       rho(i,   j,   k-1) = rho(i,   j,   k-1) + wx_hi*wy_hi*wz_lo*particles(4, n)
-       rho(i,   j,   k)   = rho(i,   j,   k)   + wx_hi*wy_hi*wz_hi*particles(4, n)
+       rho(i-1, j-1, k-1, 1) = rho(i-1, j-1, k-1, 1) + wx_lo*wy_lo*wz_lo*particles(4, n)
+       rho(i-1, j-1, k  , 1) = rho(i-1, j-1, k  , 1) + wx_lo*wy_lo*wz_hi*particles(4, n)
+       rho(i-1, j,   k-1, 1) = rho(i-1, j,   k-1, 1) + wx_lo*wy_hi*wz_lo*particles(4, n)
+       rho(i-1, j,   k  , 1) = rho(i-1, j,   k,   1) + wx_lo*wy_hi*wz_hi*particles(4, n)
+       rho(i,   j-1, k-1, 1) = rho(i,   j-1, k-1, 1) + wx_hi*wy_lo*wz_lo*particles(4, n)
+       rho(i,   j-1, k  , 1) = rho(i,   j-1, k  , 1) + wx_hi*wy_lo*wz_hi*particles(4, n)
+       rho(i,   j,   k-1, 1) = rho(i,   j,   k-1, 1) + wx_hi*wy_hi*wz_lo*particles(4, n)
+       rho(i,   j,   k  , 1) = rho(i,   j,   k  , 1) + wx_hi*wy_hi*wz_hi*particles(4, n)
+
+       do comp = 2, nc
+          rho(i-1, j-1, k-1, comp) = rho(i-1, j-1, k-1, comp) + wx_lo*wy_lo*wz_lo*particles(4, n)*particles(3+comp, n)
+          rho(i-1, j-1, k  , comp) = rho(i-1, j-1, k  , comp) + wx_lo*wy_lo*wz_hi*particles(4, n)*particles(3+comp, n)
+          rho(i-1, j,   k-1, comp) = rho(i-1, j,   k-1, comp) + wx_lo*wy_hi*wz_lo*particles(4, n)*particles(3+comp, n)
+          rho(i-1, j,   k  , comp) = rho(i-1, j,   k,   comp) + wx_lo*wy_hi*wz_hi*particles(4, n)*particles(3+comp, n)
+          rho(i,   j-1, k-1, comp) = rho(i,   j-1, k-1, comp) + wx_hi*wy_lo*wz_lo*particles(4, n)*particles(3+comp, n)
+          rho(i,   j-1, k  , comp) = rho(i,   j-1, k  , comp) + wx_hi*wy_lo*wz_hi*particles(4, n)*particles(3+comp, n)
+          rho(i,   j,   k-1, comp) = rho(i,   j,   k-1, comp) + wx_hi*wy_hi*wz_lo*particles(4, n)*particles(3+comp, n)
+          rho(i,   j,   k  , comp) = rho(i,   j,   k  , comp) + wx_hi*wy_hi*wz_hi*particles(4, n)*particles(3+comp, n)
+       end do
 
     end do
 
@@ -90,14 +101,14 @@ contains
 
   subroutine amrex_interpolate_cic(particles, ns, np, acc, lo, hi, ncomp, plo, dx) &
        bind(c,name='amrex_interpolate_cic')
-    integer, value       :: ns, np, ncomp
-    real(amrex_real)     :: particles(ns,np)
-    integer              :: lo(3)
-    integer              :: hi(3)
-    real(amrex_real)     :: acc(lo(1):hi(1), lo(2):hi(2), lo(3):hi(3), ncomp)
-    real(amrex_real)     :: plo(3)
-    real(amrex_real)     :: dx(3)
-    real(amrex_real)     :: acceleration(ncomp)
+    integer, value                :: ns, np, ncomp
+    real(amrex_particle_real)     :: particles(ns,np)
+    integer                       :: lo(3)
+    integer                       :: hi(3)
+    real(amrex_real)              :: acc(lo(1):hi(1), lo(2):hi(2), lo(3):hi(3), ncomp)
+    real(amrex_real)              :: plo(3)
+    real(amrex_real)              :: dx(3)
+    real(amrex_real)              :: acceleration(ncomp)
 
     integer i, j, k, n, nc
     real(amrex_real) wx_lo, wy_lo, wz_lo, wx_hi, wy_hi, wz_hi

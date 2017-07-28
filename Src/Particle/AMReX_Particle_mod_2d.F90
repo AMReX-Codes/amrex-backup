@@ -1,7 +1,7 @@
 module amrex_particle_module
 
   use iso_c_binding
-  use amrex_fort_module, only : amrex_real
+  use amrex_fort_module, only : amrex_real, amrex_particle_real
 
   implicit none
 
@@ -13,9 +13,9 @@ contains
 
   subroutine amrex_particle_set_position (particles, ns, np, x, y) &
        bind(c,name='amrex_particle_set_position')
-    integer(c_int)  , intent(in   ), value :: ns, np
-    real(amrex_real), intent(inout)        :: particles(ns,np)
-    real(amrex_real), intent(in   )        :: x(np), y(np)
+    integer(c_int)  ,          intent(in   ), value :: ns, np
+    real(amrex_particle_real), intent(inout)        :: particles(ns,np)
+    real(amrex_real),          intent(in   )        :: x(np), y(np)
 
     integer :: i
 
@@ -27,9 +27,9 @@ contains
 
   subroutine amrex_particle_get_position (particles, ns, np, x, y) &
        bind(c,name='amrex_particle_get_position')
-    integer(c_int)  , intent(in   ), value :: ns, np
-    real(amrex_real), intent(in   )        :: particles(ns,np)
-    real(amrex_real), intent(  out)        :: x(np), y(np)
+    integer(c_int)  ,          intent(in   ), value :: ns, np
+    real(amrex_particle_real), intent(in   )        :: particles(ns,np)
+    real(amrex_real),          intent(  out)        :: x(np), y(np)
 
     integer :: i
 
@@ -39,17 +39,17 @@ contains
     end do
   end subroutine amrex_particle_get_position
 
-  subroutine amrex_deposit_cic(particles, ns, np, rho, lo, hi, plo, dx) &
+  subroutine amrex_deposit_cic(particles, ns, np, nc, rho, lo, hi, plo, dx) &
        bind(c,name='amrex_deposit_cic')
-    integer, value       :: ns, np
-    real(amrex_real)     :: particles(ns,np)
-    integer              :: lo(2)
-    integer              :: hi(2)
-    real(amrex_real)     :: rho(lo(1):hi(1), lo(2):hi(2))
-    real(amrex_real)     :: plo(2)
-    real(amrex_real)     :: dx(2)
+    integer, value                :: ns, np, nc
+    real(amrex_particle_real)     :: particles(ns,np)
+    integer                       :: lo(2)
+    integer                       :: hi(2)
+    real(amrex_real)              :: rho(lo(1):hi(1), lo(2):hi(2), nc)
+    real(amrex_real)              :: plo(2)
+    real(amrex_real)              :: dx(2)
 
-    integer i, j, n
+    integer i, j, n, comp
     real(amrex_real) wx_lo, wy_lo, wx_hi, wy_hi
     real(amrex_real) lx, ly
     real(amrex_real) inv_dx(2)
@@ -68,25 +68,26 @@ contains
        wx_lo = 1.0d0 - wx_hi
        wy_lo = 1.0d0 - wy_hi
 
-       rho(i-1, j-1)   = rho(i-1, j-1)   + wx_lo*wy_lo*particles(3, n)
-       rho(i-1, j  )   = rho(i-1, j  )   + wx_lo*wy_hi*particles(3, n)
-       rho(i,   j-1)   = rho(i,   j-1)   + wx_hi*wy_lo*particles(3, n)
-       rho(i,   j  )   = rho(i,   j  )   + wx_hi*wy_hi*particles(3, n)
-
+       do comp = 1, nc
+          rho(i-1, j-1, comp) = rho(i-1, j-1, comp)   + wx_lo*wy_lo*particles(2+comp, n)
+          rho(i-1, j  , comp) = rho(i-1, j  , comp)   + wx_lo*wy_hi*particles(2+comp, n)
+          rho(i,   j-1, comp) = rho(i,   j-1, comp)   + wx_hi*wy_lo*particles(2+comp, n)
+          rho(i,   j  , comp) = rho(i,   j  , comp)   + wx_hi*wy_hi*particles(2+comp, n)
+       end do
     end do
 
   end subroutine amrex_deposit_cic
 
   subroutine amrex_interpolate_cic(particles, ns, np, acc, lo, hi, ncomp, plo, dx) &
        bind(c,name='amrex_interpolate_cic')
-    integer, value       :: ns, np, ncomp
-    real(amrex_real)     :: particles(ns,np)
-    integer              :: lo(2)
-    integer              :: hi(2)
-    real(amrex_real)     :: acc(lo(1):hi(1), lo(2):hi(2), ncomp)
-    real(amrex_real)     :: plo(2)
-    real(amrex_real)     :: dx(2)
-    real(amrex_real)     :: acceleration(ncomp)
+    integer, value                :: ns, np, ncomp
+    real(amrex_particle_real)     :: particles(ns,np)
+    integer                       :: lo(2)
+    integer                       :: hi(2)
+    real(amrex_real)              :: acc(lo(1):hi(1), lo(2):hi(2), ncomp)
+    real(amrex_real)              :: plo(2)
+    real(amrex_real)              :: dx(2)
+    real(amrex_real)              :: acceleration(ncomp)
 
     integer i, j, n, nc
     real(amrex_real) wx_lo, wy_lo, wx_hi, wy_hi

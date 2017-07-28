@@ -4,13 +4,19 @@ module amrex_fort_module
 
   implicit none
 
-  integer, parameter ::    bl_spacedim = BL_SPACEDIM
-  integer, parameter :: amrex_spacedim = BL_SPACEDIM
+  integer, parameter ::    bl_spacedim = AMREX_SPACEDIM
+  integer, parameter :: amrex_spacedim = AMREX_SPACEDIM
 
 #ifdef BL_USE_FLOAT
   integer, parameter :: amrex_real = c_float
 #else
   integer, parameter :: amrex_real = c_double
+#endif
+
+#ifdef BL_SINGLE_PRECISION_PARTICLES
+  integer, parameter :: amrex_particle_real = c_float
+#else
+  integer, parameter :: amrex_particle_real = c_double
 #endif
 
 contains
