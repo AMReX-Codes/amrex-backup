@@ -7,23 +7,25 @@ module nbrsTest_nd_module
 
 contains
 
-  subroutine fill_redist_stencil(lo, hi, slo, shi, sten, Nsten, mask, mask_lo, mask_hi, &
-       vf, vf_lo, vf_hi) bind(C,name="fill_redist_stencil")
+  subroutine fill_redist_stencil(lo, hi, slo, shi, sten, Nsten, &
+       mask, mask_lo, mask_hi, &
+       vf,   vf_lo,   vf_hi) bind(C,name="fill_redist_stencil")
 
     integer,          intent(in) ::  lo(0:2),  hi(0:2)
     integer,          intent(in) :: slo(0:2), shi(0:2)
     integer,          intent(in) :: Nsten
     type(nbr_sten),intent(inout) :: sten(0:Nsten-1)
-    integer,          intent(in) :: mask_lo(3), mask_hi(3)
-    integer,          intent(in) :: vf_lo(3), vf_hi(3)
-    integer,          intent(in) :: mask(mask_lo(1):mask_hi(1),mask_lo(2):mask_hi(2),mask_lo(3):mask_hi(3))
-    real(amrex_real), intent(in) :: vf(vf_lo(1):vf_hi(1),vf_lo(2):vf_hi(2),vf_lo(3):vf_hi(3))
+    integer,          intent(in) :: mask_lo(0:2), mask_hi(0:2)
+    integer,          intent(in) ::   vf_lo(0:2), vf_hi(0:2)
+    integer,          intent(in) :: mask(mask_lo(0):mask_hi(0),mask_lo(1):mask_hi(1),mask_lo(2):mask_hi(2))
+    real(amrex_real), intent(in) ::    vf( vf_lo(0):vf_hi(0),    vf_lo(1):vf_hi(1),    vf_lo(2):vf_hi(2))
     integer :: i,j,k,n,ii,jj,kk,iii,jjj,kkk
     real(amrex_real) :: kappa_tot
 
     ! Note: mask is such that 1=reg, 0=sv, -1=covered, 2=mv, -2=outside domain, -3=crse
 
     do n = 0, Nsten-1
+
        i = sten(n) % iv(0)
        j = sten(n) % iv(1)
        k = sten(n) % iv(2)
@@ -78,14 +80,15 @@ contains
     integer,          intent(in   ) :: slo(0:2), shi(0:2)
     integer,          intent(in   ) :: Nsten
     type(nbr_sten),   intent(in   ) :: sten(0:Nsten-1)
-    integer,          intent(in   ) ::  vin_lo(3),  vin_hi(3)
-    integer,          intent(in   ) :: vout_lo(3), vout_hi(3)
-    real(amrex_real), intent(in   ) ::  vin( vin_lo(1):vin_hi(1),  vin_lo(2):vin_hi(2),  vin_lo(3):vin_hi(3))
-    real(amrex_real), intent(inout) :: vout(vout_lo(1):vout_hi(1),vout_lo(2):vout_hi(2),vout_lo(3):vout_hi(3))
+    integer,          intent(in   ) ::  vin_lo(0:2),  vin_hi(0:2)
+    integer,          intent(in   ) :: vout_lo(0:2), vout_hi(0:2)
+    real(amrex_real), intent(in   ) ::  vin( vin_lo(0):vin_hi(0),  vin_lo(1):vin_hi(1),  vin_lo(2):vin_hi(2))
+    real(amrex_real), intent(inout) :: vout(vout_lo(0):vout_hi(0),vout_lo(1):vout_hi(1),vout_lo(2):vout_hi(2))
     integer :: i,j,k,n,ii,jj,kk,iii,jjj,kkk
     real(amrex_real) :: vtot
 
     do n = 0, Nsten-1
+
        i = sten(n) % iv(0)
        j = sten(n) % iv(1)
        k = sten(n) % iv(2)

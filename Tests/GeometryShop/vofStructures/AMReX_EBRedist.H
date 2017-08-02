@@ -9,7 +9,7 @@ typedef std::array<int,3>  intDIM;
 
 struct NbrSten
 {
-    amrex::Real data[3][3][3];
+    amrex::Real val[3][3][3];
     intDIM iv;
 };
 

@@ -118,7 +118,7 @@ extern "C"
 			     NbrSten* redistSten, const int* Nsten,
 			     const BL_FORT_IFAB_ARG_3D(imask),
 			     BL_FORT_FAB_ARG_3D(vfrac));
-    
+
     void apply_redist_stencil(const int* lo,  const int*  hi,
                               const int* slo, const int* shi,
                               NbrSten* redistSten, const int* Nsten,
@@ -160,6 +160,7 @@ int myTest()
     imask.FillBoundary();
 
     MultiFab vfrac(ba,dm,1,1);
+
     for(MFIter  mfi(vfrac); mfi.isValid(); ++mfi)
     {
         const EBISBox& ebis = eblg.getEBISL()[mfi];
@@ -177,9 +178,11 @@ int myTest()
 	    {
 		std::vector<VolIndex> vofs = ebis.getVoFs(iv);
 		Real vtot = 0;
+                BL_ASSERT(vofs.size()<=1);
 		for (int j=0; j<vofs.size(); ++j)
 		{
-		    vtot += ebis.volFrac(vofs[j]);
+                    const VolIndex& vof = vofs[j];
+		    vtot += ebis.volFrac(vof);
 		}
 		vfab(iv,0) = vtot;
 	    }
@@ -189,7 +192,9 @@ int myTest()
 
     const Box stenBox(IntVect(D_DECL(-1,-1,-1)),
                       IntVect(D_DECL(+1,+1,+1)));
+    intDIM idx3;
 
+    FArrayBox stenMask(stenBox,1);
     std::map<int,std::vector<NbrSten>> redistSten;
     for(MFIter  mfi(vfrac); mfi.isValid(); ++mfi)
     {
@@ -211,6 +216,47 @@ int myTest()
 		    redistSten[i].push_back(NbrSten());
 		    NbrSten& nbr = redistSten[i].back();
 		    Copy(nbr.iv,iv);
+ 
+                    // set stenMask values to +1 if connected, -1 if not
+                    stenMask.setVal(-1);
+                    const VolIndex& vof = vofs[ivof];
+                    stenMask(IntVect::TheZeroVector(),0) = +1;
+
+                    for (int idir=0; idir<BL_SPACEDIM; ++idir)
+                    {
+                        for (SideIterator sit; sit.ok(); ++sit)
+                        {
+                            std::vector<VolIndex> nbrs = ebis.getVoFs(vof,idir,sit(),1);
+                            for (int inbr=0; inbr<nbrs.size(); ++inbr)
+                            {
+                                const VolIndex& vof1 = nbrs[inbr];
+                                stenMask(vof1.gridIndex() - iv,0) = +1;
+
+                                for (int idir1=0; idir1<BL_SPACEDIM; ++idir1)
+                                {
+                                    if (idir != idir1)
+                                    {
+                                        for (SideIterator sit1; sit1.ok(); ++sit1)
+                                        {
+                                            std::vector<VolIndex> nnbrs = ebis.getVoFs(vof1,idir1,sit1(),1);
+                                            for (int innbr=0; innbr<nnbrs.size(); ++innbr)
+                                            {
+                                                const VolIndex& vof2 = nnbrs[innbr];
+                                                IntVect ivLoc = vof2.gridIndex() - iv;
+                                                BL_ASSERT(stenBox.contains(ivLoc));
+                                                stenMask(ivLoc,0) = +1;
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    for (IntVect ivs=stenBox.smallEnd(); ivs<=stenBox.bigEnd(); stenBox.next(ivs))
+                    {
+                        Copy(idx3,ivs);
+                        nbr.val[idx3[2]][idx3[1]][idx3[2]] = stenMask(ivs,0);
+                    }
                 }
             }
 
