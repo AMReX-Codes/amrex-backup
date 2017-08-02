@@ -189,6 +189,8 @@ int myTest()
 	}
     }
     vfrac.FillBoundary();
+    //Array<std::string> name(1,"vfrac");
+    //WriteSingleLevelPlotfile("pltfile",vfrac,name,geom,0,0,"CartGrid-V2.0");
 
     const Box stenBox(IntVect(D_DECL(-1,-1,-1)),
                       IntVect(D_DECL(+1,+1,+1)));
@@ -255,7 +257,7 @@ int myTest()
                     for (IntVect ivs=stenBox.smallEnd(); ivs<=stenBox.bigEnd(); stenBox.next(ivs))
                     {
                         Copy(idx3,ivs);
-                        nbr.val[idx3[2]][idx3[1]][idx3[2]] = stenMask(ivs,0);
+                        nbr.val[idx3[2]+1][idx3[1]+1][idx3[0]+1] = stenMask(ivs,0);
                     }
                 }
             }

@@ -41,8 +41,7 @@ contains
                 jjj = j+jj
                 do ii=slo(0),shi(0)
                    iii = i+ii
-                   if (mask(iii,jjj,kkk) .eq. 1 &
-                        .or. mask(iii,jjj,kkk) .eq. 0) then
+                   if (sten(n)%val(ii,jj,kk) .gt. 0) then
                       kappa_tot = kappa_tot + vf(iii,jjj,kkk)
                    endif
                 enddo
@@ -57,8 +56,7 @@ contains
                 jjj = j+jj
                 do ii=slo(0),shi(0)
                    iii = i+ii
-                   if (mask(iii,jjj,kkk) .eq. 1 &
-                        .or. mask(iii,jjj,kkk) .eq. 0) then
+                   if (sten(n)%val(ii,jj,kk) .gt. 0) then
                       sten(n) % val(ii,jj,kk) = vf(iii,jjj,kkk) * kappa_tot
                    else
                       sten(n) % val(ii,jj,kk) = 0.d0
