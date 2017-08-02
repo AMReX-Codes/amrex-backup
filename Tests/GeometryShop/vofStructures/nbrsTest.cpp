@@ -116,7 +116,6 @@ extern "C"
     void fill_redist_stencil(const int*  lo, const int*  hi,
                              const int* slo, const int* shi,
 			     NbrSten* redistSten, const int* Nsten,
-			     const BL_FORT_IFAB_ARG_3D(imask),
 			     BL_FORT_FAB_ARG_3D(vfrac));
 
     void apply_redist_stencil(const int* lo,  const int*  hi,
@@ -135,32 +134,7 @@ int myTest()
     const Box& domain = eblg.getDomain();
     Geometry geom(domain); 
 
-    // Create a mask with the following values 
-    // 1=reg, 0=sv, -1=covered, 2=mv, -2=outside domain, -3=crse
-    int covered_val = 10; // Will be overwritten with FillBoundary
-    int notcovered_val = -3;
-    int physbnd_val = -2;
-    int interior_val = 10; // Will be overwritten
-    FabArray<BaseFab<int> > imask(ba, dm, 1, 1);  // 1 grow for 3-wide stencil
-    imask.BuildMask(geom.Domain(),geom.periodicity(),covered_val,notcovered_val,physbnd_val,interior_val);
-    
-    BaseFab<int> tm;
-    for(MFIter  mfi(imask); mfi.isValid(); ++mfi)
-    {
-	BaseFab<int>& m = imask[mfi];
-        const EBISBox& ebis = eblg.getEBISL()[mfi];
-	ebis.getEBGraph().fillIntMask(tm);
-	m.copy(tm);
-	IntVectSet mv = ebis.getMultiCells(mfi.validbox());
-	for (IVSIterator it(mv); it.ok(); ++it)
-	{
-	    m(it(),0) = 2;
-	}
-    }
-    imask.FillBoundary();
-
     MultiFab vfrac(ba,dm,1,1);
-
     for(MFIter  mfi(vfrac); mfi.isValid(); ++mfi)
     {
         const EBISBox& ebis = eblg.getEBISL()[mfi];
@@ -192,6 +166,8 @@ int myTest()
     //Array<std::string> name(1,"vfrac");
     //WriteSingleLevelPlotfile("pltfile",vfrac,name,geom,0,0,"CartGrid-V2.0");
 
+    amrex::Print() << "Building stencil\n"; 
+
     const Box stenBox(IntVect(D_DECL(-1,-1,-1)),
                       IntVect(D_DECL(+1,+1,+1)));
     intDIM idx3;
@@ -203,7 +179,6 @@ int myTest()
         const EBISBox& ebis = eblg.getEBISL()[mfi];
         const Box& vbox = mfi.validbox();
 	int i = mfi.index();
-	BaseFab<int>& m = imask[mfi];
 	FArrayBox& vfab = vfrac[mfi];
 	
         if ( !(ebis.isAllRegular())) 
@@ -215,6 +190,9 @@ int myTest()
                 std::vector<VolIndex> vofs = ebis.getVoFs(iv);
                 for (int ivof=0; ivof<vofs.size(); ++ivof)
                 {
+
+                    // Note here that if cells are multivalued, we can probably 
+                    // stack these stencils here... an exercise for the reader...
 		    redistSten[i].push_back(NbrSten());
 		    NbrSten& nbr = redistSten[i].back();
 		    Copy(nbr.iv,iv);
@@ -266,8 +244,7 @@ int myTest()
 	    fill_redist_stencil(BL_TO_FORTRAN_BOX(vbox),
                                 BL_TO_FORTRAN_BOX(stenBox),
                                 redistSten[i].data(), &Nsten,
-	        		BL_TO_FORTRAN_3D(m),
-	        		BL_TO_FORTRAN_3D(vfab));
+                                BL_TO_FORTRAN_3D(vfab));
         }
     }
 
@@ -275,6 +252,9 @@ int myTest()
     tin.setVal(2);
     MultiFab tout(ba,dm,1,1);
     tin.setVal(0);
+
+    amrex::Print() << "Applying stencil\n";
+
     for(MFIter  mfi(tin); mfi.isValid(); ++mfi)
     {
         const Box& vbox = mfi.validbox();

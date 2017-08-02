@@ -7,18 +7,14 @@ module nbrsTest_nd_module
 
 contains
 
-  subroutine fill_redist_stencil(lo, hi, slo, shi, sten, Nsten, &
-       mask, mask_lo, mask_hi, &
-       vf,   vf_lo,   vf_hi) bind(C,name="fill_redist_stencil")
+  subroutine fill_redist_stencil(lo, hi, slo, shi, sten, Nsten, vf,vf_lo,vf_hi) bind(C,name="fill_redist_stencil")
 
     integer,          intent(in) ::  lo(0:2),  hi(0:2)
     integer,          intent(in) :: slo(0:2), shi(0:2)
     integer,          intent(in) :: Nsten
     type(nbr_sten),intent(inout) :: sten(0:Nsten-1)
-    integer,          intent(in) :: mask_lo(0:2), mask_hi(0:2)
-    integer,          intent(in) ::   vf_lo(0:2), vf_hi(0:2)
-    integer,          intent(in) :: mask(mask_lo(0):mask_hi(0),mask_lo(1):mask_hi(1),mask_lo(2):mask_hi(2))
-    real(amrex_real), intent(in) ::    vf( vf_lo(0):vf_hi(0),    vf_lo(1):vf_hi(1),    vf_lo(2):vf_hi(2))
+    integer,          intent(in) :: vf_lo(0:2), vf_hi(0:2)
+    real(amrex_real), intent(in) :: vf( vf_lo(0):vf_hi(0),vf_lo(1):vf_hi(1),vf_lo(2):vf_hi(2))
     integer :: i,j,k,n,ii,jj,kk,iii,jjj,kkk
     real(amrex_real) :: kappa_tot
 
