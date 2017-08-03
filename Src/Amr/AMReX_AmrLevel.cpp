@@ -14,6 +14,10 @@
 #include <AMReX_Print.H>
 #include <AMReX_VisMF.H>
 
+#ifdef AMREX_USE_EB
+#include <AMReX_EBFabFactory.H>
+#endif
+
 namespace amrex {
 
 #ifdef AMREX_USE_EB
@@ -73,7 +77,7 @@ AmrLevel::AmrLevel (Amr&            papa,
     grids(ba),
     dmap(dm)
 #ifdef AMREX_USE_EB
-    , m_eblg(ba, dm, level_geom.Domain(), m_eb_max_grow_cells)
+    , m_eblevel(ba, dm, level_geom.Domain(), m_eb_max_grow_cells)
 #endif
 {
     BL_PROFILE("AmrLevel::AmrLevel(dm)");
@@ -95,7 +99,7 @@ AmrLevel::AmrLevel (Amr&            papa,
     state.resize(desc_lst.size());
 
 #ifdef AMREX_USE_EB
-    m_factory.reset(new EBFArrayBoxFactory(m_eblg.getEBISL()));
+    m_factory.reset(new EBFArrayBoxFactory(m_eblevel));
 #else
     m_factory.reset(new FArrayBoxFactory());
 #endif
@@ -248,7 +252,7 @@ AmrLevel::writePlotFile (const std::string& dir,
     // NOTE: In this tutorial code, there is no derived data
     int       cnt   = 0;
     const int nGrow = 0;
-    MultiFab  plotMF(grids,dmap,n_data_items,nGrow);
+    MultiFab  plotMF(grids,dmap,n_data_items,nGrow,MFInfo(),Factory());
     MultiFab* this_dat = 0;
     //
     // Cull data from state variables -- use no ghost cells.

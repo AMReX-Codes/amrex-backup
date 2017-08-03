@@ -10,6 +10,10 @@
 #include <AMReX_FabArray.H>
 #include <AMReX_Periodicity.H>
 
+#ifdef AMREX_USE_EB
+#include <AMReX_EBFabFactory.H>
+#endif
+
 namespace amrex
 {
 
@@ -55,8 +59,13 @@ public:
               const DistributionMapping& dm,
               int                        ncomp,
               int                        ngrow,
+#ifdef AMREX_STRICT_MODE
+	      const MFInfo&              info,
+              const FabFactory<FArrayBox>& factory);
+#else
 	      const MFInfo&              info = MFInfo(),
               const FabFactory<FArrayBox>& factory = FArrayBoxFactory());
+#endif
 
     /**
      * \brief Make an alias MultiFab. maketype must be
@@ -84,8 +93,13 @@ public:
 			 const DistributionMapping& dm,
 			 int                        nvar,
 			 int                        ngrow,
+#ifdef AMREX_STRICT_MODE
+			 const MFInfo&              info,
+                         const FabFactory<FArrayBox>& factory) override;
+#else
 			 const MFInfo&              info = MFInfo(),
                          const FabFactory<FArrayBox>& factory = FArrayBoxFactory()) override;
+#endif
 
     void operator= (const Real& r);
     //
