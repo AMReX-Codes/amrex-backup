@@ -13,6 +13,16 @@ struct NbrSten
     intDIM iv;
 };
 
+struct FaceSten
+{
+#if BL_SPACEDIM == 2
+    amrex::Real val[3];
+#else
+    amrex::Real val[3][3];
+#endif
+    intDIM iv;
+};
+
 #endif
 
 #endif

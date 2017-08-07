@@ -118,11 +118,22 @@ extern "C"
 			     NbrSten* redistSten, const int* Nsten,
 			     BL_FORT_FAB_ARG_3D(vfrac));
 
+    void fill_flux_interp_stencil(const int* lo,  const int*  hi,
+                                  const int* slo, const int* shi,
+                                  FaceSten* faceSten, const int* Nsten, const int* idir,
+                                  const BL_FORT_FAB_ARG_3D(fcent));
+
     void apply_redist_stencil(const int* lo,  const int*  hi,
                               const int* slo, const int* shi,
                               NbrSten* redistSten, const int* Nsten,
 			      const BL_FORT_FAB_ARG_3D(vin),
 			      BL_FORT_FAB_ARG_3D(vout));
+
+    void apply_flux_interp_stencil(const int* lo,  const int*  hi,
+                                   const int* slo, const int* shi,
+                                   FaceSten* redistSten, const int* Nsten, const int* idir,
+                                   const BL_FORT_FAB_ARG_3D(vin),
+                                   BL_FORT_FAB_ARG_3D(vout));
 }
 
 int myTest()
@@ -150,7 +161,7 @@ int myTest()
         {
 	    for (IntVect iv(vbox.smallEnd()); iv<=vbox.bigEnd(); vbox.next(iv))
 	    {
-		std::vector<VolIndex> vofs = ebis.getVoFs(iv);
+		const std::vector<VolIndex> vofs = ebis.getVoFs(iv);
 		Real vtot = 0;
                 BL_ASSERT(vofs.size()<=1);
 		for (int j=0; j<vofs.size(); ++j)
@@ -165,6 +176,70 @@ int myTest()
     vfrac.FillBoundary();
     //Array<std::string> name(1,"vfrac");
     //WriteSingleLevelPlotfile("pltfile",vfrac,name,geom,0,0,"CartGrid-V2.0");
+
+    MultiFab afrac[3];
+    MultiFab fcent[3];
+    for (int idir=0; idir<BL_SPACEDIM; ++idir)
+    {
+        afrac[idir].define(BoxArray(ba).surroundingNodes(idir),dm,1,1);
+        fcent[idir].define(BoxArray(ba).surroundingNodes(idir),dm,BL_SPACEDIM,1);
+
+        for(MFIter  mfi(afrac[idir]); mfi.isValid(); ++mfi)
+        {
+            const EBISBox& ebis = eblg.getEBISL()[mfi];
+            const Box& vbox = ba[mfi.index()];
+            FArrayBox& afab = afrac[idir][mfi];
+            FArrayBox& cfab = fcent[idir][mfi];
+            afab.setVal(0);
+            cfab.setVal(0.5);
+	
+            if (ebis.isAllRegular())
+            {
+                afab.setVal(1);
+            }
+            else
+            {
+                for (IntVect iv(vbox.smallEnd()); iv<=vbox.bigEnd(); vbox.next(iv))
+                {
+                    std::vector<VolIndex> vofs = ebis.getVoFs(iv);
+                    BL_ASSERT(vofs.size()<=1);
+                    for (int j=0; j<vofs.size(); ++j)
+                    {
+                        bool do_hi_side = iv[idir] == vbox.bigEnd()[idir];
+                        const VolIndex& vof = vofs[j];
+                        for (SideIterator sit; sit.ok(); ++sit)
+                        {
+                            if (sit() == Side::Lo || do_hi_side)
+                            {
+                                Real atot = 0;
+                                const std::vector<FaceIndex> faces = ebis.getFaces(vof,idir,sit());
+                                BL_ASSERT(faces.size() <= 1);
+                                for (int k=0; k<faces.size(); ++k)
+                                {
+                                    atot += ebis.areaFrac(faces[k]);
+                                }
+
+                                const int iside = sit() == Side::Lo ? 0 : 1;
+                                IntVect iv_face = iv + iside*BASISV(idir);
+                                afab(iv_face,0) = atot;
+                                
+                                if (faces.size()>0)
+                                {
+                                    const RealVect cent = ebis.centroid(faces[0]);
+                                    for (int idir1=0; idir1<BL_SPACEDIM; ++idir1)
+                                    {
+                                        cfab(iv_face,idir1) = cent[idir1];
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        afrac[idir].FillBoundary();
+    }
+
 
     amrex::Print() << "Building stencil\n"; 
 
@@ -248,12 +323,67 @@ int myTest()
         }
     }
 
+
+    Box fbox[3];
+    std::array<std::map<int,std::vector<FaceSten>>,3> faceSten;
+
+    for (int idir=0; idir<BL_SPACEDIM; ++idir)
+    {
+        fbox[idir] = amrex::bdryLo(Box(IntVect(D_DECL(0,0,0)),
+                                       IntVect(D_DECL(0,0,0))),idir,1);
+        for (int idir1=0; idir1<BL_SPACEDIM; ++idir1)
+        {
+            if (idir1 != idir) fbox[idir].grow(idir1,1);
+        }
+
+        FArrayBox fsten(fbox[idir],1);
+
+        for(MFIter  mfi(fcent[idir]); mfi.isValid(); ++mfi)
+        {
+            const EBISBox& ebis = eblg.getEBISL()[mfi];
+            int i = mfi.index();
+            const Box& vbox = ba[i];
+            const Box& ebox = mfi.validbox();
+            const FArrayBox& centroid = fcent[idir][mfi];
+
+            for (IntVect iv(vbox.smallEnd()); iv<=vbox.bigEnd(); vbox.next(iv))
+            {
+                std::vector<VolIndex> vofs = ebis.getVoFs(iv);
+                BL_ASSERT(vofs.size()<=1);
+                for (int j=0; j<vofs.size(); ++j)
+                {
+                    bool do_hi_side = iv[idir] == vbox.bigEnd()[idir];
+                    const VolIndex& vof = vofs[j];
+                    for (SideIterator sit; sit.ok(); ++sit)
+                    {
+                        if (sit() == Side::Lo || do_hi_side)
+                        {
+                            const std::vector<FaceIndex> faces = ebis.getFaces(vof,idir,sit());
+                            BL_ASSERT(faces.size() <= 1);
+                            for (int k=0; k<faces.size(); ++k)
+                            {
+                                faceSten[idir][i].push_back(FaceSten());
+                                FaceSten& sten = faceSten[idir][i].back();
+                                Copy(sten.iv,iv);
+                            }
+                        }
+                    }
+                }
+            }
+            int Nsten = faceSten[idir][i].size();
+            fill_flux_interp_stencil(BL_TO_FORTRAN_BOX(ebox),
+                                     BL_TO_FORTRAN_BOX(fbox[idir]),
+                                     faceSten[idir][i].data(), &Nsten, &idir,
+                                     BL_TO_FORTRAN_3D(centroid));
+        }
+    }
+    
+
+    amrex::Print() << "Applying stencil\n";
     MultiFab tin(ba,dm,1,1);
     tin.setVal(2);
     MultiFab tout(ba,dm,1,1);
-    tin.setVal(0);
-
-    amrex::Print() << "Applying stencil\n";
+    tout.setVal(0);
 
     for(MFIter  mfi(tin); mfi.isValid(); ++mfi)
     {
@@ -272,6 +402,35 @@ int myTest()
                                  BL_TO_FORTRAN_3D(outfab));
         }
     }
+
+    for (int idir=0; idir<BL_SPACEDIM; ++idir)
+    {
+        amrex::Print() << "Applying face stencil " << idir << "\n";
+
+        MultiFab fin(BoxArray(ba).surroundingNodes(idir),dm,1,1);
+        fin.setVal(2);
+        MultiFab fout(BoxArray(ba).surroundingNodes(idir),dm,1,1);
+        tout.setVal(0);
+
+        for(MFIter  mfi(tin); mfi.isValid(); ++mfi)
+        {
+            int i = mfi.index();
+            const Box& ebox = mfi.validbox();
+            const FArrayBox& infab = fin[mfi];
+            FArrayBox& outfab = fout[mfi];
+            int Nsten = faceSten[idir][i].size();
+            
+            if (Nsten > 0)
+            {
+                apply_flux_interp_stencil(BL_TO_FORTRAN_BOX(ebox),
+                                          BL_TO_FORTRAN_BOX(fbox[idir]),
+                                          faceSten[idir][i].data(), &Nsten, &idir,
+                                          BL_TO_FORTRAN_3D(infab),
+                                          BL_TO_FORTRAN_3D(outfab));
+            }
+        }
+    }
+
 
     return 0;
 }

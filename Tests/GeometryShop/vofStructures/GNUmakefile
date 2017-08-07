@@ -38,7 +38,7 @@ ifeq ($(EBASE), umapTest)
 endif
 
 ifeq ($(EBASE), nbrsTest)
-  f90EXE_sources += nbrsTest_nd.f90
+  F90EXE_sources += nbrsTest_nd.F90
   F90EXE_sources += nbrsTest_mod.F90
 endif
 CEXE_sources += $(addsuffix .cpp, $(EBASE))

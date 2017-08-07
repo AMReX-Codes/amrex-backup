@@ -8,4 +8,13 @@ module nbrs_test_module
      integer :: iv(0:2)
   end type nbr_sten
 
+  type, bind(c) :: face_sten
+#if BL_SPACEDIM == 2
+     real(amrex_real) :: val(-1:1)
+#else
+     real(amrex_real) :: val(-1:1,-1:1)
+#endif
+     integer :: iv(0:2)
+  end type face_sten
+
 end module nbrs_test_module
