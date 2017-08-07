@@ -10,6 +10,14 @@ namespace amrex
 
 class FArrayBox;
 
+enum class FabType : int {
+    covered = -1,
+    regular = 0,
+    singlevalued = 1,
+    multivalued = 2,
+    undefined = 100
+};
+
 struct FabInfo
 {
     bool alloc = true;
@@ -49,8 +57,6 @@ public:
         return new DefaultFabFactory<FAB>();
     }
 };
-
-using FArrayBoxFactory = DefaultFabFactory<FArrayBox>;
 
 }
 
