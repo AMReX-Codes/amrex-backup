@@ -94,7 +94,7 @@ static void
 Copy(intDIM& out, const IntVect& in)
 {
     
-    for (int d=0; d<d; ++d) {
+    for (int d=0; d<3; ++d) {
 	out[d] = 0;
     }
     for (int d=0; d<BL_SPACEDIM; ++d) {

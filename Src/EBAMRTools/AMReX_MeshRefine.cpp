@@ -214,7 +214,7 @@ namespace amrex
     amrex::Print() <<"domainLength        = " << domainLength   << "\n";
     amrex::Print() <<"ghostEBISBox        = " << ghostEBISBox   << "\n";
     amrex::Print() <<"refRatio            = ";
-    for(int iref = 0; iref << refRatio.size(); iref++)
+    for(int iref = 0; iref < refRatio.size(); iref++)
     {
       amrex::Print() <<  refRatio[iref]       << "  ";
     }
