@@ -602,7 +602,7 @@ contains
     integer      :: gridlo(0:2), gridhi(0:2)
 
     real(c_real) :: dx, xterm, yterm, zterm
-    real(c_real) :: fhix, flox, denom, inv_denom
+    real(c_real) :: denom, inv_denom
     integer      :: d
     real(c_real) :: divflux(divflux_lo(0):divflux_hi(0),divflux_lo(1):divflux_hi(1),divflux_lo(2):divflux_hi(2), 0:divflux_nco-1)
     real(c_real) :: fluxfa0(fluxfa0_lo(0):fluxfa0_hi(0),fluxfa0_lo(1):fluxfa0_hi(1),fluxfa0_lo(2):fluxfa0_hi(2), 0:fluxfa0_nco-1)
@@ -627,16 +627,13 @@ contains
           do jjf = gridlo(1), gridhi(1)
              do iif = gridlo(0), gridhi(0)
 
-                fhix = fluxfa0(iif+1, jjf  , kkf  , ivarflux)
-                flox = fluxfa0(iif  , jjf  , kkf  , ivarflux)
-                xterm = fhix - flox
+                xterm = fluxfa0(iif+1, jjf  , kkf  , ivarflux) - fluxfa0(iif, jjf, kkf, ivarflux)
                 yterm = fluxfa1(iif  , jjf+1, kkf  , ivarflux) - fluxfa1(iif, jjf, kkf, ivarflux)
                 zterm = zero
 #if BL_SPACEDIM==3
                 zterm = fluxfa2(iif  , jjf  , kkf+1, ivarflux) - fluxfa2(iif, jjf, kkf, ivarflux) 
 #endif
                 divflux(iif, jjf, kkf, ivardivf) = (xterm + yterm + zterm) * inv_denom
-
 
              enddo
           enddo
