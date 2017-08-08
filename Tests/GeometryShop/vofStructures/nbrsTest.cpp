@@ -102,7 +102,7 @@ Copy(intDIM& out, const IntVect& in)
     }    
 }
 
-/*
+
 static void
 Copy(IntVect& out, const intDIM& in)
 {
@@ -110,7 +110,7 @@ Copy(IntVect& out, const intDIM& in)
         out[d] = in[d];
     }    
 }
-*/
+
 extern "C"
 {
     void fill_redist_stencil(const int*  lo, const int*  hi,
@@ -346,30 +346,38 @@ int myTest()
             const Box& ebox = mfi.validbox();
             const FArrayBox& centroid = fcent[idir][mfi];
 
-            for (IntVect iv(vbox.smallEnd()); iv<=vbox.bigEnd(); vbox.next(iv))
+            std::set<IntVect> cut_faces;
+            IntVectSet isIrreg = ebis.getIrregIVS(vbox);
+            for (IVSIterator it(isIrreg); it.ok(); ++it)
             {
+                const IntVect& iv=it();
                 std::vector<VolIndex> vofs = ebis.getVoFs(iv);
                 BL_ASSERT(vofs.size()<=1);
                 for (int j=0; j<vofs.size(); ++j)
                 {
-                    bool do_hi_side = iv[idir] == vbox.bigEnd()[idir];
                     const VolIndex& vof = vofs[j];
                     for (SideIterator sit; sit.ok(); ++sit)
                     {
-                        if (sit() == Side::Lo || do_hi_side)
+                        const std::vector<FaceIndex> faces = ebis.getFaces(vof,idir,sit());
+                        BL_ASSERT(faces.size() <= 1);
+                        for (int k=0; k<faces.size(); ++k)
                         {
-                            const std::vector<FaceIndex> faces = ebis.getFaces(vof,idir,sit());
-                            BL_ASSERT(faces.size() <= 1);
-                            for (int k=0; k<faces.size(); ++k)
-                            {
-                                faceSten[idir][i].push_back(FaceSten());
-                                FaceSten& sten = faceSten[idir][i].back();
-                                Copy(sten.iv,iv);
+                            const FaceIndex& face = faces[k];
+                            if (ebis.areaFrac(face) < 1) {
+                                // IntVect of face associated with that of hi-side cell
+                                cut_faces.insert(faces[k].gridIndex(Side::Hi));
                             }
                         }
                     }
                 }
             }
+            for (std::set<IntVect>::const_iterator it=cut_faces.begin(); it!=cut_faces.end(); ++it)
+            {
+                faceSten[idir][i].push_back(FaceSten());
+                FaceSten& sten = faceSten[idir][i].back();
+                Copy(sten.iv,*it);
+            }
+
             int Nsten = faceSten[idir][i].size();
             fill_flux_interp_stencil(BL_TO_FORTRAN_BOX(ebox),
                                      BL_TO_FORTRAN_BOX(fbox[idir]),
@@ -408,9 +416,23 @@ int myTest()
         amrex::Print() << "Applying face stencil " << idir << "\n";
 
         MultiFab fin(BoxArray(ba).surroundingNodes(idir),dm,1,1);
-        fin.setVal(2);
+        fin.setVal(0);
+        for(MFIter  mfi(fin); mfi.isValid(); ++mfi)
+        {
+            int i = mfi.index();
+            FArrayBox& infab = fin[mfi];
+            int Nsten = faceSten[idir][i].size();
+            for (int n=0; n<Nsten; ++n)
+            {
+                IntVect iv;
+                Copy(iv,faceSten[idir][i][n].iv);
+                infab(iv,0) = 1;
+            }
+        }
+
+
         MultiFab fout(BoxArray(ba).surroundingNodes(idir),dm,1,1);
-        tout.setVal(0);
+        fout.setVal(0);
 
         for(MFIter  mfi(tin); mfi.isValid(); ++mfi)
         {
