@@ -33,7 +33,7 @@ EB_set_covered (MultiFab& mf, int icomp, int ncomp)
     {
         const Box& bx = mfi.tilebox();
         FArrayBox& fab = mf[mfi];
-        const auto& flagfab = amrex::getEBFlagFab(fab);
+        const auto& flagfab = amrex::getEBCellFlagFab(fab);
         amrex_eb_set_covered(BL_TO_FORTRAN_BOX(bx),
                              BL_TO_FORTRAN_N_ANYD(fab,icomp),
                              BL_TO_FORTRAN_ANYD(flagfab),
@@ -105,7 +105,7 @@ EB_average_down (const MultiFab& S_fine, MultiFab& S_crse, const MultiFab& vol_f
         const Box& fbx = amrex::refine(tbx,ratio);
         auto& crse_fab = crse_S_fine[mfi];
         const auto& fine_fab = S_fine[mfi];
-        const auto& flag_fab = amrex::getEBFlagFab(crse_fab);
+        const auto& flag_fab = amrex::getEBCellFlagFab(crse_fab);
 
         FabType typ = flag_fab.getType(tbx);
         
@@ -167,6 +167,16 @@ makeMultiEBFab (const BoxArray& ba, const DistributionMapping& dm,
         EBFArrayBoxFactory fact(eblevel);
         return MultiFab(ba, dm, ncomp, ngrow, info, fact);
     }
+}
+
+MultiFab
+makeMultiEBFab (const BoxArray& ba, const DistributionMapping& dm,
+                int ncomp, int ngrow, const MFInfo& info,
+                const Box& level_domain)
+{
+    EBLevel eblevel(ba, dm, level_domain, ngrow);
+    EBFArrayBoxFactory fact(eblevel);
+    return MultiFab(ba, dm, ncomp, ngrow, info, fact);
 }
 
 }
