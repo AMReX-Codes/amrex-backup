@@ -217,6 +217,21 @@ CNS::post_timestep (int iteration)
 }
 
 void
+CNS::postCoarseTimeStep (Real time)
+{
+    // This only computes sum on level 0
+    if (verbose >= 2) {
+        const MultiFab& S_new = get_new_data(State_Type);
+        MultiFab mf(grids, dmap, 1, 0);
+        MultiFab::Copy(mf, S_new, Density, 0, 1, 0);
+        MultiFab::Multiply(mf, volfrac, 0, 0, 1, 0);
+        Real mtot = mf.sum();
+        mtot *= geom.ProbSize();
+        amrex::Print().SetPrecision(17) << "\n[CNS] Total Mass is " << mtot << "\n";
+    }
+}
+
+void
 CNS::post_init (Real)
 {
     if (level > 0) return;
@@ -277,9 +292,24 @@ CNS::avgDown ()
 void
 CNS::buildMetrics ()
 {
+    // make sure dx == dy == dz
+    const Real* dx = geom.CellSize();
+    if (std::abs(dx[0]-dx[1]) > 1.e-12*dx[0] || std::abs(dx[0]-dx[2]) > 1.e-12*dx[0]) {
+        amrex::Abort("CNS: must have dx == dy == dz\n");
+    }
+
     volfrac.clear();
     volfrac.define(grids,dmap,1,NUM_GROW,MFInfo(),Factory());
     amrex::EB_set_volume_fraction(volfrac);
+
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
+        const BoxArray& ba = amrex::convert(grids,IntVect::TheDimensionVector(idim));
+        areafrac[idim].clear();
+        areafrac[idim].define(ba,dmap,1,NUM_GROW,MFInfo(),Factory());
+        facecent[idim].clear();
+        facecent[idim].define(ba,dmap,AMREX_SPACEDIM-1,NUM_GROW,MFInfo(),Factory());
+    }
+    amrex::EB_set_area_fraction_face_centroid(areafrac, facecent);
 }
 
 Real
@@ -298,6 +328,7 @@ CNS::estTimeStep ()
                   dx, &estdt);
     }
     estdt *= cfl;
+    ParallelDescriptor::ReduceRealMin(estdt);
     return estdt;
 }
 

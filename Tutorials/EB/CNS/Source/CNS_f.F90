@@ -13,6 +13,20 @@ module cns_module
   integer, parameter, public :: UTEMP = 7
   integer, parameter, public :: NVAR  = 7
 
+  integer, parameter, public :: QRHO   = 1
+  integer, parameter, public :: QU     = 2
+  integer, parameter, public :: QV     = 3
+  integer, parameter, public :: QW     = 4
+  integer, parameter, public :: QP     = 5
+  integer, parameter, public :: QC     = 6
+  integer, parameter, public :: QEINT  = 7
+  integer, parameter, public :: QTEMP  = 8
+  integer, parameter, public :: QVAR   = 8
+  
+
+  real(rt), parameter, public :: smallp = 1.d-30
+  real(rt), parameter, public :: smallr = 1.d-30
+
   ! boundary condition information
   integer, save, public :: physbc_lo(3)
   integer, save, public :: physbc_hi(3)
@@ -29,6 +43,7 @@ contains
        Interior_in, Inflow_in, Outflow_in, Symmetry_in, SlipWall_in, NoSlipWall_in, &
        problo_in, probhi_in) &
        bind(c,name='cns_init_fort')
+    use cns_physics_module, only : physics_init
     integer, intent(in) :: physbc_lo_in(3), physbc_hi_in(3)
     integer, value, intent(in) :: Interior_in, Inflow_in, Outflow_in, Symmetry_in, SlipWall_in, NoSlipWall_in
     real(rt), intent(in) :: problo_in(3), probhi_in(3)
@@ -46,6 +61,8 @@ contains
     problo = problo_in
     probhi = probhi_in
     center = 0.5_rt*(problo+probhi)
+
+    call physics_init()
 
   end subroutine cns_init_fort
 

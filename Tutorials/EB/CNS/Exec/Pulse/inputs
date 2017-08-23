@@ -1,6 +1,6 @@
 
 max_step  = 10000
-stop_time = 0.24
+stop_time = 7.e-6
 
 geometry.is_periodic = 1 1 1
 geometry.coord_sys   = 0  # 0 => cart, 1 => RZ  2=>spherical
@@ -44,9 +44,9 @@ amr.derive_plot_vars  = pressure x_velocity y_velocity z_velocity
 # EB
 geom_type = sphere
 sphere_radius = 0.125
-sphere_center = 0.6  0.6  0.6
+sphere_center = 0.45  0.65  0.53
 
+#geom_type = all_regular
 
-amr.plot_int=1
-max_step=10
-
+# problem specific parameter
+prob.drho = 1.2e-4
