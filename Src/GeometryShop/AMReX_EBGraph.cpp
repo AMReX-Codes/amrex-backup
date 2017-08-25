@@ -721,12 +721,18 @@ namespace amrex
   {
     BL_ASSERT(isDefined());
     BL_ASSERT(isDomainSet());
-    BL_ASSERT(m_region.contains(a_vof.gridIndex()));
-    BL_ASSERT(m_domain.contains(a_vof.gridIndex()));
+    //BL_ASSERT(m_region.contains(a_vof.gridIndex()));
+    //BL_ASSERT(m_domain.contains(a_vof.gridIndex()));
     BL_ASSERT((a_idir >= 0) && (a_idir < SpaceDim));
     BL_ASSERT((a_sd == Side::Lo) || (a_sd == Side::Hi));
-        
+
     std::vector<FaceIndex> retvec;
+
+    if (!m_domain.contains(a_vof.gridIndex()) || !m_region.contains(a_vof.gridIndex()))
+    {
+        return retvec;
+    }
+
     if (m_tag == AllRegular)
     {
       IntVect otherIV = a_vof.gridIndex()
