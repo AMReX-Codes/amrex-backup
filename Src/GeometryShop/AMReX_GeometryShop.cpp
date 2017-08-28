@@ -27,7 +27,8 @@
 namespace amrex
 {
 
-
+  IntVect gs_debiv(D_DECL(994,213,7));
+  
   bool GeometryShop::isRegularEveryPoint(const Box&           a_region,
                                          const Box& a_domain,
                                          const RealVect&      a_origin,
@@ -158,19 +159,34 @@ namespace amrex
                 const Real&          a_dx) const
   {
     GeometryShop::InOut rtn;
-
-
+    //begin debug
+    //bool debugc = (a_region.contains(gs_debiv));
+    //end debug
     if(isRegularEveryPoint(a_region, a_domain, a_origin, a_dx))
     {
       rtn = GeometryShop::Regular;
+//      if(debugc)
+//      {
+//        amrex::AllPrint() << "geometryshop::insideoutside:"<< gs_debiv << " in an all regular box" << endl;
+//      }
     }
     else if(isCoveredEveryPoint(a_region, a_domain, a_origin, a_dx))
     {
       rtn = GeometryShop::Covered;
+//      if(debugc)
+//      {
+//        amrex::AllPrint() << "geometryshop::insideoutside:"<< gs_debiv << " in an all covered box" << endl;
+//      }
     }
     else
     {
       rtn = GeometryShop::Irregular;
+//begin debug
+//      if(debugc)
+//      {
+//        amrex::AllPrint() << "geometryshop::insideoutside:"<< gs_debiv << " in a mixed box " << endl;
+//      }
+//end debug
     }
     return rtn;
 
@@ -1026,8 +1042,8 @@ namespace amrex
 
                 // physIntercept is along the segment[physSegLo,physSegHi]
                 // this segment passes through midPt with direction minDir
-                Real physIntercept;
-                //                bool dropOrder = false;
+                Real physIntercept = 0;
+                bool dropOrder = false;
 
 
 
@@ -1038,49 +1054,52 @@ namespace amrex
                 // by dropping order
                 if (fLo*fHi > 0.0)
                   {
-                    //                    dropOrder = true;
+                    dropOrder = true;
                   }
                 else
                   {
                     physIntercept = BrentRootFinder(physSegLo, physSegHi, minDir);
                   }
 
-                // put physIntercept into relative coordinates
-                Real intercept = physIntercept - a_origin[minDir];
-                intercept  /= a_dx;
-                intercept -= (a_iv[minDir]+0.5);
+                if(!dropOrder)
+                {
+                  // put physIntercept into relative coordinates
+                  Real intercept = physIntercept - a_origin[minDir];
+                  intercept  /= a_dx;
+                  intercept -= (a_iv[minDir]+0.5);
 
-                // push_back third pt onto crossingPt
-                crossingPt.push_back(midPt);
-                crossingPt[2][minDir] = intercept;
+                  // push_back third pt onto crossingPt
+                  crossingPt.push_back(midPt);
+                  crossingPt[2][minDir] = intercept;
 
-                // integrate w.r.t xVec using Prismoidal Rule
-                RealVect xVec;
-                RealVect yVec;
+                  // integrate w.r.t xVec using Prismoidal Rule
+                  RealVect xVec;
+                  RealVect yVec;
 
-                // the order of (xVec,yVec) will be sorted out in PrismoidalAreaCalc
-                xVec[0] = crossingPt[0][maxDir];
-                xVec[1] = crossingPt[2][maxDir];
-                xVec[2] = crossingPt[1][maxDir];
+                  // the order of (xVec,yVec) will be sorted out in PrismoidalAreaCalc
+                  xVec[0] = crossingPt[0][maxDir];
+                  xVec[1] = crossingPt[2][maxDir];
+                  xVec[2] = crossingPt[1][maxDir];
 
-                yVec[0] = crossingPt[0][minDir];
-                yVec[1] = crossingPt[2][minDir];
-                yVec[2] = crossingPt[1][minDir];
+                  yVec[0] = crossingPt[0][minDir];
+                  yVec[1] = crossingPt[2][minDir];
+                  yVec[2] = crossingPt[1][minDir];
 
-                // Prismoidal's rule
-                Real area = PrismoidalAreaCalc(xVec,yVec);
+                  // Prismoidal's rule
+                  Real area = PrismoidalAreaCalc(xVec,yVec);
 
-                // Only use area if it is valid
-                if (area >= 0.0 && area <= 1.0)
+                  // Only use area if it is valid
+                  if (area >= 0.0 && area <= 1.0)
                   {
                     // assign area to this value or (1 - this value)
                     if (complementArea)
-                      {
-                        area = 1.0 - area;
-                      }
+                    {
+                      area = 1.0 - area;
+                    }
 
                     Faces[iFace].setFaceArea(area);
                   }
+                }
               }
           }
 #endif
