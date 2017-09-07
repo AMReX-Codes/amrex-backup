@@ -2,7 +2,7 @@
 #define CNS_H_
 
 #include <AMReX_AmrLevel.H>
-#include <AMReX_ErrorList.H>
+#include <AMReX_EBFluxRegister.H>
 
 class CNS
     :
@@ -80,6 +80,8 @@ public:
     // Do work after init().
     virtual void post_init (amrex::Real stop_time) override;
 
+    virtual void post_restart () override;
+
     // Error estimation for regridding.
     virtual void errorEst (amrex::TagBoxArray& tb,
                            int                 clearval,
@@ -91,11 +93,12 @@ public:
     // Define data descriptors.
     static void variableSetUp ();
 
-    // Define tagging functions.
-    static void ErrorSetUp ();
-
     // Cleanup data descriptors at end of run.
     static void variableCleanUp ();
+
+    static void LoadBalance (amrex::Amr& amr);
+
+    static int do_load_balance;
 
 protected:
 
@@ -117,12 +120,17 @@ protected:
 
     void computeTemp (amrex::MultiFab& State, int ng);
 
-    void compute_dSdt (const amrex::MultiFab& S, amrex::MultiFab& dSdt, amrex::Real dt);
+    void compute_dSdt (const amrex::MultiFab& S, amrex::MultiFab& dSdt, amrex::Real dt,
+                       amrex::EBFluxRegister* fr_as_crse, amrex::EBFluxRegister* fr_as_fine);
+
+    void fixUpGeometry ();
 
     amrex::MultiFab volfrac;
     amrex::MultiFab bndrycent;
     std::array<amrex::MultiFab,3> areafrac;
     std::array<amrex::MultiFab,3> facecent;
+
+    amrex::EBFluxRegister flux_reg;
 
     static constexpr int NUM_GROW = 5;
     enum StateVariable {
@@ -132,10 +140,10 @@ protected:
 
     enum StateDataType {
         State_Type = 0,
-        NUM_STATEDATA_TYPE
+        Cost_Type
     };
+    static int num_state_data_types;
 
-    static amrex::ErrorList err_list;
     static amrex::BCRec     phys_bc;
 
     // Parameters
