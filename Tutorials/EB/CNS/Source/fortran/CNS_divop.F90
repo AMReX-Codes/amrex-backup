@@ -94,7 +94,7 @@ contains
     integer :: nwalls, iwall
     real(rt) :: fxp,fxm,fyp,fym,fzp,fzm,divnc, vtot,wtot, fracx,fracy,fracz,dxinv(3)
     real(rt) :: divwn
-    real(rt), pointer, contiguous :: optmp(:,:,:), rediswgt(:,:,:)
+    real(rt), pointer, contiguous :: optmp(:,:,:), rediswgt(:,:,:), flag_divnc(:,:,:)
     real(rt), pointer, contiguous :: divhyp(:,:), divdiff(:,:)
 
     !  centroid nondimensional  and zero at face center
@@ -114,9 +114,12 @@ contains
 
     call amrex_allocate(optmp, lo-2, hi+2)
     call amrex_allocate(rediswgt, lo-2, hi+2)
+    call amrex_allocate(flag_divnc, lo-2, hi+2)
 
     call amrex_allocate(divhyp, 1,5, 1,nwalls)
     call amrex_allocate(divdiff, 1,5, 1,nwalls)
+
+    flag_divnc = 1.d0
 
     do n = 1, ncomp
 
@@ -425,14 +428,18 @@ contains
                    do kk = -1,1
                       do jj = -1,1
                          do ii = -1,1
-                            if ((ii.ne. 0 .or. jj.ne.0 .or. kk.ne. 0) .and. nbr(ii,jj,kk).eq.1) then
+                         !  if ((ii.ne. 0 .or. jj.ne.0 .or. kk.ne. 0) .and. nbr(ii,jj,kk).eq.1) then
+                            if ( nbr(ii,jj,kk).eq.1) then
                                vtot = vtot + vfrac(i+ii,j+jj,k+kk)
                                divnc = divnc + vfrac(i+ii,j+jj,k+kk)*divc(i+ii,j+jj,k+kk)
                             end if
                          end do
                       enddo
                    enddo
-                   divnc = divnc / vtot
+                   if(n.eq.1.and. divnc*divc(i,j,k).lt.0)then
+                       flag_divnc(i,j,k) = 0.d0
+                   endif
+                   divnc = flag_divnc(i,j,k)* divnc / vtot
                    optmp(i,j,k) = (1.d0-vfrac(i,j,k))*(divnc-divc(i,j,k))
                    delm(i,j,k,n) = -vfrac(i,j,k)*optmp(i,j,k)
                 else
