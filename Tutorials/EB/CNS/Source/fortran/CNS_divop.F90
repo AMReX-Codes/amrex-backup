@@ -428,6 +428,7 @@ contains
                    do kk = -1,1
                       do jj = -1,1
                          do ii = -1,1
+                         !  second option is slightly better
                          !  if ((ii.ne. 0 .or. jj.ne.0 .or. kk.ne. 0) .and. nbr(ii,jj,kk).eq.1) then
                             if ( nbr(ii,jj,kk).eq.1) then
                                vtot = vtot + vfrac(i+ii,j+jj,k+kk)
