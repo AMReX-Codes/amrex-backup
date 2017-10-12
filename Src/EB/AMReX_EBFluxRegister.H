@@ -71,6 +71,10 @@ public:
                   const Real* dx, Real dt,
                   const FArrayBox& volfrac,
                   const std::array<FArrayBox const*, AMREX_SPACEDIM>& areafrac);
+    void CrseAdd (const MFIter& mfi,
+                  const std::array<FArrayBox const*, AMREX_SPACEDIM>& flux,
+                  const Real* dx, Real dt,
+                  const FArrayBox& volfrac);
 
     using YAFluxRegister::FineAdd;
     void FineAdd (const MFIter& mfi,
@@ -78,6 +82,11 @@ public:
                   const Real* dx, Real dt,
                   const FArrayBox& volfrac,
                   const std::array<FArrayBox const*, AMREX_SPACEDIM>& areafrac,
+                  const FArrayBox& dm);
+    void FineAdd (const MFIter& mfi,
+                  const std::array<FArrayBox const*, AMREX_SPACEDIM>& flux,
+                  const Real* dx, Real dt,
+                  const FArrayBox& volfrac,
                   const FArrayBox& dm);
 
     void Reflux (MultiFab& crse_state, const amrex::MultiFab& crse_vfrac,
