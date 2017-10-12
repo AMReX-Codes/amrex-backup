@@ -65,7 +65,7 @@ contains
        fx, fxlo, fxhi, fy, fylo, fyhi, &
        vfrac, vlo, vhi, &
        dx, dt, nc) &
-       bind(c,name='amrex_eb_flux_reg_crseadd_va')
+       bind(c,name='amrex_eb_flux_reg_crseadd_v')
     integer, dimension(2), intent(in) :: lo, hi, dlo, dhi, fglo, fghi, fxlo, fxhi, fylo, fyhi, &
          vlo, vhi
     integer, intent(in) :: nc
@@ -215,7 +215,7 @@ contains
   subroutine amrex_eb_flux_reg_fineadd_v (lo, hi, d, dlo, dhi, f, flo, fhi, &
        cvol, clo, chi, vfrac, vlo, vhi, &
        dx, dt, nc, dir, side, ratio) &
-       bind(c,name='amrex_eb_flux_reg_fineadd_va')
+       bind(c,name='amrex_eb_flux_reg_fineadd_v')
     integer, dimension(2), intent(in) :: lo, hi, dlo, dhi, flo, fhi, ratio, &
                   vlo, vhi, clo, chi
     integer, intent(in) :: nc, dir, side
