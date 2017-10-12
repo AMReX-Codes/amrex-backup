@@ -12,6 +12,8 @@
 #include <AMReX_Utility.H>
 #include <AMReX_VisMF.H>
 
+using namespace amrex;
+
 void
 ComputeAmrDataNorms (AmrData&     amrData,
 		     Vector<Real>& norm0,
@@ -56,8 +58,9 @@ ComputeAmrDataNorms (AmrData&     amrData,
     for (int iLevel = finestLevel; iLevel>=0; --iLevel)
     {
         const BoxArray& ba = amrData.boxArray(iLevel);
+        DistributionMapping dm(ba);
 
-	error[iLevel] = new MultiFab(ba, nComp, 0);
+	error[iLevel] = new MultiFab(ba, dm, nComp, 0);
 	for (int iComp=0; iComp<nComp; ++iComp)
 	{
 	    MultiFab& data = amrData.GetGrids(iLevel,iComp);
@@ -193,8 +196,9 @@ ComputeAmrDataInt (AmrData&     amrData,
     for (int iLevel = finestLevel; iLevel>=0; --iLevel)
     {
         const BoxArray& ba = amrData.boxArray(iLevel);
+        DistributionMapping dm(ba);
 
-	error[iLevel] = new MultiFab(ba, nComp, 0);
+	error[iLevel] = new MultiFab(ba, dm, nComp, 0);
 	for (int iComp=0; iComp<nComp; ++iComp)
 	{
 	    MultiFab& data = amrData.GetGrids(iLevel,iComp);

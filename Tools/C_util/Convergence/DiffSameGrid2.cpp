@@ -19,6 +19,8 @@
 #include <TV_TempWrite.H>
 #endif
 
+using namespace amrex;
+
 #define GARBAGE 666.e+40
 
 static
@@ -149,14 +151,16 @@ main (int   argc,
             ParallelDescriptor::Abort();
         }
 
-	aerror[iLevel] = new MultiFab(baI, nComp, 0);
+        DistributionMapping dm(baI);
+
+	aerror[iLevel] = new MultiFab(baI, dm, nComp, 0);
 	aerror[iLevel]->setVal(GARBAGE);
 
-	rerror[iLevel] = new MultiFab(baI, nComp, 0);
+	rerror[iLevel] = new MultiFab(baI, dm, nComp, 0);
 	rerror[iLevel]->setVal(GARBAGE);
 
-        MultiFab dataI(baI, nComp, 0);
-        MultiFab dataE(baE, nComp, 0);
+        MultiFab dataI(baI, dm, nComp, 0);
+        MultiFab dataE(baE, dm, nComp, 0);
 
         amrDataI.FillVar(dataI, iLevel, derives, destComps);
         amrDataE.FillVar(dataE, iLevel, derives, destComps);

@@ -54,9 +54,10 @@ vpathdir += $(AMREX_HOME)/Src/Amr
 
 INCLUDE_LOCATIONS += $(AMREX_HOME)/Src/Extern/amrdata
 vpathdir += $(AMREX_HOME)/Src/Extern/amrdata
+vpathdir += $(AMREX_HOME)/Src/Extern/ProfParser
 
-CEXE_sources += BCRec.cpp
-CEXE_headers += BCRec.H BC_TYPES.H
+CEXE_sources += AMReX_BCRec.cpp
+CEXE_headers += AMReX_BCRec.H AMReX_BC_TYPES.H
 
 vpath %.c   : . $(vpathdir)
 vpath %.h   : . $(vpathdir)
