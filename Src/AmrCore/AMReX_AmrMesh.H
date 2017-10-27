@@ -144,6 +144,9 @@ public:
     //! This function makes new grid for all levels (including level 0).
     void MakeNewGrids (Real time = 0.0);
 
+    //! This function handles data synchronization during a sidecar resize.
+    virtual void AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
+
     //! This function is called by the second version of MakeNewGrids.
     //! Make a new level from scratch using provided BoxArray and DistributionMapping.
     //! Only used during initialization.

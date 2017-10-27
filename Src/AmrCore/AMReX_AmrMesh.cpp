@@ -784,6 +784,116 @@ AmrMesh::MakeNewGrids (Real time)
 }
 
 void
+AmrMesh::AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+
+    // ---- Ints
+    ParallelDescriptor::Bcast(&verbose, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&max_level, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&finest_level, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&n_proper, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&use_fixed_upto_level, 1, ioProcNumSCS, scsComm);
+
+    // ---- Reals
+    ParallelDescriptor::Bcast(&grid_eff, 1, ioProcNumSCS, scsComm);
+
+    // ---- Bools
+    int bUFCG(use_fixed_coarse_grids), bRGL(refine_grid_layout), bCI(check_input), bii(initialized);
+    ParallelDescriptor::Bcast(&bUFCG, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&bRGL, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&bCI, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&bii, 1, ioProcNumSCS, scsComm);
+    if(scsMyId != ioProcNumSCS)
+    {
+       use_fixed_coarse_grids = bUFCG;
+       refine_grid_layout = bRGL;
+       check_input = bCI;
+       initialized = bii;
+    }
+
+    // ---- Vectors
+    amrex::BroadcastArray(n_error_buf, scsMyId, ioProcNumAll, scsComm);
+
+  // ---- Vectors<IntVects>
+    Vector<int> allIntVects;
+    int rr_size = ref_ratio.size();
+    int bf_size = blocking_factor.size();
+    int mgs_size = max_grid_size.size();
+    // Pack up IntVects 
+    if(scsMyId == ioProcNumSCS) {
+      for(int j(0); j<rr_size; ++j) {
+         for(int i(0); i < BL_SPACEDIM; ++i) { allIntVects.push_back(ref_ratio[j][i]); }
+      }
+      for(int j(0); j<bf_size; ++j) {
+         for(int i(0); i < BL_SPACEDIM; ++i) { allIntVects.push_back(blocking_factor[j][i]); }
+      }
+      for(int j(0); j<mgs_size; ++j) {
+         for(int i(0); i < BL_SPACEDIM; ++i) { allIntVects.push_back(max_grid_size[j][i]); }
+      }
+    }
+    // Send IntVects and size of each vector
+    ParallelDescriptor::Bcast(&rr_size, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&bf_size, 1, ioProcNumSCS, scsComm);
+    ParallelDescriptor::Bcast(&mgs_size, 1, ioProcNumSCS, scsComm);
+    amrex::BroadcastArray(allIntVects, scsMyId, ioProcNumSCS, scsComm);
+    // Unpack IntVects
+    if(scsMyId != ioProcNumSCS) {
+      int count(0);
+      ref_ratio.resize(rr_size);
+      blocking_factor.resize(bf_size);
+      max_grid_size.resize(mgs_size);
+      for(int j(0); j<rr_size; j++) {
+         for(int i(0); i < BL_SPACEDIM; ++i)    { ref_ratio[j][i] = allIntVects[count++]; }
+      }
+      for(int j(0); j<bf_size; j++) {
+         for(int i(0); i < BL_SPACEDIM; ++i)    { blocking_factor[j][i] = allIntVects[count++]; }
+      }
+      for(int j(0); j<mgs_size; j++) {
+         for(int i(0); i < BL_SPACEDIM; ++i)    { max_grid_size[j][i] = allIntVects[count++]; }
+      }
+    }
+
+    // ---- Vector of Geometries
+    int geomSize = geom.size();
+    ParallelDescriptor::Bcast(&geomSize, 1, ioProcNumSCS, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+       geom.resize(geomSize);
+    }
+    for (int i(0); i<geomSize; ++i)
+    {
+       geom[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm); 
+    }
+
+    // ---- Vector of DistributionMappings
+    int dmapSize = dmap.size();
+    ParallelDescriptor::Bcast(&dmapSize, 1, ioProcNumSCS, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+       dmap.resize(dmapSize);
+    }
+    for (int i(0); i<dmapSize; ++i)
+    {
+       dmap[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+    }
+
+    // ---- Vector of BoxArrays
+    int gridsSize = grids.size();
+    ParallelDescriptor::Bcast(&gridsSize, 1, ioProcNumSCS, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+       grids.resize(gridsSize);
+    }
+    for (int i(0); i<gridsSize; ++i)
+    { 
+       grids[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+    }
+}
+
+
+
+
+void
 AmrMesh::ProjPeriodic (BoxList& blout, const Geometry& geom)
 {
     //

@@ -1840,6 +1840,7 @@ Amr::timeStep (int  level,
 
             if (okToRegrid(i))
             {
+
                 regrid(i,time);
 
                 //
@@ -1887,6 +1888,7 @@ Amr::timeStep (int  level,
             }
         }
     }
+
     //
     // Check to see if should write plotfile.
     // This routine is here so it is done after the restart regrid.
@@ -1904,6 +1906,7 @@ Amr::timeStep (int  level,
 	amrex::Print() << "[Level " << level << " step " << level_steps[level]+1 << "] "
 		       << "ADVANCE with dt = " << dt_level[level] << "\n";
     }
+
     BL_PROFILE_REGION_START("amr_level.advance");
     Real dt_new = amr_level[level]->advance(time,dt_level[level],iteration,niter);
     BL_PROFILE_REGION_STOP("amr_level.advance");
@@ -2395,10 +2398,40 @@ Amr::regrid (int  lbase,
         else if (new_dmap[lev].empty()) {
 	    new_dmap[lev].define(new_grid_places[lev]);
 	}
-
+/*-------------
+    std::cout << ParallelDescriptor::MyProcAll() << " [" << lev << "]: beforeHyperCLaw CheckFAPointers" << std::endl;
+    if (ParallelDescriptor::IOProcessor())
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    if (ParallelDescriptor::MyProcAll() == 6)
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    amrex::MultiFab::CheckFAPointers();
+    ParallelDescriptor::Barrier();
+    std::cout << ParallelDescriptor::MyProcAll() << ": beforeHyperCLaw CheckFAPointers Completed" << std::endl;
+//-------------*/
         AmrLevel* a = (*levelbld)(*this,lev,Geom(lev),new_grid_places[lev],
 				  new_dmap[lev],cumtime);
-
+/*/-------------
+    std::cout << ParallelDescriptor::MyProcAll() << " [" << lev << "]: afterHyperCLaw CheckFAPointers" << std::endl;
+    if (ParallelDescriptor::IOProcessor())
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    if (ParallelDescriptor::MyProcAll() == 6)
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    amrex::MultiFab::CheckFAPointers();
+    ParallelDescriptor::Barrier();
+    std::cout << ParallelDescriptor::MyProcAll() << ": afterHyperCLaw CheckFAPointers Completed" << std::endl;
+//-------------*/
         if (initial)
         {
             //
@@ -2418,8 +2451,43 @@ Amr::regrid (int  lbase,
             // NOTE: The init function may use a filPatch from the old level,
             //       which therefore needs remain in the hierarchy during the call.
             //
+
+//----------
             a->init(*amr_level[lev]);
+/*----------
+    std::cout << ParallelDescriptor::MyProcAll() << " [" << lev << "]: regridNewA CheckFAPointers" << std::endl;
+    if (ParallelDescriptor::IOProcessor())
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    if (ParallelDescriptor::MyProcAll() == 6)
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    amrex::MultiFab::CheckFAPointers();
+    ParallelDescriptor::Barrier();
+    std::cout << ParallelDescriptor::MyProcAll() << ": regridNewA CheckFAPointers Completed" << std::endl;
+//-----------*/
             amr_level[lev].reset(a);
+/*-----------
+    std::cout << ParallelDescriptor::MyProcAll() << " [" << lev << "]: regridNewB CheckFAPointers" << std::endl;
+     if (ParallelDescriptor::IOProcessor())
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    if (ParallelDescriptor::MyProcAll() == 6)
+    {
+    amrex::MultiFab::PrintFAPointers();
+    }
+    ParallelDescriptor::Barrier();
+    amrex::MultiFab::CheckFAPointers();
+    ParallelDescriptor::Barrier();
+    std::cout << ParallelDescriptor::MyProcAll() << ": regridNewB CheckFAPointers Completed" << std::endl;
+*/
+
 	    this->SetBoxArray(lev, amr_level[lev]->boxArray());
 	    this->SetDistributionMap(lev, amr_level[lev]->DistributionMap());
 	}
@@ -2433,7 +2501,6 @@ Amr::regrid (int  lbase,
 
     }
 
-
     //
     // Check at *all* levels whether we need to do anything special now that the grids
     //       at levels lbase+1 and higher may have changed.  
@@ -2443,16 +2510,16 @@ Amr::regrid (int  lbase,
     }
 
     if(rebalance_grids > 0) {
-      DistributionMapping::InitProximityMap();
+//      DistributionMapping::InitProximityMap();
 
         Vector<BoxArray> allBoxes(amr_level.size());
 	for(int ilev(0); ilev < allBoxes.size(); ++ilev) {
 	  allBoxes[ilev] = boxArray(ilev);
 	}
         Vector<Vector<int> > mLDM;
-	if(rebalance_grids == 1) {
+	/*if(rebalance_grids == 1) {
           mLDM = DistributionMapping::MultiLevelMapPFC(ref_ratio, allBoxes, maxGridSize(0)[0]);
-	} else if(rebalance_grids == 2) {
+	} else*/ if(rebalance_grids == 2) {
           mLDM = DistributionMapping::MultiLevelMapRandom(ref_ratio, allBoxes, maxGridSize(0)[0]);
 	} else if(rebalance_grids == 3) {
           mLDM = DistributionMapping::MultiLevelMapKnapSack(ref_ratio, allBoxes, maxGridSize(0)[0]);
@@ -2513,6 +2580,7 @@ Amr::regrid (int  lbase,
            printGridSummary(std::cout,start,finest_level);
         }
     }
+
 }
 
 DistributionMapping
@@ -3162,7 +3230,7 @@ Amr::AddProcsToSidecar(int nSidecarProcs, int prevSidecarProcs)
 	amrex::Print() << "_in Amr::AddProcsToSidecar:  after calling MoveAllFabs for iMap = "
 	               << iMap << "\n\n";
     }
-    VisMF::SetNOutFiles(checkpoint_nfiles);
+//    VisMF::SetNOutFiles(checkpoint_nfiles);
 
 #ifdef USE_PARTICLES
     RedistributeParticles();
@@ -3207,27 +3275,35 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
     // ---- send all amr data from ioprocnum to the new comp ranks
     if(scsMyId != MPI_UNDEFINED) {
       int currentSeqNumber(-4);
+      int currentSubSeqNumber(-5);
       if(scsMyId == ioProcNumSCS) {
         currentSeqNumber = ParallelDescriptor::SeqNum(1);
+        currentSubSeqNumber = ParallelDescriptor::SubSeqNum(1);
       }
       ParallelDescriptor::Bcast(&currentSeqNumber, 1, ioProcNumAll, scsComm);
+      ParallelDescriptor::Bcast(&currentSubSeqNumber, 1, ioProcNumAll, scsComm);
       if(scsMyId != ioProcNumSCS) {
         ParallelDescriptor::SeqNum(2, currentSeqNumber);
+        ParallelDescriptor::SubSeqNum(2, currentSubSeqNumber);
       }
 
+      // Synchronize inherited objects and VisMF
+      AmrCore::AddProcsToComp(ioProcNumSCS, ioProcNumAll,
+                              scsMyId, scsComm);
+      amrex::VisMF::AddProcsToComp(ioProcNumSCS, ioProcNumAll,
+                            scsMyId, scsComm);
 
       // ---- pack up the ints
       Vector<int> allInts;
-      //int allIntsSize(0);
-      int dt_level_Size(dt_level.size()), dt_min_Size(dt_min.size());
-      int max_grid_size_Size(max_grid_size.size()), blocking_factor_Size(blocking_factor.size());
-      int ref_ratio_Size(ref_ratio.size()), amr_level_Size(amr_level.size()), geom_Size(Geom().size());
+      int dt_level_Size(dt_level.size()), dt_min_Size(dt_min.size()), datalogname_Size(datalogname.size());
+/*      int max_grid_size_Size(max_grid_size.size()), blocking_factor_Size(blocking_factor.size());
+      int ref_ratio_Size(ref_ratio.size()),*/ int amr_level_Size(amr_level.size());//, geom_Size(Geom().size());
       int state_plot_vars_Size(state_plot_vars.size()), derive_plot_vars_Size(derive_plot_vars.size());
       int state_small_plot_vars_Size(state_small_plot_vars.size()), derive_small_plot_vars_Size(derive_small_plot_vars.size());
       if(scsMyId == ioProcNumSCS) {
-        allInts.push_back(max_level);
-        allInts.push_back(finest_level);
-        allInts.push_back(n_proper);
+      //  allInts.push_back(max_level);
+      //  allInts.push_back(finest_level);
+      //  allInts.push_back(n_proper);
         allInts.push_back(last_checkpoint); 
         allInts.push_back(check_int);
         allInts.push_back(last_plotfile);   
@@ -3238,7 +3314,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         allInts.push_back(file_name_digits);
         allInts.push_back(message_int);
         allInts.push_back(which_level_being_advanced);
-        allInts.push_back(verbose);
+     //   allInts.push_back(verbose);
         allInts.push_back(record_grid_info);
         allInts.push_back(record_run_info);
         allInts.push_back(record_run_info_terse);
@@ -3247,9 +3323,10 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         allInts.push_back(rebalance_grids);
         allInts.push_back(loadbalance_with_workestimates);
         allInts.push_back(loadbalance_level0_int);
-        allInts.push_back(loadbalance_max_fac);        
+     //   allInts.push_back(loadbalance_max_fac);        
 
 	// ---- these are parmparsed in
+        //      found at the top of AMReX_Amr.cpp
         allInts.push_back(plot_nfiles);
         allInts.push_back(mffile_nstreams);
         allInts.push_back(probinit_natonce);
@@ -3259,7 +3336,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         allInts.push_back(plotfile_on_restart);
         allInts.push_back(checkpoint_on_restart);
         allInts.push_back(compute_new_dt_on_regrid);
-        allInts.push_back(use_fixed_upto_level);
+    //    allInts.push_back(use_fixed_upto_level);
 
         allInts.push_back(level_steps.size());
         for(int i(0); i < level_steps.size(); ++i)     { allInts.push_back(level_steps[i]); }
@@ -3269,26 +3346,27 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         for(int i(0); i < n_cycle.size(); ++i)         { allInts.push_back(n_cycle[i]); }
         allInts.push_back(regrid_int.size());
         for(int i(0); i < regrid_int.size(); ++i)      { allInts.push_back(regrid_int[i]); }
-        allInts.push_back(n_error_buf.size());
-        for(int i(0); i < n_error_buf.size(); ++i)    { allInts.push_back(n_error_buf[i]); }
+//        allInts.push_back(n_error_buf.size());
+//        for(int i(0); i < n_error_buf.size(); ++i)    { allInts.push_back(n_error_buf[i]); }
 
 	// ---- for non-int arrays
         allInts.push_back(dt_level.size());
         allInts.push_back(dt_min.size());
-        allInts.push_back(max_grid_size.size());
-        allInts.push_back(blocking_factor.size());
-        allInts.push_back(ref_ratio.size());
+//        allInts.push_back(max_grid_size.size());
+//        allInts.push_back(blocking_factor.size());
+//        allInts.push_back(ref_ratio.size());
         allInts.push_back(amr_level.size());
-        allInts.push_back(Geom().size());
+//        allInts.push_back(Geom().size());
+        allInts.push_back(datalogname.size());
         allInts.push_back(state_plot_vars.size());
         allInts.push_back(state_small_plot_vars.size());
         allInts.push_back(derive_plot_vars.size());
         allInts.push_back(derive_small_plot_vars.size());
 
-        allInts.push_back(VisMF::GetNOutFiles());
-        allInts.push_back(VisMF::GetMFFileInStreams());
-        allInts.push_back(VisMF::GetVerbose());
-        allInts.push_back(VisMF::GetHeaderVersion());
+//        allInts.push_back(VisMF::GetNOutFiles());
+//        allInts.push_back(VisMF::GetMFFileInStreams());
+//        allInts.push_back(VisMF::GetVerbose());
+//        allInts.push_back(VisMF::GetHeaderVersion());
 
         allInts.push_back(plot_headerversion);
         allInts.push_back(checkpoint_headerversion);
@@ -3301,9 +3379,9 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       // ---- unpack the ints
       if(scsMyId != ioProcNumSCS) {
 	int count(0), aSize(-1);
-        max_level                  = allInts[count++];
-        finest_level               = allInts[count++];
-        n_proper                   = allInts[count++];
+   //     max_level                  = allInts[count++];
+   //     finest_level               = allInts[count++];
+   //      n_proper                   = allInts[count++];
         last_checkpoint            = allInts[count++]; 
         check_int                  = allInts[count++];
         last_plotfile              = allInts[count++];   
@@ -3314,7 +3392,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         file_name_digits           = allInts[count++];
         message_int                = allInts[count++];
         which_level_being_advanced = allInts[count++];
-        verbose                    = allInts[count++];
+     //   verbose                    = allInts[count++];
         record_grid_info           = allInts[count++];
         record_run_info            = allInts[count++];
         record_run_info_terse      = allInts[count++];
@@ -3323,7 +3401,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         rebalance_grids            = allInts[count++];
         loadbalance_with_workestimates  = allInts[count++];
         loadbalance_level0_int     = allInts[count++];
-        loadbalance_max_fac        = allInts[count++];
+      //  loadbalance_max_fac        = allInts[count++];
 
         plot_nfiles                = allInts[count++];
         mffile_nstreams            = allInts[count++];
@@ -3334,7 +3412,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         plotfile_on_restart        = allInts[count++];
         checkpoint_on_restart      = allInts[count++];
         compute_new_dt_on_regrid   = allInts[count++];
-        use_fixed_upto_level       = allInts[count++];
+      //  use_fixed_upto_level       = allInts[count++];
 
         aSize                      = allInts[count++];
 	level_steps.resize(aSize);
@@ -3348,26 +3426,27 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
         aSize                      = allInts[count++];
         regrid_int.resize(aSize);
         for(int i(0); i < regrid_int.size(); ++i)      { regrid_int[i] = allInts[count++]; }
-        aSize                      = allInts[count++];
-        n_error_buf.resize(aSize);
-        for(int i(0); i < n_error_buf.size(); ++i)     { n_error_buf[i] = allInts[count++]; }
+//        aSize                      = allInts[count++];
+//        n_error_buf.resize(aSize);
+//        for(int i(0); i < n_error_buf.size(); ++i)     { n_error_buf[i] = allInts[count++]; }
 
         dt_level_Size               = allInts[count++];
         dt_min_Size                 = allInts[count++];
-        max_grid_size_Size          = allInts[count++];
-        blocking_factor_Size        = allInts[count++];
-        ref_ratio_Size              = allInts[count++];
+//        max_grid_size_Size          = allInts[count++];
+//        blocking_factor_Size        = allInts[count++];
+//        ref_ratio_Size              = allInts[count++];
         amr_level_Size              = allInts[count++];
-        geom_Size                   = allInts[count++];
+        datalogname_Size            = allInts[count++];
+//        geom_Size                   = allInts[count++];
         state_plot_vars_Size        = allInts[count++];
         state_small_plot_vars_Size  = allInts[count++];
         derive_plot_vars_Size       = allInts[count++];
         derive_small_plot_vars_Size = allInts[count++];
 
-        VisMF::SetNOutFiles(allInts[count++]);
-        VisMF::SetMFFileInStreams(allInts[count++]);
-        VisMF::SetVerbose(allInts[count++]);
-        VisMF::SetHeaderVersion(static_cast<VisMF::Header::Version> (allInts[count++]));
+//        VisMF::SetNOutFiles(allInts[count++]);
+//        VisMF::SetMFFileInStreams(allInts[count++]);
+//        VisMF::SetVerbose(allInts[count++]);
+//        VisMF::SetHeaderVersion(static_cast<VisMF::Header::Version> (allInts[count++]));
 
         plot_headerversion       = static_cast<VisMF::Header::Version> (allInts[count++]);
         checkpoint_headerversion = static_cast<VisMF::Header::Version> (allInts[count++]);
@@ -3375,7 +3454,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	BL_ASSERT(count == allInts.size());
       }
 
-
+/*
       // ---- pack up the longs
       Vector<long> allLongs;
       if(scsMyId == ioProcNumSCS) {
@@ -3389,7 +3468,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	int count(0);
         VisMF::SetIOBufferSize(allLongs[count++]);
       }
-
+*/
 
       // ---- pack up the Reals
       Vector<Real> allReals;
@@ -3397,10 +3476,11 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       if(scsMyId == ioProcNumSCS) {
         allReals.push_back(cumtime);
         allReals.push_back(start_time);
-        allReals.push_back(grid_eff);
+     //   allReals.push_back(grid_eff);
         allReals.push_back(check_per);
         allReals.push_back(plot_per);
         allReals.push_back(small_plot_per);
+        allReals.push_back(loadbalance_max_fac);
 
         for(int i(0); i < dt_level.size(); ++i)   { allReals.push_back(dt_level[i]); }
         for(int i(0); i < dt_min.size(); ++i)     { allReals.push_back(dt_min[i]); }
@@ -3415,10 +3495,11 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	int count(0);
         cumtime    = allReals[count++];
         start_time = allReals[count++];
-        grid_eff   = allReals[count++];
+     //   grid_eff   = allReals[count++];
         check_per  = allReals[count++];
         plot_per   = allReals[count++];
         small_plot_per = allReals[count++];
+        loadbalance_max_fac = allReals[count++];
 
 	dt_level.resize(dt_level_Size);
         for(int i(0); i < dt_level.size(); ++i)  { dt_level[i] = allReals[count++]; }
@@ -3431,29 +3512,30 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       Vector<int> allBools;  // ---- just use ints here
       //int allBoolsSize(0);
       if(scsMyId == ioProcNumSCS) {
+
+        for(int i(0); i < BL_SPACEDIM; ++i)    { allBools.push_back(isPeriodic[i]); }
         allBools.push_back(abort_on_stream_retry_failure);
         allBools.push_back(bUserStopRequest);
-        for(int i(0); i < BL_SPACEDIM; ++i)    { allBools.push_back(isPeriodic[i]); }
         allBools.push_back(first_plotfile);
-
-        allBools.push_back(plot_files_output);
-        allBools.push_back(refine_grid_layout);
-        allBools.push_back(checkpoint_files_output);
-        allBools.push_back(initialized);
-        allBools.push_back(use_fixed_coarse_grids);
         allBools.push_back(first_smallplotfile);
+
+        allBools.push_back(initialized);
+        allBools.push_back(plot_files_output);
+    //    allBools.push_back(refine_grid_layout);
+        allBools.push_back(checkpoint_files_output);
+    //    allBools.push_back(use_fixed_coarse_grids);
         allBools.push_back(precreateDirectories);
         allBools.push_back(prereadFAHeaders);
 
 	// ---- sync vismf settings
-        allBools.push_back(VisMF::GetGroupSets());
-        allBools.push_back(VisMF::GetSetBuf());
-        allBools.push_back(VisMF::GetUseSingleRead());
-        allBools.push_back(VisMF::GetUseSingleWrite());
-        allBools.push_back(VisMF::GetCheckFilePositions());
-        allBools.push_back(VisMF::GetUsePersistentIFStreams());
-        allBools.push_back(VisMF::GetUseSynchronousReads());
-        allBools.push_back(VisMF::GetUseDynamicSetSelection());
+//       allBools.push_back(VisMF::GetGroupSets());
+//        allBools.push_back(VisMF::GetSetBuf());
+//        allBools.push_back(VisMF::GetUseSingleRead());
+//        allBools.push_back(VisMF::GetUseSingleWrite());
+//        allBools.push_back(VisMF::GetCheckFilePositions());
+//        allBools.push_back(VisMF::GetUsePersistentIFStreams());
+//        allBools.push_back(VisMF::GetUseSynchronousReads());
+//        allBools.push_back(VisMF::GetUseDynamicSetSelection());
 
 	//allBoolsSize = allBools.size();
       }
@@ -3463,29 +3545,28 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       // ---- unpack the bools
       if(scsMyId != ioProcNumSCS) {
 	int count(0);
-
+        for(int i(0); i < BL_SPACEDIM; ++i)    { isPeriodic[i] = allBools[count++]; }
         abort_on_stream_retry_failure = allBools[count++];
         bUserStopRequest              = allBools[count++];
-        for(int i(0); i < BL_SPACEDIM; ++i)    { isPeriodic[i] = allBools[count++]; }
         first_plotfile                = allBools[count++];
-
-        plot_files_output             = allBools[count++];
-        refine_grid_layout            = allBools[count++];
-        checkpoint_files_output       = allBools[count++];
-        initialized                   = allBools[count++];
-        use_fixed_coarse_grids        = allBools[count++];
         first_smallplotfile           = allBools[count++];
+ 
+        initialized                   = allBools[count++];
+        plot_files_output             = allBools[count++];
+    //    refine_grid_layout            = allBools[count++];
+        checkpoint_files_output       = allBools[count++];
+    //    use_fixed_coarse_grids        = allBools[count++];
         precreateDirectories          = allBools[count++];
         prereadFAHeaders              = allBools[count++];
 
-        VisMF::SetGroupSets(allBools[count++]);
-        VisMF::SetSetBuf(allBools[count++]);
-        VisMF::SetUseSingleRead(allBools[count++]);
-        VisMF::SetUseSingleWrite(allBools[count++]);
-        VisMF::SetCheckFilePositions(allBools[count++]);
-        VisMF::SetUsePersistentIFStreams(allBools[count++]);
-        VisMF::SetUseSynchronousReads(allBools[count++]);
-        VisMF::SetUseDynamicSetSelection(allBools[count++]);
+//        VisMF::SetGroupSets(allBools[count++]);
+//        VisMF::SetSetBuf(allBools[count++]);
+//        VisMF::SetUseSingleRead(allBools[count++]);
+//        VisMF::SetUseSingleWrite(allBools[count++]);
+//        VisMF::SetCheckFilePositions(allBools[count++]);
+//        VisMF::SetUsePersistentIFStreams(allBools[count++]);
+//        VisMF::SetUseSynchronousReads(allBools[count++]);
+//        VisMF::SetUseDynamicSetSelection(allBools[count++]);
       }
 
 
@@ -3496,13 +3577,17 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       if(scsMyId == ioProcNumSCS) {
         allStrings.push_back(regrid_grids_file);
         allStrings.push_back(initial_grids_file);
-        allStrings.push_back(check_file_root);
         allStrings.push_back(subcycling_mode);
+        allStrings.push_back(check_file_root);
         allStrings.push_back(plot_file_root);
         allStrings.push_back(small_plot_file_root);
         allStrings.push_back(restart_chkfile);
         allStrings.push_back(restart_pltfile);
         allStrings.push_back(probin_file);
+
+        for( int i(0); i < datalogname_Size; ++i) {
+          allStrings.push_back(datalogname[i]);
+        }
 
         std::list<std::string>::iterator lit;
 	for( lit = state_plot_vars.begin(); lit != state_plot_vars.end(); ++lit) {
@@ -3529,16 +3614,24 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	int count(0);
         allStrings = amrex::UnSerializeStringArray(serialStrings);
 
-        regrid_grids_file  = allStrings[count++];
-        initial_grids_file = allStrings[count++];
-        check_file_root    = allStrings[count++];
-        subcycling_mode    = allStrings[count++];
-        plot_file_root     = allStrings[count++];
+        regrid_grids_file    = allStrings[count++];
+        initial_grids_file   = allStrings[count++];
+        subcycling_mode      = allStrings[count++];
+        check_file_root      = allStrings[count++];
+        plot_file_root       = allStrings[count++];
         small_plot_file_root = allStrings[count++];
-        restart_chkfile    = allStrings[count++];
-        restart_pltfile    = allStrings[count++];
-        probin_file        = allStrings[count++];
+        restart_chkfile      = allStrings[count++];
+        restart_pltfile      = allStrings[count++];
+        probin_file          = allStrings[count++];
 
+        // For now, only resize the datalog.
+        // This seems to be only thing done on non-IO procs for now.
+        // Done for consistency.
+        datalog.resize(datalogname_Size);
+
+        for(int i(0); i < datalogname_Size; ++i) {
+          datalogname.push_back(allStrings[count++]);
+        }
         for(int i(0); i < state_plot_vars_Size; ++i) {
           state_plot_vars.push_back(allStrings[count++]);
 	}
@@ -3553,7 +3646,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	}
       }
 
-
+/*
       // ---- pack up the IntVects
       Vector<int> allIntVects;
       int allIntVectsSize(0);
@@ -3601,18 +3694,17 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
 	  }
         }
       }
-
-
+*/
 
       // ---- BoxArrays
       for(int i(0); i < initial_ba.size(); ++i) {
-        amrex::BroadcastBoxArray(initial_ba[i], scsMyId, ioProcNumAll, scsComm);
+        initial_ba[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       }
       for(int i(0); i < regrid_ba.size(); ++i) {
-        amrex::BroadcastBoxArray(regrid_ba[i], scsMyId, ioProcNumAll, scsComm);
+        regrid_ba[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       }
 
-
+      // ---- LevelBld
       if(scsMyId != ioProcNumSCS) {
         levelbld = getLevelBld();
         levelbld->variableSetUpForNewCompProcs();
@@ -3633,11 +3725,11 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       for(int lev(0); lev <= finest_level; ++lev) {
         amr_level[lev]->AddProcsToComp(this, nSidecarProcs, prevSidecarProcs,
 				       ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
-	this->SetBoxArray(lev, amr_level[lev]->boxArray());
-	this->SetDistributionMap(lev, amr_level[lev]->DistributionMap());
+//	this->SetBoxArray(lev, amr_level[lev]->boxArray());
+//	this->SetDistributionMap(lev, amr_level[lev]->DistributionMap());
       }
 
-
+/*
       // ---- handle geom
       if(scsMyId != ioProcNumSCS) {
 	  Geom().resize(geom_Size);
@@ -3645,6 +3737,7 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       for(int lev(0); lev < Geom().size(); ++lev) {
 	  Geometry::BroadcastGeometry(Geom(lev), ioProcNumSCS, scsComm);
       }
+*/
 
       // ---- handle BoundaryPointLists
       BroadcastBoundaryPointList(intersect_lox, scsMyId, ioProcNumSCS, scsComm);
@@ -3682,14 +3775,11 @@ Amr::AddProcsToComp(int nSidecarProcs, int prevSidecarProcs) {
       BL_MPI_REQUIRE( MPI_Group_free(&scsGroup) );
     }
 
-    VisMF::SetNOutFiles(checkpoint_nfiles);
+//    VisMF::SetNOutFiles(checkpoint_nfiles);
 
 #ifdef USE_PARTICLES
     RedistributeParticles();
 #endif
-
-    bool abortOnError(false);
-    MultiFab::CheckFAPointers(abortOnError);
 
     amrex::Print() << "%%%%%%%% finished AddProcsToComp.\n";
 
@@ -3704,7 +3794,7 @@ Amr::RedistributeGrids(int how) {
     }
 
     if(how >= 0) {
-      DistributionMapping::InitProximityMap();
+//      DistributionMapping::InitProximityMap();
       DistributionMapping::Initialize();
 
         Vector<BoxArray> allBoxes(finest_level + 1);
@@ -3712,9 +3802,9 @@ Amr::RedistributeGrids(int how) {
           allBoxes[ilev] = boxArray(ilev);
         }
         Vector<Vector<int> > mLDM;
-        if(how == 1) {
+        /*if(how == 1) {
           mLDM = DistributionMapping::MultiLevelMapPFC(ref_ratio, allBoxes, maxGridSize(0)[0]);
-        } else if(how == 2) {
+        } else */ if(how == 2) {
           mLDM = DistributionMapping::MultiLevelMapRandom(ref_ratio, allBoxes, maxGridSize(0)[0]);
         } else if(how == 3) {
           mLDM = DistributionMapping::MultiLevelMapKnapSack(ref_ratio, allBoxes, maxGridSize(0)[0]);

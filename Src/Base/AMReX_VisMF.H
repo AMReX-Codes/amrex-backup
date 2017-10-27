@@ -212,6 +212,9 @@ public:
     FArrayBox* readFAB (int fabIndex,
                         int ncomp);
 
+    //! This function handles data synchronization during a sidecar resize.
+    static void AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
+
     static int  GetNOutFiles ();
     static void SetNOutFiles (int noutfiles);
 

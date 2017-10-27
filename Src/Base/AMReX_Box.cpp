@@ -7,6 +7,7 @@
 #include <AMReX_Box.H>
 #include <AMReX_Print.H>
 #include <AMReX_ParallelDescriptor.H>
+#include <AMReX_Utility.H>
 
 namespace amrex {
 
@@ -763,6 +764,23 @@ Box::isSquare () const
 #elif BL_SPACEDIM==3
     return (sz[0] == sz[1] && (sz[1] == sz[2]));
 #endif
+}
+
+void
+Box::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+  // Runs serialize/unserialize box functions to synchronize smallend, bigend and btype.
+  // If other core data variables are added to Box, update those functions,to allow
+  // users to move boxes accurately however they see fit.
+  // If data structure additions are made, include those structures here.
+  Vector<int> sBox;
+  if (scsMyId == ioProcNumSCS){ 
+    sBox = SerializeBox(*this);
+  }
+  amrex::BroadcastArray(sBox, scsMyId, ioProcNumAll, scsComm);
+  if (scsMyId != ioProcNumSCS){
+    *this = UnSerializeBox(sBox);
+  }
 }
 
 Vector<int> SerializeBox(const Box &b)

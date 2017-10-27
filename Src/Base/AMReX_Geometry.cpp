@@ -19,8 +19,8 @@ namespace amrex {
 // The definition of some static data members.
 //
 int     Geometry::spherical_origin_fix = 0;
-RealBox Geometry::prob_domain;
 bool    Geometry::is_periodic[BL_SPACEDIM] = {AMREX_D_DECL(0,0,0)};
+RealBox Geometry::prob_domain;
 
 std::ostream&
 operator<< (std::ostream&   os,
@@ -343,6 +343,47 @@ Geometry::SendGeometryToSidecar (Geometry *geom, int whichSidecar)
 }
 
 
+void
+Geometry::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+   Vector<int> periodic(BL_SPACEDIM, -1);
+   Vector<Real> cast_lo(BL_SPACEDIM, -1);
+   Vector<Real> cast_hi(BL_SPACEDIM, -1);
+   Real lo[BL_SPACEDIM];
+   Real hi[BL_SPACEDIM];
+
+   // Update inherited class and Box object first.
+   CoordSys::AddProcsToComp(ioProcNumSCS, ioProcNumAll,
+                            scsMyId, scsComm);
+   domain.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+
+   // ---- Ints
+   ParallelDescriptor::Bcast(&spherical_origin_fix, 1, ioProcNumSCS, scsComm);
+
+   // ---- Arrays
+   if (scsMyId == ioProcNumSCS)
+   {
+     for (int i(0); i<BL_SPACEDIM; ++i) { periodic[i] = is_periodic[i]; } 
+     for (int i(0); i<BL_SPACEDIM; ++i) { cast_lo[i] = prob_domain.lo(i); } 
+     for (int i(0); i<BL_SPACEDIM; ++i) { cast_hi[i] = prob_domain.hi(i); } 
+   }
+
+   amrex::BroadcastArray(periodic, scsMyId, ioProcNumAll, scsComm);
+   amrex::BroadcastArray(cast_lo, scsMyId, ioProcNumAll, scsComm);
+   amrex::BroadcastArray(cast_hi, scsMyId, ioProcNumAll, scsComm);
+ 
+   if (scsMyId != ioProcNumSCS)
+   {
+     for (int i(0); i<BL_SPACEDIM; ++i) { is_periodic[i] = periodic[i]; } 
+     for (int i(0); i<BL_SPACEDIM; ++i) { lo[i] = cast_lo[i]; } 
+     for (int i(0); i<BL_SPACEDIM; ++i) { hi[i] = cast_hi[i]; } 
+
+     // ---- set RealBox
+     prob_domain.setLo(lo);
+     prob_domain.setHi(hi);
+   }
+}
+
 
 void
 Geometry::BroadcastGeometry (Geometry &geom, int fromProc, MPI_Comm comm)
@@ -350,8 +391,6 @@ Geometry::BroadcastGeometry (Geometry &geom, int fromProc, MPI_Comm comm)
   bool bcastSource(ParallelDescriptor::MyProc() == fromProc);
   Geometry::BroadcastGeometry(geom, fromProc, comm, bcastSource);
 }
-
-
 
 void
 Geometry::BroadcastGeometry (Geometry &geom, int fromProc, MPI_Comm comm, bool bcastSource)

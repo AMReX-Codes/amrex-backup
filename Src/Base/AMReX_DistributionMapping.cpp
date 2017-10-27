@@ -28,12 +28,12 @@
 namespace amrex {
 
     bool initialized = false;
-    std::map<int, int> rankPNumMap;       // [rank, procNumber]
-    std::multimap<int, int> pNumRankMM;   // [procNumber, rank]
-    std::map<int, IntVect> pNumTopIVMap;  // [procNumber, topological iv position]
-    std::multimap<IntVect, int> topIVpNumMM;
+//    std::map<int, int> rankPNumMap;       // [rank, procNumber]
+//    std::multimap<int, int> pNumRankMM;   // [procNumber, rank]
+//    std::map<int, IntVect> pNumTopIVMap;  // [procNumber, topological iv position]
+//    std::multimap<IntVect, int> topIVpNumMM;
                                           // [topological iv position, procNumber]
-    std::vector<int> ranksSFC;
+//    std::vector<int> ranksSFC;
 
     //
     // Set default values for these in Initialize()!!!
@@ -49,10 +49,10 @@ DistributionMapping::Strategy DistributionMapping::m_Strategy = DistributionMapp
 DistributionMapping::PVMF DistributionMapping::m_BuildMap = 0;
 
 long DistributionMapping::totalCells(0);
-Real DistributionMapping::bytesPerCell(0.0);
-Vector<int> DistributionMapping::proximityMap;
-Vector<int> DistributionMapping::proximityOrder;
-Vector<long> DistributionMapping::totalBoxPoints;
+//Real DistributionMapping::bytesPerCell(0.0);
+//Vector<int> DistributionMapping::proximityMap;
+//Vector<int> DistributionMapping::proximityOrder;
+//Vector<long> DistributionMapping::totalBoxPoints;
 
 int DistributionMapping::nDistMaps(0);
 
@@ -85,9 +85,9 @@ DistributionMapping::strategy (DistributionMapping::Strategy how)
     case SFC:
         m_BuildMap = &DistributionMapping::SFCProcessorMap;
         break;
-    case PFC:
-        m_BuildMap = &DistributionMapping::PFCProcessorMap;
-        break;
+//    case PFC:
+//        m_BuildMap = &DistributionMapping::PFCProcessorMap;
+//        break;
     case RRSFC:
         m_BuildMap = &DistributionMapping::RRSFCProcessorMap;
         break;
@@ -156,11 +156,13 @@ DistributionMapping::Initialize ()
         {
             strategy(SFC);
         }
+/*
         else if (theStrategy == "PFC")
         {
             strategy(PFC);
 	    DistributionMapping::InitProximityMap();
         }
+*/
         else if (theStrategy == "RRSFC")
         {
             strategy(RRSFC);
@@ -176,7 +178,7 @@ DistributionMapping::Initialize ()
     {
         strategy(m_Strategy);  // default
     }
-
+/*
     if(proximityMap.size() != ParallelDescriptor::NProcs()) {
       proximityMap.resize(ParallelDescriptor::NProcs(), 0);
       proximityOrder.resize(ParallelDescriptor::NProcs(), 0);
@@ -188,7 +190,7 @@ DistributionMapping::Initialize ()
       }
     }
     totalBoxPoints.resize(ParallelDescriptor::NProcs(), 0);
-
+*/
     DistributionMapping::nDistMaps = 0;
 
     amrex::ExecOnFinalize(DistributionMapping::Finalize);
@@ -437,8 +439,10 @@ DistributionMapping::define (const BoxArray& boxes,
 }
 
 void
-DistributionMapping::define (const Vector<int>& pmap)
+DistributionMapping::define (const Vector<int>& pmap,
+                             ParallelDescriptor::Color a_color)
 {
+    m_color = a_color;
     m_ref->m_pmap = pmap;
 }
 
@@ -1425,7 +1429,7 @@ DistributionMapping::CurrentCellsUsed (int nprocs, Vector<long>& result)
     }
 }
 
-
+/*
 void
 DistributionMapping::PFCProcessorMapDoIt (const BoxArray&          boxes,
                                           const std::vector<long>& wgts,
@@ -1619,7 +1623,7 @@ DistributionMapping::PFCProcessorMap (const BoxArray&          boxes,
 
     PFCProcessorMapDoIt(boxes,wgts,nprocs);
 }
-
+*/
 
 
 namespace
@@ -1656,7 +1660,7 @@ PFCMultiLevelToken::Compare::operator () (const PFCMultiLevelToken& lhs,
 
 
 
-
+/*
 Vector<Vector<int> >
 DistributionMapping::MultiLevelMapPFC (const Vector<IntVect>  &refRatio,
                                        const Vector<BoxArray> &allBoxes,
@@ -1781,7 +1785,7 @@ DistributionMapping::MultiLevelMapPFC (const Vector<IntVect>  &refRatio,
 	  localPMaps[level][idxLevel] = staggeredProc;
         }
       }
-    } else {
+    } else { 
       for(int iProc(0); iProc < nProcs; ++iProc) {
         const std::vector<int> &vi = vec[iProc];
         for(int j(0), N(vi.size()); j < N; ++j) {
@@ -1791,7 +1795,7 @@ DistributionMapping::MultiLevelMapPFC (const Vector<IntVect>  &refRatio,
 	  localPMaps[level][idxLevel] = ProximityMap(iProc);
         }
       }
-    }
+//    }
 
     tokens.clear();
 
@@ -1848,7 +1852,7 @@ if(ParallelDescriptor::IOProcessor()) {
 
     return localPMaps;
 }
-
+*/
 
 
 
@@ -1935,7 +1939,7 @@ DistributionMapping::MultiLevelMapKnapSack (const Vector<IntVect>  &refRatio,
     return localPMaps;
 }
 
-
+/*
 void
 DistributionMapping::PFCMultiLevelMap (const Vector<IntVect>  &refRatio,
                                        const Vector<BoxArray> &allBoxes)
@@ -2047,7 +2051,7 @@ if(IOP) cout << "localPMaps[" << n << "][" << i << "] = " << localPMaps[n][i] <<
     }
 
     tokens.clear();
-    /*
+    
     Vector<long> wgts_per_cpu(nprocs, 0);
     for (unsigned int i(0), N(vec.size()); i < N; ++i) {
         const std::vector<int>& vi = vec[i];
@@ -2055,7 +2059,7 @@ if(IOP) cout << "localPMaps[" << n << "][" << i << "] = " << localPMaps[n][i] <<
             wgts_per_cpu[i] += wgts[vi[j]];
 	}
     }
-    */
+    
 
     if(ParallelDescriptor::IOProcessor()) {
 
@@ -2077,9 +2081,7 @@ if(IOP) cout << "localPMaps[" << n << "][" << i << "] = " << localPMaps[n][i] <<
       std::cout << "PFC efficiency: " << (sum_wgt/(nprocs*max_wgt)) << '\n';
     }
 }
-
-
-
+*/
 
 std::string
 DistributionMapping::GetProcName() {
@@ -2100,7 +2102,7 @@ DistributionMapping::GetProcNumber() {
   return(ParallelDescriptor::MyProc());
 }
 
-
+/*
 void
 DistributionMapping::InitProximityMap(bool makeMap, bool reinit)
 {
@@ -2409,7 +2411,62 @@ DistributionMapping::RanksFromTopIV(const IntVect &iv) {
   }
   return ranks;
 }
+*/
 
+void
+DistributionMapping::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+    // ---- Strategy
+    int dMStrategy(static_cast<int> (m_Strategy));
+    ParallelDescriptor::Bcast(&dMStrategy, 1, ioProcNumAll, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+       m_Strategy = static_cast<Strategy> (dMStrategy);
+       // Set PVMF m_BuildMap
+       strategy(m_Strategy);
+    }
+
+    // ---- Color & dmap
+    Vector<int> dmapA;
+    int colorInt;
+    if (scsMyId == ioProcNumSCS)
+    {
+      dmapA = m_ref->m_pmap;
+      colorInt = m_color.to_int();
+    }
+    amrex::BroadcastArray(dmapA, scsMyId, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&colorInt, 1, ioProcNumAll, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+      m_color = ParallelDescriptor::Color(colorInt);
+      m_ref->m_pmap = dmapA;
+    }
+
+    // ---- dmID and nDistMaps
+    int id(dmID), nDM(nDistMaps);
+    ParallelDescriptor::Bcast(&dmID, 1, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&nDM, 1, ioProcNumAll, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+      dmID = id;
+      nDistMaps = nDM;
+    }
+
+    // ---- bools
+    int b_ii;
+    ParallelDescriptor::Bcast(&b_ii, 1, ioProcNumAll, scsComm);
+    if (scsMyId != ioProcNumSCS)
+    {
+      initialized = b_ii;
+    }
+
+    // ---- other static objects
+    ParallelDescriptor::Bcast(&verbose, 1, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&sfc_threshold, 1, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&max_efficiency, 1, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&node_size, 1, ioProcNumAll, scsComm);
+    ParallelDescriptor::Bcast(&totalCells, 1, ioProcNumAll, scsComm);
+}
 
 void
 DistributionMapping::PrintDiagnostics(const std::string &filename)

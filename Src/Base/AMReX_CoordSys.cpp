@@ -6,6 +6,7 @@
 #include <AMReX_COORDSYS_F.H>
 #include <AMReX_FArrayBox.H>
 #include <AMReX_ParallelDescriptor.H>
+#include <AMReX_Utility.H>
 
 #if (BL_SPACEDIM==2)
 namespace {
@@ -599,6 +600,39 @@ CoordSys::AreaHi (const IntVect& point,
 
 
 #ifdef BL_USE_MPI
+
+void
+CoordSys::AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+  Vector<int> offVec(BL_SPACEDIM, -1);
+  Vector<int> dxVec(BL_SPACEDIM, -1);
+  Vector<int> inv_dxVec(BL_SPACEDIM, -1);
+ int coord, bOK;
+
+  if (scsMyId == ioProcNumSCS)
+  {
+    for (int i(0); i<BL_SPACEDIM; ++i) { offVec[i] = offset[i]; }
+    for (int i(0); i<BL_SPACEDIM; ++i) { dxVec[i] = dx[i]; }
+    for (int i(0); i<BL_SPACEDIM; ++i) { inv_dxVec[i] = inv_dx[i]; }
+    coord = CoordInt();
+    bOK = ok;
+  }
+
+  amrex::BroadcastArray(offVec, scsMyId, ioProcNumAll, scsComm);
+  amrex::BroadcastArray(dxVec, scsMyId, ioProcNumAll, scsComm);
+  amrex::BroadcastArray(inv_dxVec, scsMyId, ioProcNumAll, scsComm);
+  ParallelDescriptor::Bcast(&coord, 1, ioProcNumAll, scsComm);
+  ParallelDescriptor::Bcast(&bOK, 1, ioProcNumAll, scsComm);
+ 
+  if (scsMyId != ioProcNumSCS)
+  {
+    for (int i(0); i<BL_SPACEDIM; ++i) { offset[i] = offVec[i]; }
+    for (int i(0); i<BL_SPACEDIM; ++i) { dx[i] = dxVec[i]; }
+    for (int i(0); i<BL_SPACEDIM; ++i) { inv_dx[i] = inv_dxVec[i]; }
+    c_sys = static_cast<CoordType> (coord);
+    ok = bOK;
+  }
+}
 
 void
 CoordSys::BroadcastCoordSys (CoordSys &cSys, int fromProc, MPI_Comm comm)

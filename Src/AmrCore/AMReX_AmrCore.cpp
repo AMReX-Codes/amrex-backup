@@ -109,6 +109,28 @@ AmrCore::regrid (int lbase, Real time, bool)
     finest_level = new_finest;
 }
 
+void
+AmrCore::AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+    AmrMesh::AddProcsToComp(ioProcNumSCS, ioProcNumAll,
+                            scsMyId, scsComm);
+
+    // ---- Ints
+    ParallelDescriptor::Bcast(&verbose, 1, ioProcNumSCS, scsComm);
+
+    // ---- Bools
+    int bii(initialized);
+    ParallelDescriptor::Bcast(&bii, 1, ioProcNumSCS, scsComm);
+    if (scsMyId != ioProcNumSCS) { initialized = bii; }
+
+    // ---- AmrParGDB
+    // To get this working, must add AddProcToComp to AmrParGDB, or
+    //    add a "DmapIsEmpty" and "BArrayIsEmpty" function to AMRParGDB
+    //    to allow proper setting of new object with current functions.
+#ifdef USE_PARTICLES
+    m_gdb.reset(new AmrParGDB(this));
+#endif
+}
 
 void
 AmrCore::printGridSummary (std::ostream& os, int min_lev, int max_lev) const

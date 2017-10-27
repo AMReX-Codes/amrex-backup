@@ -47,6 +47,9 @@ namespace amrex
     //! Construct a BoxArray (in BL_SPACEDIM dimensions) from a 1D Array of cells
     BoxArray UnSerializeBoxArray(const Vector<int> &serarray);
 
+    //! Construct a BoxArray (in BL_SPACEDIM dimensions) from a 1D Array of cells
+    BoxList UnSerializeBoxArrayToList(const Vector<int> &serarray, const IndexType &type);
+
     //! Note that two BoxArrays that match are not necessarily equal.
     bool match (const BoxArray& x, const BoxArray& y);
 
@@ -218,6 +221,7 @@ public:
     explicit BoxArray (const BoxList& bl);
     explicit BoxArray (BoxList&& bl) noexcept;
 
+    //! Construct a new BoxArray by transforming another BoxArray.
     BoxArray (const BoxArray& rhs, const BATransformer& trans);
 
     //! The copy constructor.
@@ -242,6 +246,12 @@ public:
     */
     void define (const BoxList& bl);
     void define (BoxList&& bl) noexcept;
+
+    /**
+    * \brief Initialize the BoxArray from component data.
+    * Originally built to redefine after sidecar adjustments.
+    */
+    void define (const Vector<Box>& bl, IntVect crse_ratio, bool initialize, bool hashmap);
 
     //! Remove all Boxes from the BoxArray.
     void clear ();
@@ -415,6 +425,9 @@ public:
     //! Clear out the internal hash table used by intersections.
     void clear_hash_bin () const;
 
+    //! This function handles data synchronization during a sidecar resize.
+    void AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
+
     //! Change the BoxArray to one with no overlap and then simplify it (see the simplify function in BoxList).
     void removeOverlap (bool simplify=true);
 
@@ -459,7 +472,6 @@ private:
     void type_update ();
 
     BARef::HashType& getHashMap () const;
-
 
     IntVect getDoiLo () const;
     IntVect getDoiHi () const;

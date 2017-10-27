@@ -248,6 +248,7 @@ public:
     void GetCellVolCoord (Vector<Real>& loc, const Box& region, int dir) const;
 
 #ifdef BL_USE_MPI
+    void AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
     static void BroadcastCoordSys (CoordSys &geom, int fromProc, MPI_Comm comm);
     static void BroadcastCoordSys (CoordSys &geom, int fromProc, MPI_Comm comm, bool bcastSource);
 #endif

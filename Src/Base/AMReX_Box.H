@@ -152,6 +152,9 @@ namespace amrex
     */
     Box minBox (const Box& b1, const Box& b2);
 
+    /* \brief These functions are used to communicate the data of a 
+    *   Box across ranks. For an example implementation,
+    *   see BroadcastBoxData in Utility or Box::AddProcsToComp.*/
     Vector<int> SerializeBox(const Box &b);
     int SerializeBoxSize();
     Box UnSerializeBox(const Vector<int> &serarray);
@@ -599,6 +602,11 @@ public:
     static const Box& TheUnitBox ();
 
     bool isSquare() const;
+
+    /**
+    * \brief This function handles data synchronization during a sidecar resize.
+    */
+    void AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
 
     bool coarsenable(int refrat) const {
         return coarsenable(IntVect(AMREX_D_DECL(refrat,refrat,refrat)));

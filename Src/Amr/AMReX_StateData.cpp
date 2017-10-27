@@ -892,6 +892,19 @@ void StateData::AddProcsToComp(const StateDescriptor &sdPtr,
                                int scsMyId, MPI_Comm scsComm)
 {
 #if BL_USE_MPI
+
+      // ---- m_factory
+      if(scsMyId != ioProcNumSCS)
+      { 
+#ifdef AMREX_USE_EB
+        m_factory.reset(new EBFArrayBoxFactory(geom, ba, dm,
+                                              {m_eb_basic_grow_cells, m_eb_volume_grow_cells, m_eb_full_grow_cells},
+                                               m_eb_support_level));
+#else
+        m_factory.reset(new FArrayBoxFactory());
+#endif
+      }
+
       // ---- StateDescriptor
       desc = &sdPtr;
 
@@ -902,13 +915,18 @@ void StateData::AddProcsToComp(const StateDescriptor &sdPtr,
       ParallelDescriptor::Bcast(&old_time.stop,  1, ioProcNumSCS, scsComm);
 
       // ---- Boxes
-      amrex::BroadcastBox(domain, scsMyId, ioProcNumSCS, scsComm);
+      domain.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
 
       // ---- BoxArrays
-      amrex::BroadcastBoxArray(grids, scsMyId, ioProcNumSCS, scsComm);
+      grids.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+
+      // ---- DistributionMapping
+      dmap.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
 
       // ---- MultiFabs
       int makeNewDataId(-7), makeOldDataId(-7);
+
+      // .... new_data
       if(new_data != 0) {
 	makeNewDataId = new_data->AllocatedFAPtrID();
       }
@@ -924,6 +942,7 @@ void StateData::AddProcsToComp(const StateDescriptor &sdPtr,
         new_data->AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       }
 
+      // .... old_data
       if(old_data != 0) {
 	makeOldDataId = old_data->AllocatedFAPtrID();
       }
@@ -938,6 +957,10 @@ void StateData::AddProcsToComp(const StateDescriptor &sdPtr,
       if(old_data != 0) {
         old_data->AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       }
+
+      // fabArrayHeaderNames & faHeaderMap do not need to be broadcast. 
+      //   They are temporary storage objects used during I/O and
+      //   are cleared, read and broadcast as needed.
 
       ParallelDescriptor::Barrier(scsComm);
 #endif

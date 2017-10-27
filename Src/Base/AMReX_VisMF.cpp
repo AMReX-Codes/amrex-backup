@@ -1817,6 +1817,58 @@ VisMF::ReadFAHeader (const std::string &fafabName,
 }
 
 
+void
+VisMF::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+
+   // ---- ints
+   ParallelDescriptor::Bcast(&nOutFiles, 1, ioProcNumSCS, scsComm);
+   ParallelDescriptor::Bcast(&nMFFileInStreams, 1, ioProcNumSCS, scsComm);
+   ParallelDescriptor::Bcast(&verbose, 1, ioProcNumSCS, scsComm);
+
+   // ---- enums
+   int versionEnum(static_cast<int> (currentVersion));
+   ParallelDescriptor::Bcast(&versionEnum, 1, ioProcNumSCS, scsComm);
+   if(scsMyId != ioProcNumSCS) { currentVersion = static_cast<Header::Version> (versionEnum); }
+
+   // ---- longs
+   ParallelDescriptor::Bcast(&ioBufferSize, 1, ioProcNumSCS, scsComm);
+
+   // ---- bools
+   Vector<int> allBools;
+   // .. pack the bools as integers
+   if (scsMyId == ioProcNumSCS) {
+     allBools.push_back(groupSets);
+     allBools.push_back(setBuf);
+     allBools.push_back(useSingleRead);
+     allBools.push_back(useSingleWrite);
+     allBools.push_back(checkFilePositions);
+     allBools.push_back(usePersistentIFStreams);
+     allBools.push_back(useSynchronousReads);
+     allBools.push_back(useDynamicSetSelection);
+     allBools.push_back(initialized);
+   }
+
+   amrex::BroadcastArray(allBools, scsMyId, ioProcNumAll, scsComm);
+
+   // .. unpack the bools
+   if (scsMyId != ioProcNumSCS) {
+     int count(0);
+
+     groupSets              = allBools[count++];
+     setBuf                 = allBools[count++];
+     useSingleRead          = allBools[count++];
+     useSingleWrite         = allBools[count++];
+     checkFilePositions     = allBools[count++];
+     usePersistentIFStreams = allBools[count++];
+     useSynchronousReads    = allBools[count++];
+     useDynamicSetSelection = allBools[count++];
+     initialized            = allBools[count++];
+   }
+
+}
+
+
 bool
 VisMF::Check (const std::string& mf_name)
 {

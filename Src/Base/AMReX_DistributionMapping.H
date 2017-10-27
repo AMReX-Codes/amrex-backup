@@ -41,12 +41,12 @@ class DistributionMapping
     template <typename T> friend class FabArray;
 
     //! The distribution strategies
-    enum Strategy { UNDEFINED = -1, ROUNDROBIN, KNAPSACK, SFC, PFC, RRSFC };
+    enum Strategy { UNDEFINED = -1, ROUNDROBIN, KNAPSACK, SFC, /*PFC,*/ RRSFC };
 
     //! The default constructor.
     DistributionMapping ();
 
-    /**
+    /*
     * \brief Create an object with the specified mapping.
     */
     explicit DistributionMapping (const Vector<int>& pmap,
@@ -85,7 +85,8 @@ class DistributionMapping
     * \brief Build mapping out of an Array of ints. You need to call this if you
     * built your DistributionMapping with the default constructor.
     */
-    void define (const Vector<int>& pmap);
+    void define (const Vector<int>& pmap,
+                 ParallelDescriptor::Color color = ParallelDescriptor::DefaultColor());
     /**
     * \brief Returns a constant reference to the mapping of boxes in the
     * underlying BoxArray to the CPU that holds the FAB on that Box.
@@ -130,8 +131,10 @@ class DistributionMapping
 
     void SFCProcessorMap(const BoxArray& boxes, const std::vector<long>& wgts,
                          int nprocs);
+/*
     void PFCProcessorMap(const BoxArray& boxes, const std::vector<long>& wgts,
                          int nprocs);
+*/
     void KnapSackProcessorMap(const std::vector<long>& wgts, int nprocs,
                               Real* efficiency = 0,
 			      bool do_full_knapsack = true,
@@ -159,31 +162,36 @@ class DistributionMapping
 
     static void PrintDiagnostics(const std::string &filename);
 
+    //! This function handles data synchronization during a sidecar resize.
+    void AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
+
     //! Initialize the topological proximity map
-    static void InitProximityMap(bool makeMap = false, bool reinit = false);
-    static int NHops(const Box &tbox, const IntVect &ivfrom, const IntVect &ivto);
-    static int ProcNumberFromRank(const int rank);
-    static std::vector<int> RanksFromProcNumber(const int procnum);
-    static IntVect TopIVFromProcNumber(const int procnum);
-    static std::vector<int> ProcNumbersFromTopIV(const IntVect &iv);
-    static IntVect TopIVFromRank(const int rank);
-    static std::vector<int> RanksFromTopIV(const IntVect &iv);
+//    static void InitProximityMap(bool makeMap = false, bool reinit = false);
+//    static int NHops(const Box &tbox, const IntVect &ivfrom, const IntVect &ivto);
+//    static int ProcNumberFromRank(const int rank);
+//    static std::vector<int> RanksFromProcNumber(const int procnum);
+//    static IntVect TopIVFromProcNumber(const int procnum);
+//    static std::vector<int> ProcNumbersFromTopIV(const IntVect &iv);
+//    static IntVect TopIVFromRank(const int rank);
+//    static std::vector<int> RanksFromTopIV(const IntVect &iv);
     static std::string GetProcName();
     static int GetProcNumber();
-    static int ProximityMap(const int rank)   { return proximityMap[rank];   }
-    static int ProximityOrder(const int rank) { return proximityOrder[rank]; }
+//    static int ProximityMap(const int rank)   { return proximityMap[rank];   }
+//    static int ProximityOrder(const int rank) { return proximityOrder[rank]; }
 
 #if !defined(BL_NO_FORT)
     static void ReadCheckPointHeader(const std::string &filename,
 				     Vector<IntVect>  &refRatio,
                                      Vector<BoxArray> &allBoxes);
 #endif
+/*
     static void PFCMultiLevelMap(const Vector<IntVect>  &refRatio,
                                  const Vector<BoxArray> &allBoxes);
 
     static Vector<Vector<int> > MultiLevelMapPFC(const Vector<IntVect>  &refRatio,
                                                const Vector<BoxArray> &allBoxes,
 					       int maxgrid);
+*/
     static Vector<Vector<int> > MultiLevelMapRandom(const Vector<IntVect>  &refRatio,
                                                   const Vector<BoxArray> &allBoxes,
 						  int maxgrid,
@@ -216,7 +224,7 @@ private:
     void RoundRobinProcessorMap (const BoxArray& boxes, int nprocs);
     void KnapSackProcessorMap   (const BoxArray& boxes, int nprocs);
     void SFCProcessorMap        (const BoxArray& boxes, int nprocs);
-    void PFCProcessorMap        (const BoxArray& boxes, int nprocs);
+//    void PFCProcessorMap        (const BoxArray& boxes, int nprocs);
     void RRSFCProcessorMap      (const BoxArray& boxes, int nprocs);
 
     using LIpair = std::pair<long,int>;
@@ -254,11 +262,11 @@ private:
     void SFCProcessorMapDoIt (const BoxArray&          boxes,
                               const std::vector<long>& wgts,
                               int                      nprocs);
-
+/*
     void PFCProcessorMapDoIt (const BoxArray&          boxes,
                               const std::vector<long>& wgts,
                               int                      nprocs);
-
+*/
     void RRSFCDoIt           (const BoxArray&          boxes,
                               int                      nprocs);
 
@@ -310,10 +318,10 @@ private:
 
     //! Topological proximity map
     static long totalCells;
-    static Real bytesPerCell;
-    static Vector<int> proximityMap;    // i == rank, pMap[i]   == proximity mapped rank
-    static Vector<int> proximityOrder;  // i == rank, pOrder[i] == proximity mapped order
-    static Vector<long> totalBoxPoints;  // i == rank
+//    static Real bytesPerCell;
+//    static Vector<int> proximityMap;    // i == rank, pMap[i]   == proximity mapped rank
+//    static Vector<int> proximityOrder;  // i == rank, pOrder[i] == proximity mapped order
+//    static Vector<long> totalBoxPoints;  // i == rank
 
     static int nDistMaps;
 

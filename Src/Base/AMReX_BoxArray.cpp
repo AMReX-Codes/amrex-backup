@@ -363,6 +363,24 @@ BoxArray::define (BoxList&& bl) noexcept
 }
 
 void
+BoxArray::define (const Vector<Box>& bl, IntVect crse_ratio, bool initialize, bool hashmap)
+{
+//    clear();
+    m_ref->m_abox = bl;
+//    m_crse_ratio = IntVect::TheUnitVector();
+    m_simple = true;
+//    type_update();
+
+    // Sets m_transformer & m_ref values based on BoxList and crse_ratio given. 
+    // Hash is left if desired, otherwise cleared.
+//    m_transformer->setCrseRatio(m_crse_ratio);
+//    getHashMap();
+
+//    if (!hashmap) { clear_hash_bin(); }
+//    if (initialized) { Initialize(); }
+}
+
+void
 BoxArray::clear ()
 {
     m_transformer.reset(new DefaultBATransformer());
@@ -1048,6 +1066,71 @@ BoxArray::clear_hash_bin () const
     }
 }
 
+void
+BoxArray::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm)
+{
+   IntVect b_ratio;
+   IndexType b_type;
+   int nBoxes;
+   Vector<int> sba;
+   Vector<int> allIntVects;
+   Vector<Box> b_boxes;
+   int b_ii, b_hash;
+
+   int nIntsInBox(3 * BL_SPACEDIM);
+
+   // Pack up the BoxArray data.
+   if (scsMyId == ioProcNumSCS)
+   {
+     nBoxes = m_ref->m_abox.size();
+     sba.resize(nBoxes*nIntsInBox);
+     for (int i(0); i<BL_SPACEDIM; ++i) { allIntVects.push_back(m_crse_ratio[i]); }
+     for (int i(0); i<BL_SPACEDIM; ++i) { allIntVects.push_back(m_typ[i]); }
+     for (int i(0); i<nBoxes; ++i)
+     {
+        Vector<int> sbox(amrex::SerializeBox(m_ref->m_abox[i]));
+        BL_ASSERT(sbox.size() == nIntsInBox);
+        for (int j(0); j<nIntsInBox; ++j)
+        {
+           sba[i * nIntsInBox + j] = sbox[j];
+        }
+     }
+     b_ii = BoxArray::initialized;
+     b_hash = m_ref->has_hashmap;
+   }
+
+   // Broadcast
+   BroadcastArray(allIntVects, scsMyId, ioProcNumSCS, scsComm);
+   BroadcastArray(sba, scsMyId, ioProcNumSCS, scsComm);
+   ParallelDescriptor::Bcast(&b_ii, 1, ioProcNumSCS, scsComm);
+   ParallelDescriptor::Bcast(&b_hash, 1, ioProcNumSCS, scsComm);
+   ParallelDescriptor::Bcast(&nBoxes, 1, ioProcNumSCS, scsComm);
+
+  // Unpack data 
+  if (scsMyId != ioProcNumSCS)
+  {
+    int count(0);
+    for (int i(0); i<BL_SPACEDIM; ++i) { b_ratio[i] = allIntVects[count++]; }
+    for (int i(0); i<BL_SPACEDIM; ++i) { b_type.setType(i, static_cast<IndexType::CellIndex> (allIntVects[count++])); }
+    if (sba.size() > 0) 
+    {
+       m_ref->m_abox.resize(nBoxes);
+       m_ref->m_abox.clear();
+       for(int i(0); i<nBoxes; ++i) {
+          Vector<int> aiBox(nIntsInBox);
+          for(int j(0); j<nIntsInBox; ++j) {
+             aiBox[j] = sba[i * nIntsInBox + j];
+          }
+          b_boxes.push_back(amrex::UnSerializeBox(aiBox));
+       }
+    }
+
+    // Use the define function to properly set this BoxArray
+    define(b_boxes, b_ratio, b_ii, b_hash);
+  }
+}
+
+
 //
 // Currently this assumes your Boxes are cell-centered.
 //
@@ -1463,7 +1546,6 @@ Vector<int> SerializeBoxArray(const BoxArray &ba)
   return retArray;
 }
 
-
 BoxArray UnSerializeBoxArray(const Vector<int> &serarray)
 {
   int nIntsInBox(3 * BL_SPACEDIM);
@@ -1477,6 +1559,23 @@ BoxArray UnSerializeBoxArray(const Vector<int> &serarray)
     ba.set(i, amrex::UnSerializeBox(aiBox));
   }
   return ba;
+}
+
+BoxList UnSerializeBoxArrayToList(const Vector<int> &serarray, const IndexType& type)
+{
+  int nIntsInBox(3 * BL_SPACEDIM);
+  int nBoxes(serarray.size() / nIntsInBox);
+  Box b;
+  BoxList bl(type);
+  for(int i(0); i < nBoxes; ++i) {
+    Vector<int> aiBox(nIntsInBox);
+    for(int j(0); j < nIntsInBox; ++j) {
+      aiBox[j] = serarray[i * nIntsInBox + j];
+    }
+    b = amrex::UnSerializeBox(aiBox);
+    bl.push_back(b);
+  }
+  return bl;
 }
 
 

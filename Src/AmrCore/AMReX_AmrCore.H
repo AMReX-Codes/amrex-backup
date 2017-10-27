@@ -53,6 +53,9 @@ public:
 
     void printGridSummary (std::ostream& os, int min_lev, int max_lev) const;
 
+    //! This function handles data synchronization during a sidecar resize.
+    virtual void AddProcsToComp (int ioProcNumSCS, int ioProcNumAll, int scsMyId, MPI_Comm scsComm);
+
 protected:
 
     //! Tag cells for refinement.  TagBoxArray tags is built on level lev grids.

@@ -301,7 +301,7 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 
     BL_ASSERT(ba_dst.size() > 0 && ba_src.size() > 0);
     BL_ASSERT(ba_dst.ixType() == ba_src.ixType());
-    
+
     m_LocTags = new CopyComTag::CopyComTagsContainer;
     m_SndTags = new CopyComTag::MapOfCopyComTagContainers;
     m_RcvTags = new CopyComTag::MapOfCopyComTagContainers;
@@ -415,7 +415,7 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 		check_remote = m_threadsafe_rcv = remotetouch.max() <= 1;
 	    }
 	}
-	
+
 	for (int ipass = 0; ipass < 2; ++ipass) // pass 0: send; pass 1: recv
 	{
 	    CopyComTag::MapOfCopyComTagContainers & Tags = (ipass == 0) ? *m_SndTags : *m_RcvTags;
@@ -540,7 +540,6 @@ FabArrayBase::getCPC (int dstng, const FabArrayBase& src, int srcng, const Perio
 	    return *(it->second);
 	}
     }
-    
     // Have to build a new one
     CPC* new_cpc = new CPC(*this, dstng, src, srcng, period);
 
@@ -553,6 +552,7 @@ FabArrayBase::getCPC (int dstng, const FabArrayBase& src, int srcng, const Perio
     m_CPC_stats.recordBuild();
     m_CPC_stats.recordUse();
 
+    // Cache this CPC
     m_TheCPCache.insert(er_it.second, CPCache::value_type(dstkey,new_cpc));
     if (srckey != dstkey)
 	m_TheCPCache.insert(          CPCache::value_type(srckey,new_cpc));

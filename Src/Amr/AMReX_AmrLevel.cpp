@@ -2044,12 +2044,36 @@ AmrLevel::AddProcsToComp(Amr *aptr, int nSidecarProcs, int prevSidecarProcs,
 			 MPI_Comm scsComm)
 {
 #if BL_USE_MPI
+
+      // ---- m_factory
+      if(scsMyId != ioProcNumSCS)
+      { 
+#ifdef AMREX_USE_EB
+        m_factory.reset(new EBFArrayBoxFactory(geom, ba, dm,
+                                              {m_eb_basic_grow_cells, m_eb_volume_grow_cells, m_eb_full_grow_cells},
+                                               m_eb_support_level));
+#else
+        m_factory.reset(new FArrayBoxFactory());
+#endif
+      }
+
       if(scsMyId != ioProcNumSCS) {
         parent = aptr;
       }
 
       // ---- ints
       ParallelDescriptor::Bcast(&level, 1, ioProcNumAll, scsComm);
+      ParallelDescriptor::Bcast(&post_step_regrid, 1, ioProcNumAll, scsComm);
+#ifdef AMREX_USE_EB
+      ParallelDescriptor::Bcast(&m_eb_basic_grow_cells, 1, ioProcNumAll, scsComm);
+      ParallelDescriptor::Bcast(&m_eb_volume_grow_cells, 1, ioProcNumAll, scsComm);
+      ParallelDescriptor::Bcast(&m_eb_full_grow_cells, 1, ioProcNumAll, scsComm);
+
+      // ---- enums
+      int supportEnum(static_cast<int> (m_eb_support_level));
+      ParallelDescriptor::Bcast(&supportEnum, 1, ioProcNumAll, scsComm);
+      if(scsMyId != ioProcNumSCS) { m_eb_support_level = static_cast<amrex::EBSupport> (supportEnum); }
+#endif
 
       // ---- IntVects
       Vector<int> allIntVects;
@@ -2065,16 +2089,22 @@ AmrLevel::AddProcsToComp(Amr *aptr, int nSidecarProcs, int prevSidecarProcs,
         for(int i(0); i < BL_SPACEDIM; ++i)    { fine_ratio[i] = allIntVects[count++]; }
       }
 
-
       // ---- Boxes
-      amrex::BroadcastBox(m_AreaToTag, scsMyId, ioProcNumSCS, scsComm);
+      m_AreaToTag.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       
       // ---- Geometry
-      Geometry::BroadcastGeometry(geom, ioProcNumSCS, scsComm);
+      geom.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
       
       // ---- BoxArrays
-      amrex::BroadcastBoxArray(grids, scsMyId, ioProcNumSCS, scsComm);
-      amrex::BroadcastBoxArray(m_AreaNotToTag, scsMyId, ioProcNumSCS, scsComm);
+      grids.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+      m_AreaNotToTag.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+      nodal_grids.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+      for(int i(0); i<BL_SPACEDIM; ++i) { 
+        edge_grids[i].AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
+      }
+
+      // ---- DistributionMappings
+      dmap.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
 
       // ---- state
       int stateSize(state.size());
@@ -2090,7 +2120,9 @@ AmrLevel::AddProcsToComp(Amr *aptr, int nSidecarProcs, int prevSidecarProcs,
       int ldc(levelDirectoryCreated);
       ParallelDescriptor::Bcast(&ldc, 1, ioProcNumAll, scsComm);
       levelDirectoryCreated = ldc;
+
 #endif
+
 }
 
 

@@ -350,7 +350,7 @@ BndryRegister::AddProcsToComp(int ioProcNumSCS, int ioProcNumAll,
                               int scsMyId, MPI_Comm scsComm)
 {
   // ---- BoxArrays
-  amrex::BroadcastBoxArray(grids, scsMyId, ioProcNumSCS, scsComm);
+  grids.AddProcsToComp(ioProcNumSCS, ioProcNumAll, scsMyId, scsComm);
 
   // ---- FabSet
   for(int i(0); i < (2 * BL_SPACEDIM); ++i) {
