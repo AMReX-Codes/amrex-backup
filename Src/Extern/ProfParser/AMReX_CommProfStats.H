@@ -222,6 +222,7 @@ class CommProfStats : public BLProfStats {
     const std::map<int, long> &GLMap() const  { return glMap; }
     const std::map<int, int> &GLSizeMap() const  { return glSizeMap; }
 
+    static std::string GetCommFilePrefix() { return commFilePrefix; }
     static void SetInitDataBlocks(bool b) { bInitDataBlocks = b;    }
     static bool InitDBlocks()             { return bInitDataBlocks; }
     static void InitDataFileNames(const amrex::Vector<std::string> &hfn);
@@ -259,6 +260,7 @@ class CommProfStats : public BLProfStats {
     static amrex::Vector<int> rankFromProx;  // [prox]
     static amrex::Vector<int> proxFromRank;  // [rank]
     static bool bProxMapOK;
+    static std::string commFilePrefix;
     static amrex::Vector<std::string> commHeaderFileNames;
     static std::map<std::string, int> commDataFileNames;  // [filename, stream index]
     static amrex::Vector<std::ifstream *> commDataStreams;

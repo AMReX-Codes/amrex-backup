@@ -66,6 +66,7 @@ Vector<int> CommProfStats::proxFromRank;  // [rank]
 bool CommProfStats::bProxMapOK(false);
 bool CommProfStats::persistentStreams(true);
 
+std::string CommProfStats::commFilePrefix("bl_comm_prof");
 int CommProfStats::cpVersion(-1);
 int CommProfStats::csSize(-1);
 int CommProfStats::finestLevel(-1);

@@ -106,6 +106,7 @@ class RegionsProfStats : public BLProfStats {
     void WriteTextTrace(std::ostream &os, bool simpleCombine = true, int whichProc = 0,
                         std::string delimString = "\t");
 
+    static std::string GetRegFilePrefix() { return regFilePrefix; }
     static const amrex::Vector<std::string> &GetHeaderFileNames() { return regHeaderFileNames; }
     const amrex::Vector<std::string> &NumbersToFName() const { return numbersToFName; }
 
@@ -124,6 +125,7 @@ class RegionsProfStats : public BLProfStats {
     amrex::Vector<amrex::Vector<int> > fnameRemap;  // [dataNProc][remappedfnumber]
     std::map<std::string, int> mFNameNumbersLocal;  // [fname, fnumber]
     amrex::Vector<std::string> numbersToFName;  // [fname]
+    static std::string regFilePrefix;
     static amrex::Vector<std::string> regHeaderFileNames;
     static amrex::Vector<std::ifstream *> regDataStreams;
     static std::map<std::string, int> regDataFileNames;  // [filename, stream index]

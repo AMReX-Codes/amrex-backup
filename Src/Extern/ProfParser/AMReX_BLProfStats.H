@@ -130,6 +130,7 @@ class BLProfStats {
     void SetMaxRNumber(int n)  { maxRNumber = n; }
     int  GetMaxRNumber() const  { return maxRNumber; }
 
+    static std::string GetProfFilePrefix() { return profFilePrefix; }
     void InitFilterTimeRanges();
     void SetFilterTimeRanges(const amrex::Vector<std::list<TimeRange> > &ftr);
     const amrex::Vector<std::list<TimeRange> > &GetFilterTimeRanges() const
@@ -247,6 +248,7 @@ class BLProfStats {
     amrex::Vector<amrex::Vector<amrex::Vector<TimeRange> > > regionTimeRanges;  // [proc][rnum][range]
     amrex::Vector<std::list<TimeRange> > filterTimeRanges;  // [proc]
 
+    static std::string profFilePrefix;
     static std::map<std::string, int> blpDataFileNames;  // [filename, stream index]
 
     amrex::Vector<std::string> blpFNames;

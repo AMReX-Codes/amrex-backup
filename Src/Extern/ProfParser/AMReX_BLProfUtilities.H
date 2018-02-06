@@ -11,7 +11,7 @@
 #include <cstring>
 //#include <list>
 //#include <vector>
-#include <typeinfo>
+//#include <typeinfo>
 //#include <limits>
 //#include <algorithm>
 //#include <sys/stat.h>

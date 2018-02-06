@@ -182,8 +182,8 @@ void amrex::RedistFiles() {
       }
       amrex::Abort();
     }
-    std::string cpdir("bl_comm_prof");
-    std::string cpredistdir("bl_comm_prof_redist");
+    std::string cpdir(CommProfStats::GetCommFilePrefix());
+    std::string cpredistdir(CommProfStats::GetCommFilePrefix()+"_redist");
     if(ParallelDescriptor::IOProcessor()) {
       if( ! amrex::UtilCreateDirectory(cpredistdir, 0755)) {
         amrex::CreateDirectoryFailed(cpredistdir);
@@ -203,8 +203,8 @@ void amrex::RedistFiles() {
     std::ifstream iss;
     std::ofstream oss;
     if(bIOP) {  // main header file
-      std::string readCPHFile(cpdir + '/' + "bl_comm_prof_H");
-      std::string writeCPHFile(cpredistdir + '/' + "bl_comm_prof_H");
+      std::string readCPHFile(cpdir + '/' + CommProfStats::GetCommFilePrefix() + "_H");
+      std::string writeCPHFile(cpredistdir + '/' + CommProfStats::GetCommFilePrefix() + "_H");
       iss.open(readCPHFile.c_str(), std::ios::in);
       iss.seekg(0, std::ios::end);
       long fileLength(iss.tellg());

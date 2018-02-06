@@ -171,7 +171,7 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
 
     // -------- parse the main blprof header file.  everyone does this for now
     if(bIOP) { cout << "Parsing main blprof header file." << endl; }
-    string blpFileName_H("bl_prof_H");
+    string blpFileName_H(BLProfStats::GetProfFilePrefix()+"_H");
     string blpFullFileName_H(fileName + '/' + blpFileName_H);
     if( ! (yyin = fopen(blpFullFileName_H.c_str(), "r"))) {
       if(bIOP) {
@@ -186,7 +186,7 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
 
     // -------- parse the main call stats header file.  everyone does this for now
     if(bIOP) { cout << "Parsing main call stats header file." << endl; }
-    string regPrefix_H("bl_call_stats_H");
+    string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
     std::string regFileName_H(fileName + '/' + regPrefix_H);
     if( ! (yyin = fopen(regFileName_H.c_str(), "r"))) {
       if(bIOP) {
@@ -293,7 +293,7 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
 
     // -------- parse the main header file.  everyone does this for now
     if(bIOP) { cout << "Parsing main comm header file." << endl; }
-    std::string commPrefix_H("bl_comm_prof_H");
+    std::string commPrefix_H(CommProfStats::GetCommFilePrefix()+"_H");
     std::string commFileName_H(fileName + '/' + commPrefix_H);
     if( ! (yyin = fopen(commFileName_H.c_str(), "r"))) {
       if(bIOP) {
@@ -1776,7 +1776,7 @@ void DataServices::CheckProfData()
       cout << "# of RegionFiles: " << regionsHeaderFileNames.size() << endl;
       RegionsProfStats regionsOutputStats;
 
-      string regPrefix_H("bl_call_stats_H");
+      string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
       std::string regFileName_H(fileName + '/' + regPrefix_H);
       if((yyin = fopen(regFileName_H.c_str(), "r"))) {
         yyparse(&regionsOutputStats);

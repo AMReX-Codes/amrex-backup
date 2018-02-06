@@ -50,6 +50,7 @@ bool RegionsProfStats::bInitDataBlocks(true);
 bool RegionsProfStats::persistentStreams(true);
 
 std::map<Real, std::string, std::greater<Real> > RegionsProfStats::mTimersTotalsSorted;
+std::string RegionsProfStats::regFilePrefix("bl_call_stats");
 Vector<std::string> RegionsProfStats::regHeaderFileNames;
 std::map<std::string, int> RegionsProfStats::regDataFileNames;
 Vector<std::ifstream *> RegionsProfStats::regDataStreams;

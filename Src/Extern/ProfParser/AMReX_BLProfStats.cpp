@@ -47,6 +47,7 @@ int BLProfStats::verbose(-1);
 int BLProfStats::blProfVersion(-1);
 int BLProfStats::dataNProcs(-1);
 int BLProfStats::nOutFiles(-1);
+std::string BLProfStats::profFilePrefix("bl_prof");
 std::string BLProfStats::dirName;
 bool BLProfStats::bInitDataBlocks(true);
 std::map<std::string, int> BLProfStats::blpDataFileNames;
