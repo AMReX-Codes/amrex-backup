@@ -71,6 +71,10 @@ void GraphTopPct(const std::map<std::string, BLProfiler::ProfStats> &mProfStats,
                  const Vector<Vector<BLProfStats::FuncStat> > &funcStats,
                  const Vector<std::string> &fNames,
 		 Real runTime, int dataNProcs, Real gPercent);
+#ifdef BL_USE_PROFPARSER
+bool ParseFile(std::string filename, BLProfStats* parse_obj);
+bool BcastAndParseFile(std::string filename, BLProfStats* parse_obj);
+#endif
 }
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------

@@ -41,6 +41,12 @@ const int maxFabXDim(1024);
 
 #define SHOWVAL(val) { cout << #val << " = " << val << endl; }
 
+#ifdef BL_USE_PROFPARSER
+extern int yyparse_chararray(char *, int, void *);
+extern int yyparse(void *);
+extern FILE *yyin; 
+#endif
+
 // --------------------------------------------------------------------
 std::string amrex::SanitizeName(const std::string &sname) {
   std::string s(sname);
@@ -467,6 +473,77 @@ void amrex::GraphTopPct(const std::map<std::string, BLProfiler::ProfStats> &mPro
     }
   }
 }
+
+#ifdef BL_USE_PROFPARSER
+
+// ----------------------------------------------------------------------
+// Locally parse file using selected BLProfStats object to store the results.
+// Parser will likely throw an error if header type and object type do not match.
+bool amrex::ParseFile(std::string filename, BLProfStats* parse_obj)
+{
+
+  bool bIOP(ParallelDescriptor::IOProcessor());
+  bool success = true;
+
+  // Check file opens and exists.
+  if (! (yyin = fopen(filename.c_str(), "r"))) {
+    if (bIOP) {
+      cerr << "amrex::ParseFile -   Cannot open file:  " << filename << endl;
+    }
+    success = false;
+  }
+  // Check for parse error flag.
+  else {
+    if ( yyparse(parse_obj) ) {     // yyparse returns 0 if successful
+      if (bIOP)
+      {
+        cerr << "amrex::ParseFile -   Parser returned error on file: " << filename << endl;
+      }
+      success = false;
+    }
+    fclose(yyin);
+  }
+
+  return success;
+
+}
+// ----------------------------------------------------------------------
+// Load file into a vector<char>, broadcast it to all ranks and then parse it locally.
+// Used for top level headerfiles that contain global information.
+bool amrex::BcastAndParseFile(std::string filename, BLProfStats* parse_obj)
+{
+  bool success = true;
+
+#ifdef BL_USE_MPI
+  // Read and BcastFile.
+  bool bIOP(ParallelDescriptor::IOProcessor());
+  Vector<char> fileBuffer(0);
+  ParallelDescriptor::ReadAndBcastFile(filename, fileBuffer, false);  // Comm = Communicator()
+
+  // Check if ReadAndBcast failed, or file is empty.
+  if (fileBuffer.size() == 0) {
+    cerr << "amrex::BcastAndParseFile -   Cannot Read or File is empty: " << filename << endl;
+    return false;
+  }
+
+  // Add an additional '\0' token per flex parsing requirements.
+  long bufferSize = fileBuffer.size() + 1;
+  fileBuffer.resize(bufferSize);
+  fileBuffer[bufferSize - 1] = '\0';
+
+  success = yyparse_chararray(&fileBuffer[0], bufferSize, parse_obj);
+  if (!success) {
+    if (bIOP) {
+      cerr << "amrex::BcastAndParseFile -
+#else
+  success = ParseFile(filename, parse_obj);
+#endif  
+
+  return success;
+}
+
+#endif  // USE_PROFPARSER
+
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 #endif

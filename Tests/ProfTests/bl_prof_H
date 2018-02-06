@@ -1,0 +1,130 @@
+BLProfVersion 1
+NProcs  32
+NOutFiles  32
+phFName "Amr::FinalizeInit()"
+phFName "Amr::InitAmr()"
+phFName "Amr::InitializeInit()"
+phFName "Amr::bldFineLevels()"
+phFName "Amr::checkPoint()"
+phFName "Amr::coarseTimeStep()"
+phFName "Amr::defBaseLevel()"
+phFName "Amr::grid_places()"
+phFName "Amr::init()"
+phFName "Amr::initSubcycle()"
+phFName "Amr::initialInit()"
+phFName "Amr::readProbinFile()"
+phFName "Amr::regrid()"
+phFName "Amr::timeStep()"
+phFName "Amr::writePlotFile()"
+phFName "AmrLevel::AmrLevel(dm)"
+phFName "AmrLevel::checkPoint()"
+phFName "BoxList::complementIn"
+phFName "CellConservativeLinear::interp()"
+phFName "CollectData_Alltoall()"
+phFName "DistributionMapping::KnapSackDoIt()"
+phFName "DistributionMapping::LeastUsedCPUs()"
+phFName "FABio::write_header"
+phFName "FABio_binary::write_header"
+phFName "FPinfo::FPinfo()"
+phFName "FabArray::ParallelCopy()"
+phFName "FabArrayBase::CPC::define()"
+phFName "FabArrayBase::TheFPinfo()"
+phFName "FabArrayBase::getCPC()"
+phFName "FabArrayCopyDescriptor::CollectData()"
+phFName "FillPatchIterator::Initialize"
+phFName "FillPatchIteratorHelper::Initialize()"
+phFName "FillPatchIteratorHelper::fill()"
+phFName "FillPatchSingleLevel"
+phFName "FillPatchTwoLevels"
+phFName "Flaten::FORT_FLATENX()"
+phFName "Flaten::FORT_FLATENY()"
+phFName "Flaten::FORT_FLATENZ()"
+phFName "Flaten::FORT_SLOPEX()"
+phFName "Flaten::FORT_SLOPEY()"
+phFName "Flaten::FORT_SLOPEZ()"
+phFName "FluxRegister::Reflux()"
+phFName "HyperCLaw::FORT_AVGDOWN()"
+phFName "HyperCLaw::FORT_ESTDT()"
+phFName "HyperCLaw::advance()"
+phFName "HyperCLaw::avgDown()"
+phFName "HyperCLaw::buildMetrics()"
+phFName "HyperCLaw::computeInitialDt()"
+phFName "HyperCLaw::computeNewDt()"
+phFName "HyperCLaw::errorEst()"
+phFName "HyperCLaw::estTimeStep()"
+phFName "HyperCLaw::init(old)"
+phFName "HyperCLaw::initData()"
+phFName "HyperCLaw::post_init()"
+phFName "HyperCLaw::post_timestep()"
+phFName "HyperCLaw::reflux()"
+phFName "HyperCLaw::writePlotFile"
+phFName "LevelAdvance::FORT_DIVUNODE()"
+phFName "LevelAdvance::FPI_TOP()"
+phFName "LevelAdvance::Flaten()"
+phFName "LevelAdvance::LACopies()"
+phFName "LevelAdvance::LevelAdvance()"
+phFName "LevelAdvance::LevelAdvance_CrseInit()"
+phFName "LevelAdvance::LevelAdvance_RRM()"
+phFName "LevelAdvance::LevelAdvance_TOP()"
+phFName "LevelAdvance::Sweep()"
+phFName "LevelAdvance::Trace()"
+phFName "LevelAdvance::Update()"
+phFName "ParallelDescriptor::Gather(TsT1si)d"
+phFName "ParallelDescriptor::Gather(TsT1si)l"
+phFName "ParallelDescriptor::Recv(Tsii)i"
+phFName "ParallelDescriptor::Send(Tsii)i"
+phFName "StateData::FillBoundary()"
+phFName "StateData::InterpFillFab()"
+phFName "StateData::checkPoint()"
+phFName "StateData::define()"
+phFName "StateDataPhysBCFunct::FillBoundary"
+phFName "Sweep::FORT_PRIMITIVES()"
+phFName "Sweep::FORT_RIEMANN()"
+phFName "TagBoxArray::collate()"
+phFName "Trace::FORT_XTRACE()"
+phFName "Trace::FORT_YTRACE()"
+phFName "Trace::FORT_ZTRACE()"
+phFName "Update::FORT_UPDATEX()"
+phFName "Update::FORT_UPDATEY()"
+phFName "Update::FORT_UPDATEZ()"
+phFName "VisMF::CalculateMinMax"
+phFName "VisMF::FindOffsets"
+phFName "VisMF::Header"
+phFName "VisMF::Initialize"
+phFName "VisMF::WriteHeader"
+phFName "VisMF::Write_FabArray"
+phFName "WriteGenericPlotfileHeader()"
+phFName "main()"
+BLProfProc 0 datafile bl_prof_D_00000 seekpos 0
+BLProfProc 1 datafile bl_prof_D_00001 seekpos 0
+BLProfProc 2 datafile bl_prof_D_00002 seekpos 0
+BLProfProc 3 datafile bl_prof_D_00003 seekpos 0
+BLProfProc 4 datafile bl_prof_D_00004 seekpos 0
+BLProfProc 5 datafile bl_prof_D_00005 seekpos 0
+BLProfProc 6 datafile bl_prof_D_00006 seekpos 0
+BLProfProc 7 datafile bl_prof_D_00007 seekpos 0
+BLProfProc 8 datafile bl_prof_D_00008 seekpos 0
+BLProfProc 9 datafile bl_prof_D_00009 seekpos 0
+BLProfProc 10 datafile bl_prof_D_00010 seekpos 0
+BLProfProc 11 datafile bl_prof_D_00011 seekpos 0
+BLProfProc 12 datafile bl_prof_D_00012 seekpos 0
+BLProfProc 13 datafile bl_prof_D_00013 seekpos 0
+BLProfProc 14 datafile bl_prof_D_00014 seekpos 0
+BLProfProc 15 datafile bl_prof_D_00015 seekpos 0
+BLProfProc 16 datafile bl_prof_D_00016 seekpos 0
+BLProfProc 17 datafile bl_prof_D_00017 seekpos 0
+BLProfProc 18 datafile bl_prof_D_00018 seekpos 0
+BLProfProc 19 datafile bl_prof_D_00019 seekpos 0
+BLProfProc 20 datafile bl_prof_D_00020 seekpos 0
+BLProfProc 21 datafile bl_prof_D_00021 seekpos 0
+BLProfProc 22 datafile bl_prof_D_00022 seekpos 0
+BLProfProc 23 datafile bl_prof_D_00023 seekpos 0
+BLProfProc 24 datafile bl_prof_D_00024 seekpos 0
+BLProfProc 25 datafile bl_prof_D_00025 seekpos 0
+BLProfProc 26 datafile bl_prof_D_00026 seekpos 0
+BLProfProc 27 datafile bl_prof_D_00027 seekpos 0
+BLProfProc 28 datafile bl_prof_D_00028 seekpos 0
+BLProfProc 29 datafile bl_prof_D_00029 seekpos 0
+BLProfProc 30 datafile bl_prof_D_00030 seekpos 0
+BLProfProc 31 datafile bl_prof_D_00031 seekpos 0
+calcEndTime 23.96013784408569
