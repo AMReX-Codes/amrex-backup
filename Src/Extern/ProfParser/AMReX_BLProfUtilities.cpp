@@ -534,7 +534,9 @@ bool amrex::BcastAndParseFile(std::string filename, BLProfStats* parse_obj)
   success = yyparse_chararray(&fileBuffer[0], bufferSize, parse_obj);
   if (!success) {
     if (bIOP) {
-      cerr << "amrex::BcastAndParseFile -
+      cerr << "amrex::BcastAndParseFile -  Parser returned error on file: " << filename << endl;
+    }
+  }
 #else
   success = ParseFile(filename, parse_obj);
 #endif  
