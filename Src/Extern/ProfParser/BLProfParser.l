@@ -268,26 +268,45 @@ char *GetYYBufPos(YY_BUFFER_STATE ybs) {
   return ybs->yy_buf_pos;
 }
 
-/* parse a chararray using yy_switch_to_buffer. Defined here to allow access to 
-   YY_BUFFER_STATE struct object */
-
-bool yyparse_chararray(char* bufferStart, int bufferSize, void * parse_obj) {
-
+// -------------------------------
+/* Parse a file. Put here for access to YY_BUFFER_STATE. This method is
+   needed rather than yyin after using scan_buffer when parsing a char array. */
+int yyparse_file(FILE* parse_file, void * parse_obj)
+{
+  yylineno = 1;          // Reset line number for parsing messages.
   int parse_flag = -1;
   bool success = false;
 
-  // yy_scan_buffer chosen because it reads in place. Other options make a copy.
-  YY_BUFFER_STATE parse_buffer = yy_scan_buffer(bufferStart, bufferSize*sizeof(char));
+  YY_BUFFER_STATE fb = yy_create_buffer(parse_file, YY_BUF_SIZE); 
+  yy_switch_to_buffer(fb);
 
   // Parse the file.
-  yypush_buffer_state(parse_buffer);
   parse_flag = yyparse(parse_obj);
   if (parse_flag == 0) {  // 0 = success, 1 or 2 = failure.
     success = true;
   }
-  // Clean up the buffer.
-  yypop_buffer_state();
 
+  yy_delete_buffer(fb);
+  return success;
+}
+
+/* parse a chararray using yy_scan_buffer. Defined here to allow access to 
+   YY_BUFFER_STATE struct object */
+
+bool yyparse_chararray(char* bufferStart, int bufferSize, void * parse_obj)
+{
+  yylineno = 1;         // Reset line number for parsing messages.
+  int parse_flag = -1;
+  bool success = false;
+
+  // yy_scan_buffer chosen because it reads in place. Other options make a copy.
+  yy_scan_buffer(bufferStart, bufferSize*sizeof(char));
+
+  // Parse the file.
+  parse_flag = yyparse(parse_obj);
+  if (parse_flag == 0) {  // 0 = success, 1 or 2 = failure.
+    success = true;
+  }
 
   return success;
 }

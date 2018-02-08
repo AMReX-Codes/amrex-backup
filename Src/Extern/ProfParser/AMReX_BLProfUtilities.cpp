@@ -42,7 +42,8 @@ const int maxFabXDim(1024);
 #define SHOWVAL(val) { cout << #val << " = " << val << endl; }
 
 #ifdef BL_USE_PROFPARSER
-extern int yyparse_chararray(char *, int, void *);
+extern bool yyparse_chararray(char *, int, void *);
+extern bool yyparse_file(FILE* , void *);
 extern int yyparse(void *);
 extern FILE *yyin; 
 #endif
@@ -481,31 +482,31 @@ void amrex::GraphTopPct(const std::map<std::string, BLProfiler::ProfStats> &mPro
 // Parser will likely throw an error if header type and object type do not match.
 bool amrex::ParseFile(std::string filename, BLProfStats* parse_obj)
 {
-
   bool bIOP(ParallelDescriptor::IOProcessor());
   bool success = true;
+  FILE *buff;
 
   // Check file opens and exists.
-  if (! (yyin = fopen(filename.c_str(), "r"))) {
+  if (! (buff = fopen(filename.c_str(), "r"))) {
     if (bIOP) {
       cerr << "amrex::ParseFile -   Cannot open file:  " << filename << endl;
     }
     success = false;
   }
-  // Check for parse error flag.
   else {
-    if ( yyparse(parse_obj) ) {     // yyparse returns 0 if successful
+    success = yyparse_file(buff, parse_obj);
+    fclose(buff);
+    // Check for parse error flag.
+    if (!success) {
       if (bIOP)
       {
         cerr << "amrex::ParseFile -   Parser returned error on file: " << filename << endl;
       }
       success = false;
     }
-    fclose(yyin);
   }
 
   return success;
-
 }
 // ----------------------------------------------------------------------
 // Load file into a vector<char>, broadcast it to all ranks and then parse it locally.
@@ -543,7 +544,6 @@ bool amrex::BcastAndParseFile(std::string filename, BLProfStats* parse_obj)
 
   return success;
 }
-
 #endif  // USE_PROFPARSER
 
 // ----------------------------------------------------------------------
