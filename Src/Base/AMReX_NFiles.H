@@ -93,16 +93,20 @@ class NFilesIter
     // ---- returns false if they do not match
     static bool CheckNFiles(int nProcs, int nOutFiles, bool groupSets);
 
-    static int FileNumber(int nOutFiles, int whichProc, bool groupSets)
+    static int FileNumber(int nOutFiles, int whichProc, int nProcs, bool groupSets)
     {
-      BL_ASSERT(whichProc >= 0 && whichProc < ParallelDescriptor::NProcs());
+      BL_ASSERT(whichProc >= 0 && whichProc < nProcs);
       int anf(ActualNFiles(nOutFiles));
       if(groupSets) {
         return(whichProc % anf);
       } else {
-	int nProcs(ParallelDescriptor::NProcs());
         return(whichProc / LengthOfSet(nProcs, anf));
       }
+    }
+
+    static int FileNumber(int nOutFiles, int whichProc, bool groupSets)
+    {
+      return FileNumber(nOutFiles, whichProc, ParallelDescriptor::NProcs(), groupSets);
     }
 
     const std::string &FileName() const { return fullFileName; }
