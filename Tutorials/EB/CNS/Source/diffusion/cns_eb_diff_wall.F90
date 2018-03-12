@@ -53,6 +53,12 @@ contains
 
     apnorm = sqrt(dapx**2+dapy**2+dapz**2)
 
+    if (apx(i,j,k).eq.1.0d0 .and. apy(i,j,k).eq.1.0d0 &
+         .and. apz(i,j,k).eq.1.0d0 .and. apnorm.eq.0.d0) then
+       divw = 0.0
+       return
+    endif
+    
     if (apnorm .eq. 0.d0) then
        call amrex_abort("compute_diff_wallflux: we are in trouble.")
     end if

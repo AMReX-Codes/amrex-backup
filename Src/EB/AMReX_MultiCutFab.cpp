@@ -90,7 +90,12 @@ MultiCutFab::operator[] (const MFIter& mfi)
 bool
 MultiCutFab::ok (const MFIter& mfi) const
 {
-    return (*m_cellflags)[mfi].getType() == FabType::singlevalued;
+#ifdef AMREX_EB_TREAT_MV_AS_SV
+      return true;
+#else
+      return (*m_cellflags)[mfi].getType() == FabType::singlevalued;
+#endif
+
 }
 
 void

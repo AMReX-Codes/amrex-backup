@@ -21,28 +21,34 @@ contains
 
     apnorm = sqrt((axm-axp)**2 + (aym-ayp)**2 + (azm-azp)**2)
 
-    if (apnorm .eq. 0.d0) then
-       print *, "compute_hyp_wallflux: ", i,j,k, axm, axp, aym, ayp, azm, azp
-       flush(6)
-       call amrex_abort("compute_hyp_wallflux: we are in trouble.")
-    end if
+    if (axm .eq. 1.0d0 .and. aym .eq. 1.0d0 .and. azm.eq.1.0d0 .and. apnorm.eq. 0.d0) then
+        divw = 0.0d0
+    else
 
-    apnorminv = 1.d0 / apnorm
-    anrmx = (axm-axp) * apnorminv  ! pointing to the wall
-    anrmy = (aym-ayp) * apnorminv
-    anrmz = (azm-azp) * apnorminv
+       if (apnorm .eq. 0.d0 ) then
+          print *, "compute_hyp_wallflux: ", i,j,k, axm, axp, aym, ayp, azm, azp
+          flush(6)
+          ! call amrex_abort("compute_hyp_wallflux: we are in trouble.")
+       end if
 
-    un = u*anrmx + v*anrmy + w*anrmz
 
-    call analriem(gamma, smallp, smallr, 1, 1, 1, 1, &
-         [rho], [ un], [p], [0.d0], [0.d0], &  ! fluid
-         [rho], [-un], [p], [0.d0], [0.d0], &  ! body
-         flux, [1,1,1], [1,1,1], 2,3,4)
+       apnorminv = 1.d0 / apnorm
+       anrmx = (axm-axp) * apnorminv  ! pointing to the wall
+       anrmy = (aym-ayp) * apnorminv
+       anrmz = (azm-azp) * apnorminv
 
-    divw = 0.d0
-    divw(umx) = (axm-axp) * flux(1,1,1,2)
-    divw(umy) = (aym-ayp) * flux(1,1,1,2)
-    divw(umz) = (azm-azp) * flux(1,1,1,2)
+       un = u*anrmx + v*anrmy + w*anrmz
+
+       call analriem(gamma, smallp, smallr, 1, 1, 1, 1, &
+            [rho], [ un], [p], [0.d0], [0.d0], &  ! fluid
+            [rho], [-un], [p], [0.d0], [0.d0], &  ! body
+            flux, [1,1,1], [1,1,1], 2,3,4)
+
+       divw = 0.d0
+       divw(umx) = (axm-axp) * flux(1,1,1,2)
+       divw(umy) = (aym-ayp) * flux(1,1,1,2)
+       divw(umz) = (azm-azp) * flux(1,1,1,2)
+    endif
 
   end subroutine compute_hyp_wallflux
 

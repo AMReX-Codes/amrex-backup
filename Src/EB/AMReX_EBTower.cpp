@@ -49,7 +49,9 @@ EBTower::EBTower ()
         ebis->getFinestLevelWithMultivaluedCells(finest_mv_domain, finest_mv_level);
         if (finest_mv_level > 0)
         {
-            m_domains.erase(m_domains.begin()+finest_mv_level, m_domains.end());
+#ifndef AMREX_EB_TREAT_MV_AS_SV
+	     m_domains.erase(m_domains.begin()+finest_mv_level, m_domains.end());
+#endif
         }
         else if (finest_mv_level == 0)
         {
@@ -148,7 +150,12 @@ EBTower::initCellFlags (int lev, const EBLevelGrid& eblg)
         fab.copy(ebis.getEBGraph().getEBCellFlagFab());
         fab.setType(ebis.getEBGraph().getEBCellFlagFab().getType());
         if (fab.getType() == FabType::multivalued) {
-            amrex::Abort("EBTower::initCellFlags: Multi-valued cells not supported");
+#ifdef AMREX_EB_TREAT_MV_AS_SV	  
+	  fab.setType(FabType::singlevalued);
+#else
+	  amrex::Abort("EBTower::initCellFlags: Multi-valued cells not supported");
+#endif
+
         }
     }
 }
@@ -267,7 +274,22 @@ EBTower::initFaceGeometry (int lev, const EBLevelGrid& eblg)
                             }
                         }
                     } else {
-                        amrex::Abort("EBTower: multi-valued face not supported");
+
+#ifdef AMREX_EB_TREAT_MV_AS_SV
+		        // RG HACK: For multi-valued face, use the info from the
+		        // first face
+		        areafrac[idim][mfi](iv) = ebisbox.areaFrac(lo_faces[0]);
+		        const RealVect& rv = ebisbox.centroid(lo_faces[0]);
+		        int icomp = 0;
+		        for (int dir = 0; dir < AMREX_SPACEDIM; ++dir) {
+		       	if (dir != idim) {
+		       	  facecent[idim][mfi](iv,icomp) = rv[dir];
+		       	  ++icomp;
+		       	}
+		        }
+#else
+		        amrex::Abort("EBTower: multi-valued face not supported");
+#endif
                     }
                 }
                 
