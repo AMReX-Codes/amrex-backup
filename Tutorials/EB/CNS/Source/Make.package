@@ -11,4 +11,6 @@ CEXE_sources += CNS_io.cpp
 CEXE_sources += CNS_setup.cpp
 
 CEXE_sources += CNS_init_eb.cpp
+CEXE_headers += EBStencilTypes.cpp
+F90EXE_sources += EBStencilTypes_mod.F90
 

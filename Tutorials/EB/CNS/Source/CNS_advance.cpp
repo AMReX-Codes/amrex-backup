@@ -133,6 +133,43 @@ CNS::compute_dSdt (const MultiFab& S, MultiFab& dSdt, Real dt,
                         dm_as_fine.resize(amrex::grow(bx,1),ncomp);
                     }
 
+#ifdef SPARSE_EB
+                    int local_i = mfi.LocalIndex();
+
+                    // Build vector of cut cells structs that live on this (grown) tile
+                    const Box gbox = amrex::grow(bx,S.nGrow());
+                    std::vector<EBBndryGeom> sv_ebbg_local;
+                    for (auto&& ebg : sv_eb_bndry_geom[local_i]) {
+                        if (gbox.contains(ebg.iv)) {
+                            sv_ebbg_local.push_back(ebg);
+                        }
+                    }
+                    int Ncut = sv_ebbg_local.size();
+                    const EBBndryGeom* sv_ebbg_ptr = (Ncut > 0 ? sv_ebbg_local.data() : 0);
+
+                    cns_eb_compute_dudt_sp(BL_TO_FORTRAN_BOX(bx),
+                                           BL_TO_FORTRAN_ANYD(dSdt[mfi]),
+                                           BL_TO_FORTRAN_ANYD(S[mfi]),
+                                           BL_TO_FORTRAN_ANYD(flux[0]),
+                                           BL_TO_FORTRAN_ANYD(flux[1]),
+                                           BL_TO_FORTRAN_ANYD(flux[2]),
+                                           BL_TO_FORTRAN_ANYD(flag),
+                                           BL_TO_FORTRAN_ANYD((*volfrac)[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*bndrycent)[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*areafrac[0])[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*areafrac[1])[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*areafrac[2])[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*facecent[0])[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*facecent[1])[mfi]),
+                                           BL_TO_FORTRAN_ANYD((*facecent[2])[mfi]),
+                                           &as_crse,
+                                           BL_TO_FORTRAN_ANYD(*p_drho_as_crse),
+                                           BL_TO_FORTRAN_ANYD(*p_rrflag_as_crse),
+                                           &as_fine,
+                                           BL_TO_FORTRAN_ANYD(dm_as_fine),
+                                           BL_TO_FORTRAN_ANYD(level_mask[mfi]),
+                                           dx, &dt, &level, sv_ebbg_ptr, &Ncut);
+#else
                     cns_eb_compute_dudt(BL_TO_FORTRAN_BOX(bx),
                                         BL_TO_FORTRAN_ANYD(dSdt[mfi]),
                                         BL_TO_FORTRAN_ANYD(S[mfi]),
@@ -155,7 +192,7 @@ CNS::compute_dSdt (const MultiFab& S, MultiFab& dSdt, Real dt,
                                         BL_TO_FORTRAN_ANYD(dm_as_fine),
                                         BL_TO_FORTRAN_ANYD(level_mask[mfi]),
                                         dx, &dt,&level);
-
+#endif
                     if (fr_as_crse) {
                         fr_as_crse->CrseAdd(mfi, {&flux[0],&flux[1],&flux[2]}, dx,dt,
                                             (*volfrac)[mfi],

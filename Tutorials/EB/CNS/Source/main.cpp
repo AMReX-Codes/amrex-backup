@@ -53,7 +53,9 @@ int main (int argc, char* argv[])
         //xxxxx maybe we should have armex::EBInitialize() and EBFinalize()
         initialize_EBIS(amr.maxLevel());
         EBTower::Build();
+#ifndef SPARSE_EB
         AMReX_EBIS::reset();  // CNS no longer needs the EBIndexSpace singleton.
+#endif
         AmrLevel::SetEBSupportLevel(EBSupport::full);
         AmrLevel::SetEBMaxGrowCells(CNS::numGrow(),4,2);
 
@@ -87,6 +89,10 @@ int main (int argc, char* argv[])
 
         EBTower::Destroy();
     }
+
+#ifdef SPARSE_EB
+    AMReX_EBIS::reset();  // CNS no longer needs the EBIndexSpace singleton.
+#endif
 
     timer_tot = ParallelDescriptor::second() - timer_tot;
 

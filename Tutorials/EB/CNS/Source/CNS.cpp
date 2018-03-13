@@ -48,6 +48,11 @@ CNS::CNS (Amr&            papa,
     }
 
     buildMetrics();
+
+#ifdef SPARSE_EB
+    initialize_eb_structs();
+#endif
+
 }
 
 CNS::~CNS ()
@@ -615,3 +620,86 @@ CNS::fixUpGeometry ()
 
 }
 
+
+
+#ifdef SPARSE_EB
+void
+CNS::initialize_eb_structs()
+{
+    BL_PROFILE("CNS::initialize_eb_structs()");
+
+    int nGrowEBstructs = 3;
+
+    MultiFab& S = get_new_data(State_Type);
+    EBLevelGrid eblg(grids, dmap, geom.Domain(), nGrowEBstructs);
+    const auto& ebisl = eblg.getEBISL();
+
+    sv_eb_bndry_geom.resize(S.local_size());
+
+    const Real dx = geom.CellSize()[0];
+
+    //for (MFIter mfi(S, MFItInfo().EnableTiling(hydro_tile_size).SetDynamic(true));
+    for (MFIter mfi(S, false);
+         mfi.isValid(); ++mfi)
+    {
+        const Box& gbx = grow(mfi.validbox(),nGrowEBstructs);
+
+        const auto& sfab = dynamic_cast<EBFArrayBox const&>(S[mfi]);
+        const auto& flag = sfab.getEBCellFlagFab();
+
+        FabType typ = flag.getType(gbx);
+        int i = mfi.LocalIndex();
+
+        if (typ == FabType::regular || typ == FabType::covered)
+        {
+        }
+        else if (typ == FabType::singlevalued)
+        {
+            const auto ebis = ebisl[mfi];
+            IntVectSet isIrreg = ebis.getIrregIVS(gbx);
+            int Ncut = isIrreg.numPts();
+
+            if (Ncut > 0)
+            {
+                sv_eb_bndry_geom[i].resize(Ncut);
+
+                int ivec = 0;
+                for (IVSIterator it(isIrreg); it.ok(); ++it, ++ivec)
+                {
+                    const Array<VolIndex>& vofs = ebis.getVoFs(it());
+                    BL_ASSERT(vofs.size() == 1);
+                    const VolIndex& vof = vofs[0];
+                    const RealVect eb_normal = ebis.normal(vof);
+                    const RealVect eb_centroid = ebis.bndryCentroid(vof);
+                    const RealVect eb_bndry = ebis.bndryCentroid(vof);
+                    EBBndryGeom& sv_ebg = sv_eb_bndry_geom[i][ivec];
+
+                    sv_ebg.iv = it();
+                    Real ebarea = 0;
+                    for (int idir=0; idir<BL_SPACEDIM; ++idir)
+                    {
+                        Array<FaceIndex> faces0 = ebis.getFaces(vof,idir,Side::Lo);
+                        Array<FaceIndex> faces1 = ebis.getFaces(vof,idir,Side::Hi);
+                        Real alo = faces0.size() == 1 ? ebis.areaFrac(faces0[0]) : 0;
+                        Real ahi = faces1.size() == 1 ? ebis.areaFrac(faces1[0]) : 0;
+                        sv_ebg.eb_normal[idir] = ahi - alo;
+                        ebarea += sv_ebg.eb_normal[idir]*sv_ebg.eb_normal[idir];
+                        sv_ebg.eb_centroid[idir] = eb_centroid[idir];
+                    }
+                    sv_ebg.eb_area = std::sqrt(ebarea);
+                }
+                auto& vec = sv_eb_bndry_geom[i];
+                int Nvec = vec.size();
+                if (Nvec > 0) {
+                    std::sort(vec.begin(),vec.end());
+                    set_eb_nbr(&(vec[0]),&Nvec,BL_TO_FORTRAN_ANYD(flag));
+                }
+            }
+        }
+        else
+        {
+            amrex::Abort("multi-valued EBBndryGeom to be implemented");
+        }
+    }
+}
+#endif

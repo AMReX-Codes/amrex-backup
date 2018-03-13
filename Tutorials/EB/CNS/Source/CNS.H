@@ -4,6 +4,7 @@
 #include <AMReX_AmrLevel.H>
 #include <AMReX_EBCellFlag.H>
 #include <AMReX_EBFluxRegister.H>
+#include <EBStencilTypes.H>
 
 using namespace amrex;
 class CNS
@@ -52,6 +53,10 @@ public:
     
     // Initialize grid data at problem start-up.
     virtual void initData () override;
+
+#ifdef SPARSE_EB
+    void initialize_eb_structs();
+#endif
 
     // Advance grids at this level in time.
     virtual amrex::Real advance (amrex::Real time,
@@ -179,6 +184,10 @@ protected:
     static amrex::Real refine_dengrad;
 
     static amrex::Vector<amrex::RealBox> refine_boxes;
+
+#ifdef SPARSE_EB
+    std::vector<std::vector<EBBndryGeom>> sv_eb_bndry_geom;
+#endif
 };
 
 #endif

@@ -7,3 +7,4 @@ F90EXE_sources += bc_fill_nd.F90
 F90EXE_sources += CNS_dudt.F90
 F90EXE_sources += CNS_divop.F90
 F90EXE_sources += CNS_tagging.F90
+F90EXE_sources += CNS_eb_util.F90

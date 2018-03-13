@@ -17,6 +17,10 @@ CNS::restart (Amr& papa, std::istream& is, bool bReadSpecial)
     }
 
     buildMetrics();
+
+#ifdef SPARSE_EB
+    initialize_eb_structs();
+#endif
 }
 
 void 
