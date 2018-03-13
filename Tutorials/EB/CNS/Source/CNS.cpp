@@ -701,5 +701,22 @@ CNS::initialize_eb_structs()
             amrex::Abort("multi-valued EBBndryGeom to be implemented");
         }
     }
+
+    sv_ebg_tiles.resize(S.local_size());
+    for (MFIter mfi(S, MFItInfo().EnableTiling(hydro_tile_size).SetDynamic(true));
+         mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        int local_i = mfi.LocalIndex();
+        int t_idx = mfi.tileIndex();
+
+        // Build vector of cut cells structs that live on this (grown) tile
+        const Box gbox = amrex::grow(bx,S.nGrow());
+        for (auto&& ebg : sv_eb_bndry_geom[local_i]) {
+            if (gbox.contains(ebg.iv)) {
+                sv_ebg_tiles[local_i][t_idx].push_back(ebg);
+            }
+        }
+    }
 }
 #endif

@@ -187,6 +187,7 @@ protected:
 
 #ifdef SPARSE_EB
     std::vector<std::vector<EBBndryGeom>> sv_eb_bndry_geom;
+    std::vector<std::map<int,std::vector<EBBndryGeom>>>  sv_ebg_tiles;
 #endif
 };
 

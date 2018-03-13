@@ -135,7 +135,7 @@ CNS::compute_dSdt (const MultiFab& S, MultiFab& dSdt, Real dt,
 
 #ifdef SPARSE_EB
                     int local_i = mfi.LocalIndex();
-
+#if 0
                     // Build vector of cut cells structs that live on this (grown) tile
                     const Box gbox = amrex::grow(bx,S.nGrow());
                     std::vector<EBBndryGeom> sv_ebbg_local;
@@ -146,7 +146,12 @@ CNS::compute_dSdt (const MultiFab& S, MultiFab& dSdt, Real dt,
                     }
                     int Ncut = sv_ebbg_local.size();
                     const EBBndryGeom* sv_ebbg_ptr = (Ncut > 0 ? sv_ebbg_local.data() : 0);
-
+#else
+                    int t_idx = mfi.tileIndex();
+                    int Ncut = sv_ebg_tiles[local_i][t_idx].size();
+                    const EBBndryGeom* sv_ebbg_ptr = (Ncut > 0 ? sv_ebg_tiles[local_i][t_idx].data() : 0);
+                    
+#endif
                     cns_eb_compute_dudt_sp(BL_TO_FORTRAN_BOX(bx),
                                            BL_TO_FORTRAN_ANYD(dSdt[mfi]),
                                            BL_TO_FORTRAN_ANYD(S[mfi]),
