@@ -206,11 +206,14 @@ contains
 
     call amrex_allocate ( dq, qtlo(1), qthi(1), qtlo(2), qthi(2), qtlo(3), qthi(3), 1, 5)
 
+    call bl_proffortfuncstart_int(1)
     call ebslopex_sp(q,qd_lo,qd_hi, &
          dq,qtlo,qthi, flag, fg_lo, fg_hi, &
          lo(1)-nextra, lo(2)-nextra-1, lo(3)-nextra-1,  &
          hi(1)+nextra, hi(2)+nextra+1, hi(3)+nextra+1, QVAR, ebg, Nebg)
+    call bl_proffortfuncstop_int(1)
 
+    call bl_proffortfuncstart_int(2)
     do       k = lo(3)-nextra-1, hi(3)+nextra+1
        do    j = lo(2)-nextra-1, hi(2)+nextra+1
           do i = lo(1)-nextra  , hi(1)+nextra+1
@@ -240,12 +243,16 @@ contains
                flux1, fd1_lo, fd1_hi, 2, 3, 4)
        enddo
     enddo
+    call bl_proffortfuncstop_int(2)
 
+    call bl_proffortfuncstart_int(3)
     call ebslopey_sp(q,qd_lo,qd_hi, &
          dq,qtlo,qthi, flag, fg_lo, fg_hi, &
          lo(1)-nextra-1, lo(2)-nextra, lo(3)-nextra-1,  &
          hi(1)+nextra+1, hi(2)+nextra, hi(3)+nextra+1, QVAR, ebg, Nebg)
+    call bl_proffortfuncstop_int(3)
 
+    call bl_proffortfuncstart_int(4)
     do       k = lo(3)-nextra-1, hi(3)+nextra+1
        do    j = lo(2)-nextra  , hi(2)+nextra+1
           do i = lo(1)-nextra-1, hi(1)+nextra+1
@@ -275,19 +282,16 @@ contains
                flux2, fd2_lo, fd2_hi, 3, 2, 4)
        enddo
     enddo
+    call bl_proffortfuncstop_int(4)
     
+    call bl_proffortfuncstart_int(5)
     call ebslopez_sp(q,qd_lo,qd_hi, &
          dq,qtlo,qthi, flag, fg_lo, fg_hi, &
          lo(1)-nextra-1, lo(2)-nextra-1, lo(3)-nextra,   &
          hi(1)+nextra+1, hi(2)+nextra+1, hi(3)+nextra, QVAR, ebg, Nebg)
+    call bl_proffortfuncstop_int(5)
     
-    call amrex_allocate ( dqt, qtlo(1), qthi(1), qtlo(2), qthi(2), qtlo(3), qthi(3), 1, 5)
-
-    call ebslopez(q, qd_lo, qd_hi, &
-         dqt, qtlo, qthi, flag, fg_lo, fg_hi, &
-         lo(1)-nextra-1, lo(2)-nextra-1, lo(3)-nextra,  &
-         hi(1)+nextra+1, hi(2)+nextra+1, hi(3)+nextra, QVAR)
-
+    call bl_proffortfuncstart_int(6)
     do       k = lo(3)-nextra  , hi(3)+nextra+1
        do    j = lo(2)-nextra-1, hi(2)+nextra+1
           do i = lo(1)-nextra-1, hi(1)+nextra+1
@@ -317,8 +321,7 @@ contains
                flux3, fd3_lo, fd3_hi, 4, 2, 3)
        enddo
     enddo
-
-    call amrex_deallocate(dq)
+    call bl_proffortfuncstop_int(6)
 
   end subroutine hyp_mol_gam_eb_sp_3d
 
