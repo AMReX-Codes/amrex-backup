@@ -163,7 +163,7 @@ contains
                      flux1, fd1_lo, fd1_hi, &
                      flux2, fd2_lo, fd2_hi, &
                      flux3, fd3_lo, fd3_hi, &
-                     flag, fg_lo, fg_hi, ebg, Nebg)
+                     ebg, Nebg)
 
     use mempool_module, only : amrex_allocate, amrex_deallocate
     use cns_module, only : urho, umx, umy, umz, ueden, ueint, utemp, nvar, &
@@ -173,20 +173,17 @@ contains
     use ebslope_module, only : ebslopex, ebslopey, ebslopez
     use riemann_module, only : analriem
     use eb_stencil_types_module, only : eb_bndry_geom
-    use amrex_ebcellflag_module, only : is_covered_cell,is_single_valued_cell,is_regular_cell
     
     integer, intent(in) :: qd_lo(3), qd_hi(3)
     integer, intent(in) :: lo(3), hi(3)
     integer, intent(in) :: fd1_lo(3), fd1_hi(3)
     integer, intent(in) :: fd2_lo(3), fd2_hi(3)
     integer, intent(in) :: fd3_lo(3), fd3_hi(3)
-    integer, intent(in) :: fg_lo(3), fg_hi(3)
     real(rt), intent(in) :: dx(3)
     real(rt), intent(in   ) ::     q( qd_lo(1): qd_hi(1), qd_lo(2): qd_hi(2), qd_lo(3): qd_hi(3),QVAR)
     real(rt), intent(inout) :: flux1(fd1_lo(1):fd1_hi(1),fd1_lo(2):fd1_hi(2),fd1_lo(3):fd1_hi(3),5)
     real(rt), intent(inout) :: flux2(fd2_lo(1):fd2_hi(1),fd2_lo(2):fd2_hi(2),fd2_lo(3):fd2_hi(3),5)
     real(rt), intent(inout) :: flux3(fd3_lo(1):fd3_hi(1),fd3_lo(2):fd3_hi(2),fd3_lo(3):fd3_hi(3),5)
-    integer,  intent(in   ) ::  flag( fg_lo(1): fg_hi(1), fg_lo(2): fg_hi(2), fg_lo(3): fg_hi(3))
     integer, intent(in) :: Nebg
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
 
@@ -206,14 +203,13 @@ contains
 
     call amrex_allocate ( dq, qtlo(1), qthi(1), qtlo(2), qthi(2), qtlo(3), qthi(3), 1, 5)
 
-    call bl_proffortfuncstart_int(1)
-    call ebslopex_sp(q,qd_lo,qd_hi, &
-         dq,qtlo,qthi, flag, fg_lo, fg_hi, &
+    call bl_proffortfuncstart_int(11)
+    call ebslopex_sp(q,qd_lo,qd_hi, dq,qtlo,qthi, &
          lo(1)-nextra, lo(2)-nextra-1, lo(3)-nextra-1,  &
          hi(1)+nextra, hi(2)+nextra+1, hi(3)+nextra+1, QVAR, ebg, Nebg)
-    call bl_proffortfuncstop_int(1)
+    call bl_proffortfuncstop_int(11)
 
-    call bl_proffortfuncstart_int(2)
+    call bl_proffortfuncstart_int(12)
     do       k = lo(3)-nextra-1, hi(3)+nextra+1
        do    j = lo(2)-nextra-1, hi(2)+nextra+1
           do i = lo(1)-nextra  , hi(1)+nextra+1
@@ -243,16 +239,15 @@ contains
                flux1, fd1_lo, fd1_hi, 2, 3, 4)
        enddo
     enddo
-    call bl_proffortfuncstop_int(2)
+    call bl_proffortfuncstop_int(12)
 
-    call bl_proffortfuncstart_int(3)
-    call ebslopey_sp(q,qd_lo,qd_hi, &
-         dq,qtlo,qthi, flag, fg_lo, fg_hi, &
+    call bl_proffortfuncstart_int(13)
+    call ebslopey_sp(q,qd_lo,qd_hi, dq,qtlo,qthi, &
          lo(1)-nextra-1, lo(2)-nextra, lo(3)-nextra-1,  &
          hi(1)+nextra+1, hi(2)+nextra, hi(3)+nextra+1, QVAR, ebg, Nebg)
-    call bl_proffortfuncstop_int(3)
+    call bl_proffortfuncstop_int(13)
 
-    call bl_proffortfuncstart_int(4)
+    call bl_proffortfuncstart_int(14)
     do       k = lo(3)-nextra-1, hi(3)+nextra+1
        do    j = lo(2)-nextra  , hi(2)+nextra+1
           do i = lo(1)-nextra-1, hi(1)+nextra+1
@@ -282,16 +277,15 @@ contains
                flux2, fd2_lo, fd2_hi, 3, 2, 4)
        enddo
     enddo
-    call bl_proffortfuncstop_int(4)
+    call bl_proffortfuncstop_int(14)
     
-    call bl_proffortfuncstart_int(5)
-    call ebslopez_sp(q,qd_lo,qd_hi, &
-         dq,qtlo,qthi, flag, fg_lo, fg_hi, &
+    call bl_proffortfuncstart_int(15)
+    call ebslopez_sp(q,qd_lo,qd_hi, dq,qtlo,qthi, &
          lo(1)-nextra-1, lo(2)-nextra-1, lo(3)-nextra,   &
          hi(1)+nextra+1, hi(2)+nextra+1, hi(3)+nextra, QVAR, ebg, Nebg)
-    call bl_proffortfuncstop_int(5)
+    call bl_proffortfuncstop_int(15)
     
-    call bl_proffortfuncstart_int(6)
+    call bl_proffortfuncstart_int(16)
     do       k = lo(3)-nextra  , hi(3)+nextra+1
        do    j = lo(2)-nextra-1, hi(2)+nextra+1
           do i = lo(1)-nextra-1, hi(1)+nextra+1
@@ -321,7 +315,7 @@ contains
                flux3, fd3_lo, fd3_hi, 4, 2, 3)
        enddo
     enddo
-    call bl_proffortfuncstop_int(6)
+    call bl_proffortfuncstop_int(16)
 
   end subroutine hyp_mol_gam_eb_sp_3d
 

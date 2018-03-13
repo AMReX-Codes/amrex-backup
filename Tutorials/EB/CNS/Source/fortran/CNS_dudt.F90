@@ -375,7 +375,7 @@ contains
     call bl_proffortfuncstart_int(7)
     call hyp_mol_gam_eb_sp_3d(q, qlo, qhi, lo, hi, dx, &
          fhx, lfxlo, lfxhi, fhy, lfylo, lfyhi, fhz, lfzlo, lfzhi,&
-         flag, fglo, fghi, ebg, Nebg)
+         ebg, Nebg)
     call bl_proffortfuncstop_int(7)
 
     call bl_proffortfuncstart_int(8)

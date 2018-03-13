@@ -1,6 +1,5 @@
 module ebslope_sp_module
 
-  use amrex_ebcellflag_module, only : get_neighbor_cells, is_regular_cell
   use mempool_module, only : amrex_allocate, amrex_deallocate
   use amrex_fort_module, only : rt=>amrex_real
   use cns_module, only : qrho,qu,qv,qw,qp,qc,qeint,qtemp,qvar
@@ -19,16 +18,13 @@ contains
 
   subroutine ebslopex_sp(q,qd_lo,qd_hi, &
        dqxal,qpd_lo,qpd_hi, &
-       flag, fglo, fghi, &
        ilo1,ilo2,ilo3,ihi1,ihi2,ihi3,nv,ebg,Nebg)
 
     integer, intent(in) :: qd_lo(3), qd_hi(3)
     integer, intent(in) :: qpd_lo(3),qpd_hi(3)
-    integer, intent(in) :: fglo(3), fghi(3)
     integer, intent(in) :: ilo1, ilo2, ihi1, ihi2, ilo3, ihi3, nv
     real(rt), intent(in) :: q(qd_lo(1):qd_hi(1),qd_lo(2):qd_hi(2),qd_lo(3):qd_hi(3),nv)
     real(rt), intent(out) :: dqxal(qpd_lo(1):qpd_hi(1),qpd_lo(2):qpd_hi(2),qpd_lo(3):qpd_hi(3),5)
-    integer, intent(in) :: flag(fglo(1):fghi(1),fglo(2):fghi(2),fglo(3):fghi(3))
     integer, intent(in) :: Nebg
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
 
@@ -107,16 +103,13 @@ contains
 
   subroutine ebslopey_sp(q,qd_lo,qd_hi, &
        dqyal,qpd_lo,qpd_hi, &
-       flag, fglo, fghi, &
        ilo1,ilo2,ilo3,ihi1,ihi2,ihi3,nv,ebg,Nebg)
 
     integer, intent(in) :: qd_lo(3), qd_hi(3)
     integer, intent(in) :: qpd_lo(3),qpd_hi(3)
-    integer, intent(in) :: fglo(3), fghi(3)
     integer, intent(in) :: ilo1, ilo2, ihi1, ihi2, ilo3, ihi3, nv
     real(rt), intent(in) :: q(qd_lo(1):qd_hi(1),qd_lo(2):qd_hi(2),qd_lo(3):qd_hi(3),nv)
     real(rt), intent(out) :: dqyal(qpd_lo(1):qpd_hi(1),qpd_lo(2):qpd_hi(2),qpd_lo(3):qpd_hi(3),5)
-    integer, intent(in) :: flag(fglo(1):fghi(1),fglo(2):fghi(2),fglo(3):fghi(3))
     integer, intent(in) :: Nebg
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
     
@@ -194,16 +187,13 @@ contains
   
   subroutine ebslopez_sp(q,qd_lo,qd_hi, &
        dqzal,qpd_lo,qpd_hi, &
-       flag, fglo, fghi, &
        ilo1,ilo2,ilo3,ihi1,ihi2,ihi3,nv,ebg,Nebg)
     
     integer, intent(in) :: qd_lo(3), qd_hi(3)
     integer, intent(in) :: qpd_lo(3),qpd_hi(3)
-    integer, intent(in) :: fglo(3), fghi(3)
     integer, intent(in) :: ilo1, ilo2, ihi1, ihi2, ilo3, ihi3, nv
     real(rt), intent(in) :: q(qd_lo(1):qd_hi(1),qd_lo(2):qd_hi(2),qd_lo(3):qd_hi(3),nv)
     real(rt), intent(out) :: dqzal(qpd_lo(1):qpd_hi(1),qpd_lo(2):qpd_hi(2),qpd_lo(3):qpd_hi(3),5)
-    integer, intent(in) :: flag(fglo(1):fghi(1),fglo(2):fghi(2),fglo(3):fghi(3))
     integer, intent(in) :: Nebg
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
     
