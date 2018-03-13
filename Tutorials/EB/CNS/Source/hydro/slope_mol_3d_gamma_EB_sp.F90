@@ -33,7 +33,7 @@ contains
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
 
     integer i, j, k, n, L
-    real(rt) :: slop, dsgn,dlim,dcen
+    real(rt) :: slop, dsgn,dlim,dcen,cinv
     real(rt) :: dlft(ilo1-1:ihi1+1,5), drgt(ilo1-1:ihi1+1,5)
 
     if(plm_iorder.eq.1) then
@@ -53,15 +53,16 @@ contains
        do k = ilo3, ihi3
           do j = ilo2, ihi2
              do i = ilo1-1, ihi1+1
-                dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i-1,j,k,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QU) - q(i-1,j,k,QU))
-                dlft(i,2) = (q(i,j,k,QRHO)-q(i-1,j,k,QRHO))- (q(i,j,k,QP) - q(i-1,j,k,QP))/q(i,j,k,QC)**2
-                dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i-1,j,k,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QU) - q(i-1,j,k,QU))
+                cinv = 1.d0 / q(i,j,k,QC)
+                dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i-1,j,k,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QU) - q(i-1,j,k,QU))
+                dlft(i,2) = (q(i,j,k,QRHO)-q(i-1,j,k,QRHO))- (q(i,j,k,QP) - q(i-1,j,k,QP))*cinv**2
+                dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i-1,j,k,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QU) - q(i-1,j,k,QU))
                 dlft(i,4) = q(i,j,k,QV) - q(i-1,j,k,QV)
                 dlft(i,5) = q(i,j,k,QW) - q(i-1,j,k,QW)
 
-                drgt(i,1) = 0.5d0*(q(i+1,j,k,QP)-q(i,j,k,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i+1,j,k,QU) - q(i,j,k,QU))
-                drgt(i,2) = (q(i+1,j,k,QRHO)-q(i,j,k,QRHO))- (q(i+1,j,k,QP) - q(i,j,k,QP))/q(i,j,k,QC)**2
-                drgt(i,3) = 0.5d0*(q(i+1,j,k,QP)-q(i,j,k,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i+1,j,k,QU) - q(i,j,k,QU))
+                drgt(i,1) = 0.5d0*(q(i+1,j,k,QP)-q(i,j,k,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i+1,j,k,QU) - q(i,j,k,QU))
+                drgt(i,2) = (q(i+1,j,k,QRHO)-q(i,j,k,QRHO))- (q(i+1,j,k,QP) - q(i,j,k,QP))*cinv**2
+                drgt(i,3) = 0.5d0*(q(i+1,j,k,QP)-q(i,j,k,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i+1,j,k,QU) - q(i,j,k,QU))
                 drgt(i,4) = q(i+1,j,k,QV) - q(i,j,k,QV)
                 drgt(i,5) = q(i+1,j,k,QW) - q(i,j,k,QW)
              enddo
@@ -70,8 +71,16 @@ contains
              do L = 1,Nebg
                 do i = ilo1-1, ihi1+1
                    if (i.eq.ebg(L)%iv(0) .and. j.eq.ebg(L)%iv(1) .and. k.eq.ebg(L)%iv(2)) then
-                      dlft(i,:) = dlft(i,:) * ebg(L)%nbr(-1,0,0)
-                      drgt(i,:) = drgt(i,:) * ebg(L)%nbr( 1,0,0)
+                      dlft(i,1) = dlft(i,1) * ebg(L)%nbr(-1,0,0)
+                      dlft(i,2) = dlft(i,2) * ebg(L)%nbr(-1,0,0)
+                      dlft(i,3) = dlft(i,3) * ebg(L)%nbr(-1,0,0)
+                      dlft(i,4) = dlft(i,4) * ebg(L)%nbr(-1,0,0)
+                      dlft(i,5) = dlft(i,5) * ebg(L)%nbr(-1,0,0)
+                      drgt(i,1) = drgt(i,1) * ebg(L)%nbr( 1,0,0)
+                      drgt(i,2) = drgt(i,2) * ebg(L)%nbr( 1,0,0)
+                      drgt(i,3) = drgt(i,3) * ebg(L)%nbr( 1,0,0)
+                      drgt(i,4) = drgt(i,4) * ebg(L)%nbr( 1,0,0)
+                      drgt(i,5) = drgt(i,5) * ebg(L)%nbr( 1,0,0)
                    endif
                 enddo
              enddo
@@ -91,6 +100,7 @@ contains
              end do
           end do
        end do
+
     end if
 
   end subroutine ebslopex_sp
@@ -111,7 +121,7 @@ contains
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
     
     integer i, j, k, n, L
-    real(rt) slop, dsgn,dlim,dcen
+    real(rt) slop, dsgn,dlim,dcen,cinv
     real(rt) :: dlft(ilo1:ihi1,5), drgt(ilo1:ihi1,5)
     
     if(plm_iorder.eq.1) then
@@ -131,15 +141,16 @@ contains
        do k = ilo3, ihi3
           do j = ilo2-1, ihi2+1
              do i = ilo1, ihi1
-                dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i,j-1,k,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QV) - q(i,j-1,k,QV))
-                dlft(i,2) = (q(i,j,k,QRHO)-q(i,j-1,k,QRHO))- (q(i,j,k,QP) - q(i,j-1,k,QP))/q(i,j,k,QC)**2
-                dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i,j-1,k,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QV) - q(i,j-1,k,QV))
+                cinv = 1.d0 / q(i,j,k,QC)
+                dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i,j-1,k,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QV) - q(i,j-1,k,QV))
+                dlft(i,2) = (q(i,j,k,QRHO)-q(i,j-1,k,QRHO))- (q(i,j,k,QP) - q(i,j-1,k,QP))*cinv**2
+                dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i,j-1,k,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QV) - q(i,j-1,k,QV))
                 dlft(i,4) = q(i,j,k,QU) - q(i,j-1,k,QU) 
                 dlft(i,5) = q(i,j,k,QW) - q(i,j-1,k,QW) 
 
-                drgt(i,1) = 0.5d0*(q(i,j+1,k,QP)-q(i,j,k,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i,j+1,k,QV) - q(i,j,k,QV))
-                drgt(i,2) = (q(i,j+1,k,QRHO)-q(i,j,k,QRHO))- (q(i,j+1,k,QP) - q(i,j,k,QP))/q(i,j,k,QC)**2
-                drgt(i,3) = 0.5d0*(q(i,j+1,k,QP)-q(i,j,k,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i,j+1,k,QV) - q(i,j,k,QV))
+                drgt(i,1) = 0.5d0*(q(i,j+1,k,QP)-q(i,j,k,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i,j+1,k,QV) - q(i,j,k,QV))
+                drgt(i,2) = (q(i,j+1,k,QRHO)-q(i,j,k,QRHO))- (q(i,j+1,k,QP) - q(i,j,k,QP))*cinv**2
+                drgt(i,3) = 0.5d0*(q(i,j+1,k,QP)-q(i,j,k,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i,j+1,k,QV) - q(i,j,k,QV))
                 drgt(i,4) = q(i,j+1,k,QU) - q(i,j,k,QU)
                 drgt(i,5) = q(i,j+1,k,QW) - q(i,j,k,QW)
              enddo
@@ -148,8 +159,16 @@ contains
              do L = 1,Nebg
                 do i = ilo1, ihi1
                    if (i.eq.ebg(L)%iv(0) .and. j.eq.ebg(L)%iv(1) .and. k.eq.ebg(L)%iv(2)) then
-                      dlft(i,:) = dlft(i,:) * ebg(L)%nbr(0,-1,0)
-                      drgt(i,:) = drgt(i,:) * ebg(L)%nbr(0, 1,0)
+                      dlft(i,1) = dlft(i,1) * ebg(L)%nbr(0,-1,0)
+                      dlft(i,2) = dlft(i,2) * ebg(L)%nbr(0,-1,0)
+                      dlft(i,3) = dlft(i,3) * ebg(L)%nbr(0,-1,0)
+                      dlft(i,4) = dlft(i,4) * ebg(L)%nbr(0,-1,0)
+                      dlft(i,5) = dlft(i,5) * ebg(L)%nbr(0,-1,0)
+                      drgt(i,1) = drgt(i,1) * ebg(L)%nbr(0, 1,0)
+                      drgt(i,2) = drgt(i,2) * ebg(L)%nbr(0, 1,0)
+                      drgt(i,3) = drgt(i,3) * ebg(L)%nbr(0, 1,0)
+                      drgt(i,4) = drgt(i,4) * ebg(L)%nbr(0, 1,0)
+                      drgt(i,5) = drgt(i,5) * ebg(L)%nbr(0, 1,0)
                    endif
                 enddo
              enddo
@@ -189,7 +208,7 @@ contains
     type(eb_bndry_geom),intent(in) :: ebg(Nebg)
     
     integer i, j, k, n, L
-    real(rt) slop,dsgn,dlim,dcen
+    real(rt) slop,dsgn,dlim,dcen,cinv
     real(rt) :: dlft(ilo1:ihi1,nv), drgt(ilo1:ihi1,nv)
     
     if(plm_iorder.eq.1) then
@@ -209,15 +228,16 @@ contains
        do k = ilo3-1, ihi3+1
             do j = ilo2, ihi2
                do i = ilo1, ihi1
-                  dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i,j,k-1,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QW) - q(i,j,k-1,QW))
-                  dlft(i,2) = (q(i,j,k,QRHO)-q(i,j,k-1,QRHO))- (q(i,j,k,QP) - q(i,j,k-1,QP))/q(i,j,k,QC)**2
-                  dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i,j,k-1,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QW) - q(i,j,k-1,QW))
+                  cinv = 1.d0 / q(i,j,k,QC)
+                  dlft(i,1) = 0.5d0*(q(i,j,k,QP)-q(i,j,k-1,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QW) - q(i,j,k-1,QW))
+                  dlft(i,2) = (q(i,j,k,QRHO)-q(i,j,k-1,QRHO))- (q(i,j,k,QP) - q(i,j,k-1,QP))*cinv**2
+                  dlft(i,3) = 0.5d0*(q(i,j,k,QP)-q(i,j,k-1,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k,QW) - q(i,j,k-1,QW))
                   dlft(i,4) = q(i,j,k,QU) - q(i,j,k-1,QU) 
                   dlft(i,5) = q(i,j,k,QV) - q(i,j,k-1,QV) 
 
-                  drgt(i,1) = 0.5d0*(q(i,j,k+1,QP)-q(i,j,k,QP))/q(i,j,k,QC) - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k+1,QW) - q(i,j,k,QW))
-                  drgt(i,2) = (q(i,j,k+1,QRHO)-q(i,j,k,QRHO))- (q(i,j,k+1,QP) - q(i,j,k,QP))/q(i,j,k,QC)**2
-                  drgt(i,3) = 0.5d0*(q(i,j,k+1,QP)-q(i,j,k,QP))/q(i,j,k,QC) + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k+1,QW) - q(i,j,k,QW))
+                  drgt(i,1) = 0.5d0*(q(i,j,k+1,QP)-q(i,j,k,QP))*cinv - 0.5d0*q(i,j,k,QRHO)*(q(i,j,k+1,QW) - q(i,j,k,QW))
+                  drgt(i,2) = (q(i,j,k+1,QRHO)-q(i,j,k,QRHO))- (q(i,j,k+1,QP) - q(i,j,k,QP))*cinv**2
+                  drgt(i,3) = 0.5d0*(q(i,j,k+1,QP)-q(i,j,k,QP))*cinv + 0.5d0*q(i,j,k,QRHO)*(q(i,j,k+1,QW) - q(i,j,k,QW))
                   drgt(i,4) = q(i,j,k+1,QU) - q(i,j,k,QU) 
                   drgt(i,5) = q(i,j,k+1,QV) - q(i,j,k,QV) 
                enddo
@@ -226,8 +246,16 @@ contains
                do L = 1,Nebg
                   do i = ilo1, ihi1
                      if (i.eq.ebg(L)%iv(0) .and. j.eq.ebg(L)%iv(1) .and. k.eq.ebg(L)%iv(2)) then
-                        dlft(i,:) = dlft(i,:) * ebg(L)%nbr(0,0,-1)
-                        drgt(i,:) = drgt(i,:) * ebg(L)%nbr(0,0, 1)
+                        dlft(i,1) = dlft(i,1) * ebg(L)%nbr(0,0,-1)
+                        dlft(i,2) = dlft(i,2) * ebg(L)%nbr(0,0,-1)
+                        dlft(i,3) = dlft(i,3) * ebg(L)%nbr(0,0,-1)
+                        dlft(i,4) = dlft(i,4) * ebg(L)%nbr(0,0,-1)
+                        dlft(i,5) = dlft(i,5) * ebg(L)%nbr(0,0,-1)
+                        drgt(i,1) = drgt(i,1) * ebg(L)%nbr(0,0, 1)
+                        drgt(i,2) = drgt(i,2) * ebg(L)%nbr(0,0, 1)
+                        drgt(i,3) = drgt(i,3) * ebg(L)%nbr(0,0, 1)
+                        drgt(i,4) = drgt(i,4) * ebg(L)%nbr(0,0, 1)
+                        drgt(i,5) = drgt(i,5) * ebg(L)%nbr(0,0, 1)
                      endif
                   enddo
                enddo
