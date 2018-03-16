@@ -22,13 +22,9 @@ int main(int argc, char *argv[]) {
     //       has the minimal amount, if applicable.
     //       Also, isolate the I/O file (isolatedFile) on the i/o proc.
 
-    // Methodology: If isolated file is at the end of the list, distribute all files backwards
-    //              across the ranks and leave the last 'fair share' of files for the io proc.
-
-    //              Otherwise, Distribute files backwards across all available ranks except the
-    //              ioRank. Once at the isolated file, place the next 'fair share' of files on
-    //              the ioRank to equalize the balance. Then, continue from where you left off,
-    //              including all processors until the files are distributed.
+    // Methodology: Distribute the files forward on ranks starting with I/O proc + 1. 
+    //              Swap the isolated file with the first file to be placed on the I/O proc.
+    //              Unless isolated file would be on the I/O proc, then do nothing special. 
 
     int ioRank = 3;
     int numFiles = 34;
@@ -53,6 +49,8 @@ int main(int argc, char *argv[]) {
          if (j == ioRank)
          {
            // Serial version. No calc, just designate them all to IOrank.
+           // Should be optimal unless there is I/O work to do besides the database lookup.
+           // Then, possible to put "work" on a different rank than "I/O".
            for (int i=0; i<numFiles; ++i)
            {
               files_on_rank[ioRank].push_back(i);
