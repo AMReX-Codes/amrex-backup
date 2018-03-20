@@ -30,11 +30,6 @@ using std::max;
 
 using namespace amrex;
 
-#ifdef BL_USE_PROFPARSER
-extern int yyparse(void *);
-extern FILE *yyin;
-#endif
-
 namespace amrex {
 
 Vector<DataServices *> DataServices::dsArray;
@@ -112,7 +107,8 @@ namespace ParallelDescriptor {
 // ---------------------------------------------------------------
 DataServices::DataServices(const string &filename, const Amrvis::FileType &filetype)
              : fileName(filename), fileType(filetype), bAmrDataOk(false),
-               iWriteToLevel(-1)
+               iWriteToLevel(-1),
+//               profData(filename)
 {
   numberOfUsers = 0;  // the user must do all incrementing and decrementing
   bAmrDataOk = amrData.ReadData(fileName, fileType);
@@ -173,38 +169,36 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
     if(bIOP) { cout << "Parsing main blprof header file." << endl; }
     string blpFileName_H(BLProfStats::GetProfFilePrefix()+"_H");
     string blpFullFileName_H(fileName + '/' + blpFileName_H);
-    if( ! (yyin = fopen(blpFullFileName_H.c_str(), "r"))) {
+    if ( amrex::ParseFile(blpFullFileName_H, &blProfStats_H) )
+    {
+      bProfDataAvailable = true;
+    } else {
       if(bIOP) {
         cerr << "DataServices::Init:  0:  Cannot open file:  " << blpFullFileName_H << endl;
       }
       bProfDataAvailable = false;
-    } else {
-      yyparse(&blProfStats_H);
-      fclose(yyin);
-      bProfDataAvailable = true;
     }
 
     // -------- parse the main call stats header file.  everyone does this for now
     if(bIOP) { cout << "Parsing main call stats header file." << endl; }
     string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
     std::string regFileName_H(fileName + '/' + regPrefix_H);
-    if( ! (yyin = fopen(regFileName_H.c_str(), "r"))) {
+    if ( amrex::ParseFile(regFileName_H, &regOutputStats_H) )
+    {
+      bRegionDataAvailable = true;
+      bTraceDataAvailable  = true;
+    }
+    else
+    {
       if(bIOP) {
         cerr << "DataServices::Init:  1:  Cannot open file:  " << regFileName_H << endl;
       }
       bRegionDataAvailable = false;
       bTraceDataAvailable  = false;
-    } else {
-      bRegionDataAvailable = true;
-      bTraceDataAvailable  = true;
-    }
-    if(bTraceDataAvailable) {
-      yyparse(&regOutputStats_H);
-      fclose(yyin);
-    } else {
-    }
+    } 
 
     // ---- make a box for distributing work
+    // -------------------------------------
     int dataNProcs(BLProfStats::GetNProcs());
     Box procBox(IntVect(0, 0), IntVect(0, dataNProcs - 1));
     IntVect procMaxGrid(1, (dataNProcs / nProcs) + ((dataNProcs % nProcs) > 0 ? 1 : 0));
@@ -234,6 +228,7 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
       if(bIOP) cout << "---- procBoxArray = " << procBoxArray << endl;
       amrex::Abort("procBoxArray::Error 0");
     }
+    // -------------------------------------
 
     if(bTraceDataAvailable) {
       // -------- parse the data headers.  everyone does this for now
@@ -241,18 +236,16 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
       const Vector<string> &regHeaderFileNames = regOutputStats_H.GetHeaderFileNames();
       for(int i(0); i < regHeaderFileNames.size(); ++i) {
         std::string regFileName_H_nnnn(fileName + '/' + regHeaderFileNames[i]);
-        if( ! (yyin = fopen(regFileName_H_nnnn.c_str(), "r"))) {
+
+        BL_PROFILE_VAR("DataServices::Init(), parsing data headers.", yydheaders);
+        if ( !amrex::ParseFile(regFileName_H_nnnn, &regOutputStats_H) )
+        {
           if(bIOP) {
             cerr << "DataServices::Init:  2:  Cannot open file:  " << regFileName_H_nnnn
                  << " ... continuing." << endl;
           }
-          continue;
         }
-        BL_PROFILE_VAR("DataServices::Init(), parsing data headers.", yydheaders);
-        yyparse(&regOutputStats_H);
         BL_PROFILE_VAR_STOP(yydheaders);
-
-        fclose(yyin);
       }
 
       if(regOutputStats_H.TraceDataValid()) {
@@ -295,20 +288,18 @@ void DataServices::Init(const string &filename, const Amrvis::FileType &filetype
     if(bIOP) { cout << "Parsing main comm header file." << endl; }
     std::string commPrefix_H(CommProfStats::GetCommFilePrefix()+"_H");
     std::string commFileName_H(fileName + '/' + commPrefix_H);
-    if( ! (yyin = fopen(commFileName_H.c_str(), "r"))) {
+
+    if( amrex::ParseFile(commFileName_H, &commOutputStats_H))
+    {
+      bCommDataAvailable = true;
+    }
+    else {
       if(bIOP) {
         cerr << "DataServices::Init:  3:  Cannot open file:  " << commFileName_H << endl;
       }
       bCommDataAvailable = false;
-    } else {
-      bCommDataAvailable = true;
     }
 
-    if(bCommDataAvailable) {
-      yyparse(&commOutputStats_H);
-      fclose(yyin);
-    } else {
-    }
 /*
     if(bRegionDataAvailable) {
       commOutputStats_H.SetRegionTimeRanges(regOutputStats_H.GetRegionTimeRanges());
@@ -1692,17 +1683,16 @@ void DataServices::ParseFilterFile()
     bool bIOP(ParallelDescriptor::IOProcessor());
     std::string filterFileName("RegionFilters.txt");
 
-    if( ! (yyin = fopen(filterFileName.c_str(), "r"))) {
-      if(bIOP) {
-        cerr << "DataServices::ParseFilterFile:  Cannot open file:  " << filterFileName << endl;
-      }
-    } else {
-      yyparse(&regOutputStats_H);
-      fclose(yyin);
-
+    if(amrex::ParseFile(filterFileName, &regOutputStats_H))
+    {
       regOutputStats_H.InitFilterTimeRanges();
       if(ParallelDescriptor::IOProcessor()) {
         PrintTimeRangeList(regOutputStats_H.GetFilterTimeRanges()[0]);
+      }
+    }
+    else {
+      if(bIOP) {
+        cerr << "DataServices::ParseFilterFile:  Cannot open file:  " << filterFileName << endl;
       }
     }
 }
@@ -1754,16 +1744,17 @@ void DataServices::CheckProfData()
           if(myProc == hfnI % nProcs) {
             CommProfStats commOutputStats;
             std::string commFileName_H_nnnn(fileName + '/' + commHeaderFileNames[hfnI]);
-            if( ! ( yyin = fopen(commFileName_H_nnnn.c_str(), "r"))) {
+            if( amrex::ParseFile(commFileName_H_nnnn, &commOutputStats) )
+            {
+              commOutputStats.CheckCommData(nBMin, nBMax, nRMin, nRMax);
+            }
+            else
+            {
               if(bIOP) {
                 cerr << "DataServices::CheckProfData:  Cannot open file:  " << commFileName_H_nnnn
                      << "  continuing ...." << endl;
-                continue;
               }
             }
-            yyparse(&commOutputStats);
-            fclose(yyin);
-            commOutputStats.CheckCommData(nBMin, nBMax, nRMin, nRMax);
           }
         }
       }
@@ -1778,11 +1769,9 @@ void DataServices::CheckProfData()
 
       string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
       std::string regFileName_H(fileName + '/' + regPrefix_H);
-      if((yyin = fopen(regFileName_H.c_str(), "r"))) {
-        yyparse(&regionsOutputStats);
-        fclose(yyin);
-      } 
-      else {
+
+      if ( !amrex::ParseFile(regFileName_H, &regionsOutputStats) )
+      {
         cerr << "DataServices::CheckProfData: Cannot open file  " << regPrefix_H << endl;
       }
 
@@ -1790,15 +1779,11 @@ void DataServices::CheckProfData()
         for(int hfnI(0); hfnI < regionsHeaderFileNames.size(); ++hfnI) {
           if(myProc == hfnI % nProcs) {
             std::string regionsFileName_H_nnnn(fileName + '/' + regionsHeaderFileNames[hfnI]);
-            if( ! ( yyin = fopen(regionsFileName_H_nnnn.c_str(), "r"))) {
-              if(bIOP) {
-                cerr << "DataServices::CheckProfData:  Cannot open file:  " << regionsFileName_H_nnnn
-                     << "  continuing ...." << endl;
-                continue;
-              }
+            if ( !amrex::ParseFile(regionsFileName_H_nnnn, &regionsOutputStats) )
+            {
+               cerr << "DataServices::CheckProfData:  Cannot open file:  " << regionsFileName_H_nnnn
+                    << "  continuing ...." << endl;
             }
-            yyparse(&regionsOutputStats);
-            fclose(yyin);
           }
         }
       }
@@ -1816,34 +1801,33 @@ void DataServices::CheckProfData()
 void DataServices::ProcessGridLog(const std::string &gridlogFileName) {
     if(ParallelDescriptor::IOProcessor()) {
       CommProfStats glOutputStats;
-      if( ! ( yyin = fopen(gridlogFileName.c_str(), "r"))) {
-        cout << "DataServices::ProcessGridLog:  Cannot open file:  " << gridlogFileName << endl;
-      } else {
+      if ( amrex::ParseFile(gridlogFileName, &glOutputStats) ) {
         cout << "---------------- parsing " << gridlogFileName << endl;
-        yyparse(&glOutputStats);
-        fclose(yyin);
-        cout << endl;
-
-        const std::map<int, long> &glMap = glOutputStats.GLMap();
-        std::map<int, long>::const_iterator it;
-        std::ofstream glout("grdlogRankNPoints.xgr");
-        for(it = glMap.begin(); it != glMap.end(); ++it) {
-          glout << it->first << ' ' << it->second << '\n';
-        }
-        glout.close();
-
-        const std::map<int, int> &glSizeMap = glOutputStats.GLSizeMap();
-        std::map<int, int>::const_iterator its;
-        std::string gridGraphName("grdlogSizeNGrids.xgr");
-        std::ofstream glsizeout(gridGraphName);
-        cout << "---------------- writing " << gridGraphName << endl;
-        for(its = glSizeMap.begin(); its != glSizeMap.end(); ++its) {
-          glsizeout << its->first << ' ' << its->second << '\n';
-        }
-        glsizeout.close();
       }
-      cout << "---------------- finished processing " << gridlogFileName << endl;
+      else {
+        cout << "DataServices::ProcessGridLog:  Cannot open file:  " << gridlogFileName << endl;
+      }
+      cout << endl;
+
+      const std::map<int, long> &glMap = glOutputStats.GLMap();
+      std::map<int, long>::const_iterator it;
+      std::ofstream glout("grdlogRankNPoints.xgr");
+      for(it = glMap.begin(); it != glMap.end(); ++it) {
+        glout << it->first << ' ' << it->second << '\n';
+      }
+      glout.close();
+
+      const std::map<int, int> &glSizeMap = glOutputStats.GLSizeMap();
+      std::map<int, int>::const_iterator its;
+      std::string gridGraphName("grdlogSizeNGrids.xgr");
+      std::ofstream glsizeout(gridGraphName);
+      cout << "---------------- writing " << gridGraphName << endl;
+      for(its = glSizeMap.begin(); its != glSizeMap.end(); ++its) {
+        glsizeout << its->first << ' ' << its->second << '\n';
+      }
+      glsizeout.close();
     }
+  cout << "---------------- finished processing " << gridlogFileName << endl;
 }
 
 
@@ -1934,20 +1918,16 @@ void DataServices::RunStats(std::map<int, string> &mpiFuncNames,
                << commHeaderFileNames[hfnI] << endl;
           std::string commDataHeaderFileName(fileName + '/' + commHeaderFileNames[hfnI]);
 
-          if( ! ( yyin = fopen(commDataHeaderFileName.c_str(), "r"))) {
-            if(bIOP) {
-              cerr << "DataServices::RunStats:  Cannot open file:  " << commDataHeaderFileName
-                   << "  continuing ...." << endl;
-            }
-            continue;
+          if ( amrex::ParseFile(commDataHeaderFileName, &commOutputStats) ) {
+             commOutputStats.ReportStats(totalSentData, totalNCommStats,
+                                         totalFunctionCalls, bytesPerSlot,
+                                         msgSizes, minMsgSize, maxMsgSize,
+                                         timeMin, timeMax, timerTime, rankNodeNumbers);
           }
-
-          yyparse(&commOutputStats);
-          fclose(yyin);
-          commOutputStats.ReportStats(totalSentData, totalNCommStats,
-                                      totalFunctionCalls, bytesPerSlot,
-                                      msgSizes, minMsgSize, maxMsgSize,
-                                      timeMin, timeMax, timerTime, rankNodeNumbers);
+          else {
+              cerr << "DataServices::RunStats " << myProc << ":  Cannot open file:  "
+                   << commDataHeaderFileName  << "  continuing ...." << endl;
+          }
         }
       }
     }
@@ -2111,28 +2091,25 @@ void DataServices::RunSendsPF(std::string &plotfileName,
 
           std::string commDataHeaderFileName(fileName + '/' + commHeaderFileNames[hfnI]);
 
-          if( ! ( yyin = fopen(commDataHeaderFileName.c_str(), "r"))) {
-            if(bIOP) {
-              cerr << "DataServices::RunSendsPF:  Cannot open file:  " << commDataHeaderFileName
-                   << " ... continuing." << endl;
-            }
-            continue;
+          if ( amrex::ParseFile(commDataHeaderFileName, &commOutputStats) ) {
+             if(bRegionDataAvailable) {
+               commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
+               commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
+             }
+
+             for(MFIter mfi(sendMF); mfi.isValid(); ++mfi) {
+               FArrayBox &sendFAB  = sendMF[mfi.index()];
+
+               commOutputStats.FillSendFAB(totalSends, totalSentData,
+                                       totalSendsPerProc, totalSentDataPerProc,
+                                       sendFAB, proxMap);
+             }
           }
-
-          yyparse(&commOutputStats);
-          fclose(yyin);
-
-          if(bRegionDataAvailable) {
-            commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
-            commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
-          }
-
-          for(MFIter mfi(sendMF); mfi.isValid(); ++mfi) {
-            FArrayBox &sendFAB  = sendMF[mfi.index()];
-
-            commOutputStats.FillSendFAB(totalSends, totalSentData,
-                                    totalSendsPerProc, totalSentDataPerProc,
-                                    sendFAB, proxMap);
+          else {
+             if(bIOP) {
+               cerr << "DataServices::RunSendsPF:  Cannot open file:  " << commDataHeaderFileName
+                    << " ... continuing." << endl;
+             }
           }
     }
 
@@ -2347,16 +2324,14 @@ BLProfStats::TimeRange DataServices::FindCalcTimeRange()
           CommProfStats commOutputStats;
           std::string commDataHeaderFileName(fileName + '/' + commHeaderFileNames[hfnI]);
 
-          if( ! ( yyin = fopen(commDataHeaderFileName.c_str(), "r"))) {
-            if(bIOP) {
-              cerr << "DataServices::RunTimelinePF:  1:  Cannot open file:  " << commDataHeaderFileName
-                   << " ... continuing." << endl;
-            }
-            continue;
+          if ( amrex::ParseFile(commDataHeaderFileName, &commOutputStats) ) {
+            commOutputStats.FindTimeRange(calcTimeRange);
           }
-          yyparse(&commOutputStats);
-          fclose(yyin);
-          commOutputStats.FindTimeRange(calcTimeRange);
+          else {
+              cerr << "DataServices::RunTimelinePF:  1:  " << myProc << " Cannot open file:  "
+                   << commDataHeaderFileName << " ... continuing." << endl;
+          }
+
         }
       }
     }
@@ -2473,7 +2448,7 @@ void DataServices::RunTimelinePF(std::map<int, string> &mpiFuncNames,
 
         std::string commDataHeaderFileName(fileName + '/' + commHeaderFileNames[hfnI]);
 
-        if( ! ( yyin = fopen(commDataHeaderFileName.c_str(), "r"))) {
+        if ( !amrex::ParseFile(commDataHeaderFileName, &commOutputStats) ) {
           if(bIOP) {
             cerr << "DataServices::RunTimelinePF:  2:  Cannot open file:  " << commDataHeaderFileName
                  << " ... continuing." << endl;
@@ -2481,9 +2456,6 @@ void DataServices::RunTimelinePF(std::map<int, string> &mpiFuncNames,
           continue;
         }
 
-        yyparse(&commOutputStats);
-        fclose(yyin);
- 
         if(hfnI_I == 0) {  // this assumes all headers have the same nametag and barrier names
           // ---- this part encodes the name tag name into the NameTag cfType value
           nameTagNames = commOutputStats.NameTagNames();
@@ -3063,17 +3035,15 @@ void DataServices::RunSyncPointData()
       }
 
       std::string commDataHeaderFileName(fileName + '/' + commHeaderFileNames[hfnI]);
-      if( ! ( yyin = fopen(commDataHeaderFileName.c_str(), "r"))) {
+      if ( amrex::ParseFile(commDataHeaderFileName, &commOutputStats[hfnI]) ) {
+        commOutputStats[hfnI].ReportSyncPointDataSetup(nBMax, nRMax);
+      }
+      else {
         if(bIOP) {
           cerr << "DataServices::RunSyncPointData:  Cannot open file:  " << commDataHeaderFileName
                << " ... continuing." << endl;
         }
-        continue;
       }
-
-      yyparse(&commOutputStats[hfnI]);
-      fclose(yyin);
-      commOutputStats[hfnI].ReportSyncPointDataSetup(nBMax, nRMax);
     }
 
     ParallelDescriptor::ReduceLongMax(nBMax);
@@ -3169,6 +3139,7 @@ void DataServices::RunSyncPointData()
 void DataServices::RunSendRecv()
 {
     bool bIOP(ParallelDescriptor::IOProcessor());
+//    int  myProc(ParallelDescriptor::MyProc());
     if( ! bCommDataAvailable) {
       if(bIOP) {
         cout << "DataServices::RunSendRecv:  comm data is not available." << std::endl;
@@ -3182,20 +3153,18 @@ void DataServices::RunSendRecv()
         if(myProc == hfnI % nProcs) {
           CommProfStats commOutputStats;
           std::string commFileName_H_nnnn(dirName + '/' + commHeaderFileNames[hfnI]);
-          if( ! ( yyin = fopen(commFileName_H_nnnn.c_str(), "r"))) {
-            if(bIOP) {
-              cerr << "DataServices::RunSendRecv:  Cannot open file:  " << commFileName_H_nnnn
-                   << " ... continuing." << endl;
+          if ( amrex::ParseFile(commFileName_H_nnnn, &commOutputStats) ) {
+            if(bRegionDataAvailable) {
+              commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
+              commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
             }
-            continue;
+            commOutputStats.SendRecvData("SendRecvData", 0.0, -1.0);
           }
-          if(bRegionDataAvailable) {
-            commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
-            commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
+          else {
+              cerr << "DataServices::RunSendRecv " << myProc << " :  Cannot open file:  " 
+                   << commFileName_H_nnnn << " ... continuing." << endl;
+            }
           }
-          yyparse(&commOutputStats);
-          fclose(yyin);
-          commOutputStats.SendRecvData("SendRecvData", 0.0, -1.0);
         }
       }
     }
@@ -3227,20 +3196,20 @@ void DataServices::RunSendRecvList()
 //        if(myProc == hfnI % nProcs) {
           CommProfStats commOutputStats;
           std::string commFileName_H_nnnn(fileName + '/' + commHeaderFileNames[hfnI]);
-          if( ! ( yyin = fopen(commFileName_H_nnnn.c_str(), "r"))) {
+          if (amrex::ParseFile(commFileName_H_nnnn, &commOutputStats) ) {
+            if(bRegionDataAvailable) {
+              commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
+              commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
+            }
+            commOutputStats.SendRecvList(srMMap);
+          }
+          else {
             if(bIOP) {
               cerr << "DataServices::RunSendRecvList:  Cannot open file:  " << commFileName_H_nnnn
                    << " ... continuing." << endl;
             }
-            continue;
           }
-          if(bRegionDataAvailable) {
-            commOutputStats.SetRegionTimeRanges(commOutputStats_H.GetRegionTimeRanges());
-            commOutputStats.SetFilterTimeRanges(commOutputStats_H.GetFilterTimeRanges());
-          }
-          yyparse(&commOutputStats);
-          fclose(yyin);
-          commOutputStats.SendRecvList(srMMap);
+
 //        }
       }
 //    }
@@ -3319,12 +3288,11 @@ void DataServices::TCEdison()
   if(bIOP) {
     commOutputStats_H.InitEdisonTopoMF();
     std::string topoFileName("edisontopo.out");
-    if( ! ( yyin = fopen(topoFileName.c_str(), "r"))) {
-      cout << "DataServices::TCEdison:  Cannot open file:  " << topoFileName << endl;
-    } else {
-      yyparse(&commOutputStats_H);
-      fclose(yyin);
+    if (amrex::ParseFile(topoFileName, &commOutputStats_H)) {
       commOutputStats_H.WriteEdisonTopoMF();
+    }
+    else {
+      cout << "DataServices::TCEdison:  Cannot open file:  " << topoFileName << endl;
     }
   }
 }
