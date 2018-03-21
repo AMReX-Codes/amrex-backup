@@ -115,8 +115,19 @@ class BLProfStats {
     static int  Verbose() { return verbose; }
     static void SetVerbose(int vlevel = 0) { verbose = vlevel; }
     static void SetDirName(const std::string &dirname)  { dirName = dirname; }
+
     static void SetNOutFiles(const int nof)  { nOutFiles = nof; }
     static int  GetNOutFiles() { return nOutFiles; }
+
+    std::map<int, std::string> GetProcNumbersToFiles() { return procNumbersToFiles; }
+    std::string GetFileNameFromProc( int proc )
+    {
+       std::map<int, std::string>::iterator it = procNumbersToFiles.find(proc);
+       if(it == procNumbersToFiles.end()) {
+         return ""; 
+       } 
+       return it->second;
+    }
 
     void AddRegionName(const std::string &rname, int rnumber);
     std::set<int> WhichRegions(int proc, Real t);
@@ -241,17 +252,18 @@ class BLProfStats {
     std::map<int, std::string> regionNumbers;  // [rnumber, rname]
 
     std::map<int, std::string> barrierNumbersToNames;  // [bnumber, bname]
+    std::map<int, std::string> procNumbersToFiles;     // [dataProcNum, filename]
 
     std::set<int> includeSet, excludeSet;
     bool bDefaultInclude;
 
     amrex::Vector<amrex::Vector<amrex::Vector<TimeRange> > > regionTimeRanges;  // [proc][rnum][range]
-    amrex::Vector<std::list<TimeRange> > filterTimeRanges;  // [proc]
+    amrex::Vector<std::list<TimeRange> > filterTimeRanges;  // [proc][entry]
 
     static std::string profFilePrefix;
     static std::map<std::string, int> blpDataFileNames;  // [filename, stream index]
 
-    amrex::Vector<std::string> blpFNames;
+    amrex::Vector<std::string> blpFNames;       // function names
     amrex::Vector<BLPDataBlock> blpDataBlocks;
 
     static Real gPercent;

@@ -1,3 +1,8 @@
+ifeq ($(USE_PROFPARSER), TRUE)
+  CEXE_sources += AMReX_ProfData.cpp
+  CEXE_headers += AMReX_ProfData.H
+endif
+
 ifeq ($(PROFILE),TRUE)
   CEXE_sources += AMReX_BLProfUtilities.cpp AMReX_BLWritePlotFile.cpp
   CEXE_sources += BLProfParser.tab.cpp BLProfParser.lex.yy.cpp

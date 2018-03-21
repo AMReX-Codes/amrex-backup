@@ -20,7 +20,7 @@
 #include <BLProfParser.tab.H>
 #include <AMReX_CommProfStats.H>
 #include <AMReX_RegionsProfStats.H>
-//#include <AMReX_ProfData.H>
+#include <AMReX_ProfData.H>
 #endif
 
 
@@ -225,7 +225,7 @@ class DataServices {
     bool bTraceDataAvailable;
     bool bCommDataAvailable;
 
-//    ProfData profData;
+    ProfData profData;
 
     BLProfStats blProfStats_H;
     RegionsProfStats regOutputStats_H;

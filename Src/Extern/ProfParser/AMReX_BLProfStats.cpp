@@ -364,6 +364,22 @@ void BLProfStats::AddFunctionName(const std::string &fname) {
 void BLProfStats::InitBLProfDataBlock(const int proc, const std::string &filename,
                                       const long seekpos)
 {
+  // STORAGE FOR PARALLEL METHOD TESTING 
+  // -----------------------------------
+  // Store files for each proc number.
+  std::map<int, std::string>::iterator iter =  procNumbersToFiles.find(proc);
+  if(iter == procNumbersToFiles.end()) {
+    procNumbersToFiles.insert(std::pair<int, std::string>(proc, filename));
+  } else {
+    if (iter->second != filename)
+    {
+      amrex::Abort("Database corrupted. Single processor claims to have written to multiple files."); 
+    }
+  }
+
+  // ORIGINAL SERIAL VERSION
+  // ------------------------
+  // Match file name to its appropriate stream. Can't do here! Do after 
   int streamindex;
   std::map<std::string, int>::iterator it =  blpDataFileNames.find(filename);
   if(it == blpDataFileNames.end()) {
@@ -372,6 +388,8 @@ void BLProfStats::InitBLProfDataBlock(const int proc, const std::string &filenam
   } else {
     streamindex = it->second;
   }
+
+  // With stream found, store the datablock.
   if(bInitDataBlocks) {
     currentProc = proc;
     blpDataBlocks.push_back(BLPDataBlock(proc, filename, seekpos, streamindex));

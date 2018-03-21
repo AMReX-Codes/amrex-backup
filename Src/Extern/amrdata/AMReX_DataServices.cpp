@@ -107,8 +107,7 @@ namespace ParallelDescriptor {
 // ---------------------------------------------------------------
 DataServices::DataServices(const string &filename, const Amrvis::FileType &filetype)
              : fileName(filename), fileType(filetype), bAmrDataOk(false),
-               iWriteToLevel(-1),
-//               profData(filename)
+               iWriteToLevel(-1), profData(filename)
 {
   numberOfUsers = 0;  // the user must do all incrementing and decrementing
   bAmrDataOk = amrData.ReadData(fileName, fileType);
