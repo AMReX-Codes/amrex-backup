@@ -14,7 +14,7 @@
 #include <iomanip>
 #include <set>
 #include <sys/time.h>
-#include<unistd.h>
+#include <unistd.h>
 
 using std::cout;
 using std::endl;
@@ -108,10 +108,24 @@ void RegionsProfStats::AddCStatsHeaderFileName(const string &hfn) {
 
 
 // ----------------------------------------------------------------------
-void RegionsProfStats::SyncFNamesAndNumbers() {
+void RegionsProfStats::SyncFNamesAndNumbers()
+{
   if(mFNameNumbersPerProc.size() == 0) {
     return;
   }
+
+  // Using dataProcs to resize mFNameNumbersPerProc for local only data.
+/*
+  if (dataProcs.size() != dataNProcs) {
+    amrex::Vector<std::map<std::string,int> > mFNamelocal(dataProcs.size());
+    for (int i(0); i < dataProcs.size(); ++i)
+    {
+      mFNamelocal[i] = mFNameNumbersPerProc[dataProcs[i]];
+    }
+    mFNameNumbersPerProc = mFNamelocal;
+  }
+*/
+
   std::set<std::string> localNames;
   for(int p(0); p < dataNProcs; ++p) {
     std::map<std::string, int>::iterator mfnnit;
@@ -1410,6 +1424,8 @@ void RegionsProfStats::InitDataFileNames(const Vector<std::string> &hfn) {
 void RegionsProfStats::InitCStatsDataBlock(int proc, long nrss, long ntracestats,
                                            const std::string &filename, long seekpos)
 {
+  dataProcs.insert(proc);
+
   int streamindex;
   std::map<std::string, int>::iterator it =  regDataFileNames.find(filename);
   if(it == regDataFileNames.end()) {
@@ -1605,7 +1621,12 @@ void RegionsProfStats::ClearBlock(DataBlock &dBlock) {
   dBlock.vCallStats.clear();
   Vector<BLProfiler::CallStats>().swap(dBlock.vCallStats);
 }
-
-
+// ----------------------------------------------------------------------
+void RegionsProfStats::ReduceToLocal(const amrex::Vector<std::string> local_fileList)
+// Temporary function! Once testing is done, only store the appropriate
+//   local data during parsing, instead of reducing the whole set.
+{
+  regHeaderFileNames = local_fileList;
+}
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------

@@ -242,6 +242,8 @@ class CommProfStats : public BLProfStats {
     bool IsRecv(const amrex::BLProfiler::CommFuncType &cft);
     bool IsBlockingRecv(const amrex::BLProfiler::CommFuncType &cft);
 
+    void ReduceToLocal(const amrex::Vector<std::string> local_fileList);
+
   private:
     int currentDataBlock;
     static int cpVersion, csSize, finestLevel, maxLevel;

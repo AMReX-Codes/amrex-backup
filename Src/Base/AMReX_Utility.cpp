@@ -1044,44 +1044,24 @@ void amrex::SyncStrings(const Vector<std::string> &localStrings,
 #ifdef BL_USE_MPI
   const int nProcs(ParallelDescriptor::NProcs());
   const int ioProcNumber(ParallelDescriptor::IOProcessorNumber());
+  const int myProc(ParallelDescriptor::MyProc());
   int nUnmatched(0);
 
   Vector<std::string> localStringsCopy = localStrings;
+  Vector<std::string> ioprocStrings = localStrings;
+  Vector<std::string> sendStrings;
 
-  // ---- broadcast ioproc strings
-  int pfStringsSize(0);
-  std::ostringstream pfStrings;
-  if(ParallelDescriptor::IOProcessor()) {
-    for(int i(0); i < localStringsCopy.size(); ++i) {
-      pfStrings << localStringsCopy[i] << '\n';
-    }
-    pfStringsSize = pfStrings.str().size();
-  }
-  ParallelDescriptor::Bcast(&pfStringsSize, 1);
+  // Send ioproc strings to everyone.
+  BroadcastStringArray(ioprocStrings, myProc, ioProcNumber, ParallelDescriptor::Communicator());
 
-  Vector<char> pfCharArray(pfStringsSize + 1);
-  if(ParallelDescriptor::IOProcessor()) {
-    std::strcpy(pfCharArray.dataPtr(), pfStrings.str().c_str());  // null terminated
-  }
-  ParallelDescriptor::Bcast(pfCharArray.dataPtr(), pfCharArray.size());
-
-  // ---- extract the ioproc strings
-  Vector<std::string> ioprocStrings, sendStrings;
   if( ! ParallelDescriptor::IOProcessor()) {
-    std::istringstream pfIn(pfCharArray.dataPtr());
-    std::string pfName;
-    while( ! pfIn.eof()) {
-      std::getline(pfIn, pfName, '\n');
-      if( ! pfIn.eof()) {
-	ioprocStrings.push_back(pfName);
-      }
-    }
     // ---- now check if they match on non ioprocs
     for(int n(0); n < ioprocStrings.size(); ++n) {
       bool matched(false);
       for(int i(0); i < localStringsCopy.size(); ++i) {
         if(ioprocStrings[n] == localStringsCopy[i]) {
           matched = true;
+          break;
         }
       }
       if( ! matched) {
@@ -1094,6 +1074,7 @@ void amrex::SyncStrings(const Vector<std::string> &localStrings,
       for(int i(0); i < ioprocStrings.size(); ++i) {
         if(localStringsCopy[n] == ioprocStrings[i]) {
 	  matched = true;
+          break;
         }
       }
       if( ! matched) {
@@ -1111,7 +1092,7 @@ void amrex::SyncStrings(const Vector<std::string> &localStrings,
   }
   alreadySynced = false;
 
-
+  // ---- gather unsynced strings onto the io processor to finish the list
   int sendStringsSize(0);
   std::ostringstream ossSendStrings;
   Vector<char> sendCharArray(1);  // cannot be zero for gather call
@@ -1166,32 +1147,7 @@ void amrex::SyncStrings(const Vector<std::string> &localStrings,
   }
 
   // ---- broadcast synced ioproc strings
-  int syncedStringsSize(0);
-  std::ostringstream syncedStrStr;
-  if(ParallelDescriptor::IOProcessor()) {
-    for(int i(0); i < syncedStrings.size(); ++i) {
-      syncedStrStr << syncedStrings[i] << '\n';
-    }
-    syncedStringsSize = syncedStrStr.str().size();
-  }
-  ParallelDescriptor::Bcast(&syncedStringsSize, 1);
-
-  Vector<char> syncedCharArray(syncedStringsSize + 1);
-  if(ParallelDescriptor::IOProcessor()) {
-    std::strcpy(syncedCharArray.dataPtr(), syncedStrStr.str().c_str());  // null terminated
-  }
-  ParallelDescriptor::Bcast(syncedCharArray.dataPtr(), syncedCharArray.size());
-
-  if( ! ParallelDescriptor::IOProcessor()) {
-    std::istringstream syncedIn(syncedCharArray.dataPtr());
-    std::string syncedName;
-    while( ! syncedIn.eof()) {
-      std::getline(syncedIn, syncedName, '\n');
-      if( ! syncedIn.eof()) {
-	syncedStrings.push_back(syncedName);
-      }
-    }
-  }
+  BroadcastStringArray(syncedStrings, myProc, ioProcNumber, ParallelDescriptor::Communicator());
 
 #else
     alreadySynced = true;
@@ -1335,7 +1291,6 @@ void amrex::BroadcastDistributionMapping(DistributionMapping &dM,
     DistributionMapping::SetNDistMaps(nDM);
   }
 }
-
 
 void amrex::USleep(double sleepsec) {
   constexpr unsigned int msps = 1000000;

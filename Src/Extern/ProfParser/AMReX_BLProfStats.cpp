@@ -367,6 +367,8 @@ void BLProfStats::InitBLProfDataBlock(const int proc, const std::string &filenam
   // STORAGE FOR PARALLEL METHOD TESTING 
   // -----------------------------------
   // Store files for each proc number.
+  dataProcs.insert(proc);
+
   std::map<int, std::string>::iterator iter =  procNumbersToFiles.find(proc);
   if(iter == procNumbersToFiles.end()) {
     procNumbersToFiles.insert(std::pair<int, std::string>(proc, filename));
@@ -564,7 +566,44 @@ void BLProfStats::WriteSummary(std::ostream &ios, bool bwriteavg,
                                 vCallStatsAllOneProc, writeAvg, writeInclusive);
   }
 }
+// ----------------------------------------------------------------------
+void BLProfStats::ReduceToLocal(const amrex::Vector<std::string> local_fileList)
+// Temporary function! Once testing is done, only store the appropriate
+//   local data during parsing, instead of reducing the whole set.
+{
 
+  std::map<std::string, int> local_DataFileNames;
+  amrex::Vector<BLPDataBlock> local_DataBlocks;
+  std::string local_file;
 
+  // Go through full lists and store only the local components.
+  int streamindex;
+  for (int i(0); i<local_fileList.size(); ++i)
+  {
+    local_file = local_fileList[i];
+    std::map<std::string, int>::iterator it = blpDataFileNames.find(local_file);
+    if (it != blpDataFileNames.end())
+    {
+       streamindex = local_DataFileNames.size();
+       local_DataFileNames.insert(std::pair<std::string, int>(local_file, streamindex)); 
+    }
+    else
+    {
+       amrex::Print() << "local file = " << local_file << std::endl;
+       amrex::Abort("ReduceToLocal: calculated local file doesn't exist.");
+    }
+
+    for (int j(0); j<blpDataBlocks.size(); ++j)
+    {
+       if (blpDataBlocks[j].fileName == local_file)
+       {
+          local_DataBlocks.push_back(blpDataBlocks[j]);
+       }
+    }
+  }
+
+  blpDataFileNames = local_DataFileNames;
+  blpDataBlocks = local_DataBlocks;
+}
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------

@@ -116,14 +116,16 @@ class RegionsProfStats : public BLProfStats {
     void FillRegionTimeRanges(amrex::Vector<amrex::Vector<TimeRange>> &rtr,  // ---- [region][range]
                               int whichProc);
 
+    void ReduceToLocal(const amrex::Vector<std::string> local_fileList);
+
   private:
     int currentDataBlock;
     int csVersion;
     int maxFNumber;
 
     amrex::Vector<std::map<std::string, int> > mFNameNumbersPerProc;  // [proc][fname, fnumber]
-    amrex::Vector<amrex::Vector<int> > fnameRemap;  // [dataNProc][remappedfnumber]
-    std::map<std::string, int> mFNameNumbersLocal;  // [fname, fnumber]
+    amrex::Vector<amrex::Vector<int> > fnameRemap;  // [dataNProc, indexed from dataProcs][remappedfnumber]
+//    std::map<std::string, int> mFNameNumbersLocal;  // [fname, fnumber]
     amrex::Vector<std::string> numbersToFName;  // [fname]
     static std::string regFilePrefix;
     static amrex::Vector<std::string> regHeaderFileNames;

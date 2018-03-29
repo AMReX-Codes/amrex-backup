@@ -43,7 +43,6 @@ class ProfData {
 
   private:
 
-    amrex::Vector<int> CalcFileNumbers(int displayProc, int numFiles, std::string fileNamePrefix);
     // Dispatchable functions
 
   public:

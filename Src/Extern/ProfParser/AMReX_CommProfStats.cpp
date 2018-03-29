@@ -139,6 +139,8 @@ void CommProfStats::InitCommDataBlock(const int proc, const long ncommstats,
 				      const std::string &procname,
 				      const int nodenumber)
 {
+  dataProcs.insert(proc);
+
   int streamindex;
   std::map<std::string, int>::iterator it =  commDataFileNames.find(filename);
   if(it == commDataFileNames.end()) {
@@ -1894,6 +1896,13 @@ CommProfStats::BarrierEntry &CommProfStats::BarrierEntry::operator=(const CommPr
   seekIndex = be.seekIndex;
   bNameNumber = be.bNameNumber;
   return *this;
+}
+// ----------------------------------------------------------------------
+void CommProfStats::ReduceToLocal(const amrex::Vector<std::string> local_fileList)
+// Temporary function! Once testing is done, only store the appropriate
+//   local data during parsing, instead of reducing the whole set.
+{
+  commHeaderFileNames = local_fileList;
 }
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------

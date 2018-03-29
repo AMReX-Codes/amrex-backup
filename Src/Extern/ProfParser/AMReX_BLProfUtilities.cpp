@@ -27,6 +27,7 @@ using std::string;
 #include <AMReX_CommProfStats.H>
 #include <AMReX_RegionsProfStats.H>
 #include <AMReX_Utility.H>
+#include <AMReX_NFiles.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_Array.H>
 #include <AMReX_Vector.H>
@@ -545,7 +546,56 @@ bool amrex::BcastAndParseFile(std::string filename, BLProfStats* parse_obj)
   return success;
 }
 #endif  // USE_PROFPARSER
+// ----------------------------------------------------------------------
+amrex::Vector<std::string> amrex::CalcFileNames(int nFiles, std::string filePrefix)
+{
+    int ioRank(ParallelDescriptor::IOProcessorNumber());
+    int nProcs(ParallelDescriptor::NProcsAll());
+    int myRank(ParallelDescriptor::MyProcAll());
 
+    amrex::Vector<int> local_fileNumbers;
+    amrex::Vector<std::string> local_fileNames;
+
+    // Everything is local. Don't bother with the calc.
+    if ((nProcs == 1) || (nFiles == 1))
+    {
+       if (myRank == ioRank)
+       {
+          for (int i=0; i<nFiles; ++i)
+          {
+             local_fileNumbers.push_back(i);
+          }
+       }
+    }
+    else {
+      // first file on this rank.
+      // Files are placed by looping over procs, starting
+      //   at the rank after the io proc.
+      int file = ( (myRank+(nProcs-(ioRank+1))) % nProcs ); 
+
+      while(file < nFiles)
+      {
+         local_fileNumbers.push_back(file);
+         file += nProcs;
+      }
+    }
+
+    local_fileNames.resize(local_fileNumbers.size());
+    for (int i(0); i<local_fileNumbers.size(); ++i)
+    {
+      local_fileNames[i] = amrex::Concatenate(filePrefix, local_fileNumbers[i], NFilesIter::GetMinDigits()); 
+    }
+
+    amrex::USleep(myRank);
+    std::cout << "local file numbers: " << myRank << std::endl;
+    for (int i(0); i<local_fileNumbers.size(); ++i)
+    {
+      std::cout << local_fileNames[i] << " ";
+    }
+    std::cout << endl;
+
+    return local_fileNames;
+}
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 #endif

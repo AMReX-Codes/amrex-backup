@@ -27,7 +27,7 @@
 #include <AMReX_CommProfStats.H>
 #include <AMReX_RegionsProfStats.H>
 //#include <AMReX_Utility.H>
-//#include <AMReX_ParallelDescriptor.H>
+#include <AMReX_ParallelDescriptor.H>
 //#include <AMReX_Array.H>
 #include <AMReX_Vector.H>
 //#include <AMReX_IntVect.H>
@@ -71,6 +71,8 @@ void GraphTopPct(const std::map<std::string, BLProfiler::ProfStats> &mProfStats,
                  const Vector<Vector<BLProfStats::FuncStat> > &funcStats,
                  const Vector<std::string> &fNames,
 		 Real runTime, int dataNProcs, Real gPercent);
+amrex::Vector<std::string> CalcFileNames(int nFiles, std::string filePrefix);
+
 #ifdef BL_USE_PROFPARSER
 bool ParseFile(std::string filename, BLProfStats* parse_obj);
 bool BcastAndParseFile(std::string filename, BLProfStats* parse_obj);

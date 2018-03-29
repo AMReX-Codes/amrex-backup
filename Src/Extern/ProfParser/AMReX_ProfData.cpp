@@ -73,7 +73,7 @@ ProfData::ProfData(const string &dirname)
 
 
 // ---------------------------------------------------------------
-~ProfData::ProfData() {
+ProfData::~ProfData() {
 }
 
 // ---------------------------------------------------------------
@@ -85,47 +85,131 @@ void ProfData::Init() {
 
 #if (BL_SPACEDIM == 2)
     int  displayProc(0);  // TEMPORARY. Needs to be passed into init in the future. Data rank displayed to screen.
-
- 
     bool bIOP(ParallelDescriptor::IOProcessor());
 //    int  myProc(ParallelDescriptor::MyProc());
 //    int  nProcs(ParallelDescriptor::NProcs());
 
     BLProfStats::SetDirName(dirName);
+    amrex::Vector<std::string> local_fileNames;
 
     // -------- parse the main blprof header file.  I/O reads and distributes for local parsing. 
     if(bIOP) { cout << "Parsing main blprof header file." << endl; }
     string blpFileName_H(BLProfStats::GetProfFilePrefix()+"_H");   // bl_prof_H
     string blpFullFileName_H(dirName + '/' + blpFileName_H);
-    if( amrex::BcastAndParseFile(blpFullFileName_H, &blProfStats_H))
+    cout << blpFullFileName_H << endl;
+    if(amrex::BcastAndParseFile(blpFullFileName_H, &blProfStats_H))
     {
       bProfDataAvailable = true;
-      fileNumbers = CalcFileNumbers(displayProc, blProfStats_H.GetNOutFiles(), BLProfStats::GetProfFilePrefix()+"_D_");
-      blProfStats_H.SetLocalData();
+      local_fileNames = CalcFileNames(blProfStats_H.GetNOutFiles(), BLProfStats::GetProfFilePrefix()+"_D_");
+      blProfStats_H.ReduceToLocal(local_fileNames);     // When properly parsed, this should be eliminated.
     }
     else
     {
-      cerr << "ProfData::Init: 0: Cannot open file:    " << blpFullFileName_H << endl;
+      if (bIOP)
+      {
+        cerr << "ProfData::Init:  0: Cannot open file:    " << blpFullFileName_H << endl;
+        cerr << "ProfData::Init:  0: Main profiling database unavailable." << endl;
+      }
     }
 
-    // -------- 
+    // -------- parse the main comm blprof header file.  I/O reads and distributes for local parsing. 
+    local_fileNames.resize(0);
+    if(bIOP) { cout << "Parsing main comm header file." << endl; }
+    string commPrefix_H(CommProfStats::GetCommFilePrefix()+"_H");
+    string commFileName_H(dirName + '/' + commPrefix_H);
+    cout << commFileName_H << endl;
+    if(amrex::BcastAndParseFile(commFileName_H, &commOutputStats_H))
+    {
+      bCommDataAvailable = true;
+      local_fileNames = CalcFileNames(commOutputStats_H.GetNOutFiles(), CommProfStats::GetCommFilePrefix()+"_H_");
+      commOutputStats_H.ReduceToLocal(local_fileNames);
+    }
+    else
+    {
+      if(bIOP)
+      {
+        cerr << "ProfData::Init:  1:  Cannot open file:  " << commFileName_H << endl;
+        cerr << "ProfData::Init:  1:  Communication profiling database unavailable." << endl;
+      }
+    }
+
+    // -------- parse the main regions blprof header file.  I/O reads and distributes for local parsing. 
+    local_fileNames.resize(0);
+    if(bIOP) { cout << "Parsing main call stats header file." << endl; }
+    string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
+    string regFileName_H(dirName + '/' + regPrefix_H);
+    cout << regFileName_H << endl;
+    if (amrex::BcastAndParseFile(regFileName_H, &regOutputStats_H))
+    {
+      bRegionDataAvailable = true;
+      bTraceDataAvailable = true;
+      local_fileNames = CalcFileNames(regOutputStats_H.GetNOutFiles(), RegionsProfStats::GetRegFilePrefix()+"_H_");
+      regOutputStats_H.ReduceToLocal(local_fileNames);
+    }
+    else
+    {
+      if(bIOP) {
+        cerr << "ProfData::Init:  2:  Cannot open file:  " << regFileName_H << endl;
+        cerr << "ProfData::Init:  2:  Regions and tracing profiling database unavailable." << endl;
+      }
+    }
+
+    if(bCommDataAvailable) {
+      if(bIOP) { cout << "Parsing comm data headers." << endl; }
+      const Vector<string> &commHeaderFileNames = commOutputStats_H.GetHeaderFileNames();
+      for(int i(0); i < commHeaderFileNames.size(); ++i) {
+        std::string commFileName_H_nnnnn(dirName + '/' + commHeaderFileNames[i]);
+        cout << commFileName_H_nnnnn << endl;
+        if(!amrex::ParseFile(commFileName_H_nnnnn, &commOutputStats_H))
+        {
+            cerr << "DataServices::Init:  2:  Cannot open file:  " << commFileName_H_nnnnn
+                 << " ... continuing." << endl;
+          continue;
+        }
+      }
+    }
+
+    if(bTraceDataAvailable) {
+      // -------- parse the data headers.  everyone does this for now
+      if(bIOP) { cout << "Parsing region data headers." << endl; }
+      const Vector<string> &regHeaderFileNames = regOutputStats_H.GetHeaderFileNames();
+      for(int i(0); i < regHeaderFileNames.size(); ++i) {
+        std::string regFileName_H_nnnnn(dirName + '/' + regHeaderFileNames[i]);
+        cout << regFileName_H_nnnnn << endl;
+        if( !amrex::ParseFile(regFileName_H_nnnnn, &regOutputStats_H)) {
+          if(bIOP) {
+            cerr << "DataServices::Init:  2:  Cannot open file:  " << regFileName_H_nnnnn
+                 << " ... continuing." << endl;
+          }
+          continue;
+        }
+      }
 
 
+// Sync Function Names and Numbers & Set Function Names
+// (If Trace Data is Valid.)
+      if(regOutputStats_H.TraceDataValid()) {
+//        if(bIOP) {
+//        cout << "Calling InitRegionTimeRanges." << endl;
+//      }
+        RegionsProfStats::OpenAllStreams(dirName);
+//        Box myBox(procBoxArray[myProc]);
+//        bRegionDataAvailable = regOutputStats_H.InitRegionTimeRanges(myBox);
+        regOutputStats_H.SyncFNamesAndNumbers();
+        RegionsProfStats::CloseAllStreams();
+        regOutputStats_H.SetFNames(blProfStats_H.BLPFNames());
+//        if(bIOP) {
+//        cout << "Finished InitRegionTimeRanges." << endl;
+//      }
+      } else {
+        bTraceDataAvailable = false;
+      }
 
+    }
 
-    DistributeWork
-
-    fileNumbers = CalcFileNumbers(displayProc, blProfStats_H.GetNOutFiles(), BLProfStats::GetProfFilePrefix()+"_D_");
-    
-
-
-    // REDO STREAM INDEXES!!!
-    // Create and store file names of all databases for BlockInit calls.
     // Store proc numbers in databases.
-
     // Build work box (cut region into "proc" boxes and combine as needed).
     // Read correct remaining headers.
-
 
     // -------- parse the main call stats header file.  everyone does this for now
 /*
@@ -266,78 +350,6 @@ void ProfData::Init() {
 #endif
 }
 
-// ---------------------------------------------------------------
-ProfData::~ProfData() {
-}
-
-// ---------------------------------------------------------------
-amrex::Vector<int> ProfData::CalcFileNumbers(int displayProc, int numFiles, std::string fileNamePrefix)
-{
-    // Goal: Evenly distribute files across ranks, but ensure the i/o proc
-    //           has the minimal amount, if applicable.
-    //       Also, isolate the I/O file (isolatedFile) on the i/o proc.
-
-    // Methodology: Distribute the files forward on ranks starting with I/O proc + 1. 
-    //              Swap the display file with the first file to be placed on the I/O proc.
-    //              Unless display file would be on the I/O proc, then do nothing special. 
- 
-    amrex::Vector<int> local_fileNumbers(0);  // Explicitly define with size = 0 
-    int ioRank(ParallelDescriptor::IOProcessorNumber());
-    int nProcs(ParallelDescriptor::NProcs());
-    int myRank(ParallelDescriptor::MyProc());
-
-    // Everything is local. Don't bother with the calc.
-    if ((nProcs == 1) || (numFiles == 1))
-    {
-       if (myRank == ioRank)
-       {
-          for (int i=0; i<numFiles; ++i)
-          {
-             local_fileNumbers.push_back(i);
-          }
-       }
-       return local_fileNumbers;
-    }
-
-    // Parse the displayFile for the number.
-    // Needed in the distribution calculation.
-    std::string displayFileString( blProfStats_H.GetFileNameFromProc(displayProc) );
-    std::stringstream displayFileNumStr ( displayFileString.substr(fileNamePrefix.size(), displayFileString.size()) );
-    int displayFile;
-    displayFileNumStr >> displayFile;
-
-    // replacementFile = first file on ioRank.
-    // file = first file on this rank. Will be incremented.
-    int replacementFile = ( (nProcs-1) % nProcs ); 
-    int file = ( (myRank+(nProcs-(ioRank+1))) % nProcs ); 
-    int displayRank = ( (displayFile + ioRank + 1) % nProcs );
-
-    if (myRank == ioRank)
-    {
-       if (displayRank != ioRank)
-       {
-          local_fileNumbers.push_back(displayFile);
-          file += nProcs;
-       }
-       else
-       {
-          replacementFile = displayFile;
-       }
-    }
-
-    while(file < numFiles)
-    {
-       local_fileNumbers.push_back(file);
-       file += nProcs;
-       if (file == displayFile)
-       {
-          local_fileNumbers.push_back(replacementFile);
-          file += nProcs;
-       }
-    }
-
-    return local_fileNumbers;
-}
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 }  // namespace amrex 

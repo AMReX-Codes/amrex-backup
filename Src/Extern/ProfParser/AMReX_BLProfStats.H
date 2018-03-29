@@ -236,12 +236,15 @@ class BLProfStats {
     const amrex::Vector<std::string> &BLPFNames() { return blpFNames; }
     void SetFNames(const amrex::Vector<std::string> &fNames) { blpFNames = fNames; }
 
+    void ReduceToLocal(const amrex::Vector<std::string> local_fileList);
+
   protected:
     static int verbose;
-    static int blProfVersion, dataNProcs, nOutFiles;
+    static int blProfVersion, dataNProcs, nOutFiles;  // nOutFiles = total # of files, not local number.
     int maxRNumber, currentProc, currentDataBlock;
     Real calcEndTime;
     Real minRegionTime, maxRegionTime;
+    std::set<int> dataProcs;
     static std::string dirName;
     static bool bInitDataBlocks;
 
