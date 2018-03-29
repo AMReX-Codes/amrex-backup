@@ -1,0 +1,43 @@
+CommProfVersion  1
+NProcs  32
+CommStatsSize  24
+NOutFiles  32
+FinestLevel  2
+MaxLevel  2
+RefRatio  0  (2,2,2)
+RefRatio  1  (2,2,2)
+ProbDomain  0  ((0,0,0) (79,31,31) (0,0,0))
+ProbDomain  1  ((0,0,0) (159,63,63) (0,0,0))
+ProbDomain  2  ((0,0,0) (319,127,127) (0,0,0))
+HeaderFile bl_comm_prof_H_00000
+HeaderFile bl_comm_prof_H_00001
+HeaderFile bl_comm_prof_H_00002
+HeaderFile bl_comm_prof_H_00003
+HeaderFile bl_comm_prof_H_00004
+HeaderFile bl_comm_prof_H_00005
+HeaderFile bl_comm_prof_H_00006
+HeaderFile bl_comm_prof_H_00007
+HeaderFile bl_comm_prof_H_00008
+HeaderFile bl_comm_prof_H_00009
+HeaderFile bl_comm_prof_H_00010
+HeaderFile bl_comm_prof_H_00011
+HeaderFile bl_comm_prof_H_00012
+HeaderFile bl_comm_prof_H_00013
+HeaderFile bl_comm_prof_H_00014
+HeaderFile bl_comm_prof_H_00015
+HeaderFile bl_comm_prof_H_00016
+HeaderFile bl_comm_prof_H_00017
+HeaderFile bl_comm_prof_H_00018
+HeaderFile bl_comm_prof_H_00019
+HeaderFile bl_comm_prof_H_00020
+HeaderFile bl_comm_prof_H_00021
+HeaderFile bl_comm_prof_H_00022
+HeaderFile bl_comm_prof_H_00023
+HeaderFile bl_comm_prof_H_00024
+HeaderFile bl_comm_prof_H_00025
+HeaderFile bl_comm_prof_H_00026
+HeaderFile bl_comm_prof_H_00027
+HeaderFile bl_comm_prof_H_00028
+HeaderFile bl_comm_prof_H_00029
+HeaderFile bl_comm_prof_H_00030
+HeaderFile bl_comm_prof_H_00031
