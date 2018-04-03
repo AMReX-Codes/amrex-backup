@@ -472,8 +472,8 @@ Amr::InitAmr ()
     loadbalance_max_fac = 1.5;
     pp.query("loadbalance_max_fac", loadbalance_max_fac);
 
-    rebalance_only_on_regrid = 0;
-    pp.query("rebalance_only_on_regrid", rebalance_only_on_regrid);
+    rebalance_without_regrid = 0;
+    pp.query("rebalance_only_on_regrid", rebalance_without_regrid);
 }
 
 bool
@@ -2329,7 +2329,6 @@ Amr::regrid (int  lbase,
     Vector<BoxArray> new_grid_places(max_level+1);
     Vector<DistributionMapping> new_dmap(max_level+1);
 
-    bool rebalance_without_regrid = false;
     int start;
     if (rebalance_without_regrid)
     {
