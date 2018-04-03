@@ -471,6 +471,9 @@ Amr::InitAmr ()
 
     loadbalance_max_fac = 1.5;
     pp.query("loadbalance_max_fac", loadbalance_max_fac);
+
+    rebalance_only_on_regrid = 0;
+    pp.query("rebalance_only_on_regrid", rebalance_only_on_regrid);
 }
 
 bool
@@ -2326,40 +2329,52 @@ Amr::regrid (int  lbase,
     Vector<BoxArray> new_grid_places(max_level+1);
     Vector<DistributionMapping> new_dmap(max_level+1);
 
-    grid_places(lbase,time,new_finest, new_grid_places);
-
-    bool regrid_level_zero = (!initial) && (lbase == 0)
-        && ( loadbalance_with_workestimates || (new_grid_places[0] != amr_level[0]->boxArray()));
-
-    const int start = regrid_level_zero ? 0 : lbase+1;
-
-    bool grids_unchanged = finest_level == new_finest;
-    for (int lev = start, End = std::min(finest_level,new_finest); lev <= End; lev++) {
-	if (new_grid_places[lev] == amr_level[lev]->boxArray()) {
-	    new_grid_places[lev] = amr_level[lev]->boxArray();  // to avoid duplicates
-	    new_dmap[lev] = amr_level[lev]->DistributionMap(); 
-	} else {
-	    grids_unchanged = false;
-	}
-    }
-
-    //
-    // If use_efficient_regrid flag is set and grids are unchanged, then don't do anything more here.
-    //
-    if (use_efficient_regrid == 1 && grids_unchanged )
+    bool rebalance_without_regrid = false;
+    int start;
+    if (rebalance_without_regrid)
     {
-	if (verbose > 0) {
-	    amrex::Print() << "Regridding at level lbase = " << lbase 
-			   << " but grids unchanged\n";
-	}
-	return;
+        for (int lev = start, End = finest_level; lev <= End; lev++) {
+            new_grid_places[lev] = amr_level[lev]->boxArray();  // boxarray gets copied from existing hierarch
+            //    new_dmap[lev] = amr_level[lev]->DistributionMap(); // will make a new dmap later
+        }
+        new_finest = finest_level;
+
+    } else {
+        grid_places(lbase,time,new_finest, new_grid_places);
+
+        bool regrid_level_zero = (!initial) && (lbase == 0)
+            && ( loadbalance_with_workestimates || (new_grid_places[0] != amr_level[0]->boxArray()));
+
+        start = regrid_level_zero ? 0 : lbase+1;
+
+        bool grids_unchanged = finest_level == new_finest;
+        for (int lev = start, End = std::min(finest_level,new_finest); lev <= End; lev++) {
+            if (new_grid_places[lev] == amr_level[lev]->boxArray()) {
+                new_grid_places[lev] = amr_level[lev]->boxArray();  // to avoid duplicates
+                new_dmap[lev] = amr_level[lev]->DistributionMap();
+            } else {
+                grids_unchanged = false;
+            }
+        }
+
+        //
+        // If use_efficient_regrid flag is set and grids are unchanged, then don't do anything more here.
+        //
+        if (use_efficient_regrid == 1 && grids_unchanged )
+        {
+            if (verbose > 0) {
+                amrex::Print() << "Regridding at level lbase = " << lbase
+                               << " but grids unchanged\n";
+            }
+            return;
+        }
     }
 
     //
     // Reclaim old-time grid space for all remain levels > lbase.
     //
     for(int lev = start; lev <= finest_level; ++lev) {
-	amr_level[lev]->removeOldData();
+        amr_level[lev]->removeOldData();
     }
     //
     // Reclaim all remaining storage for levels > new_finest.
@@ -2391,7 +2406,7 @@ Amr::regrid (int  lbase,
         }
         else if (new_dmap[lev].empty()) {
 	    new_dmap[lev].define(new_grid_places[lev]);
-	}
+        }
 
         AmrLevel* a = (*levelbld)(*this,lev,Geom(lev),new_grid_places[lev],
 				  new_dmap[lev],cumtime);

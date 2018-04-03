@@ -439,6 +439,7 @@ protected:
     int              loadbalance_with_workestimates;
     int              loadbalance_level0_int;
     Real             loadbalance_max_fac;
+    int              rebalance_only_on_regrid;
 
     bool             bUserStopRequest;
     //
