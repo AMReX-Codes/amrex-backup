@@ -120,6 +120,7 @@ class BLProfStats {
     static int  GetNOutFiles() { return nOutFiles; }
 
     std::map<int, std::string> GetProcNumbersToFiles() { return procNumbersToFiles; }
+    bool IsDataProcLocal(int dataProc) { return procNumbersToFiles.count(dataProc); }
     std::string GetFileNameFromProc( int proc )
     {
        std::map<int, std::string>::iterator it = procNumbersToFiles.find(proc);

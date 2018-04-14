@@ -71,13 +71,21 @@ class RegionsProfStats : public BLProfStats {
 
     void SetMaxFNumber(int n)  { maxFNumber = n; }
     int  GetMaxFNumber() const  { return maxFNumber; }
+    static int GetNotInRegionNumber() { return notInRegionNumber; }
 
     virtual void AddFunctionName(const std::string &fname, int fnumber);
     virtual void AddTimeMinMax(double tmin, double tmax);
 
-    TimeRange MakeRegionPlt(amrex::FArrayBox &rFab, int noregionnumber,
+    // Functions used to build the region plot file and the region picture.
+    TimeRange MakeRegionPlt(amrex::FArrayBox &rFab,
                             int width, int height,
 			    amrex::Vector<amrex::Vector<amrex::Box>> &regionBoxes);
+    TimeRange MakeRegionBoxes(amrex::Vector<amrex::Vector<amrex::Box>> &regionBoxes,
+                              int width, int height);
+    void MakeRegionFArrayBox(amrex::FArrayBox &rFab, int width, int height,
+                             amrex::Vector<amrex::Vector<amrex::Box>> &regionBoxes );
+
+
     virtual void CollectFuncStats(amrex::Vector<amrex::Vector<FuncStat> > &funcStats);
     virtual void WriteSummary(std::ostream &os, bool bwriteavg = false, int whichProc = 0,
                               bool graphTopPct = true);
@@ -117,11 +125,13 @@ class RegionsProfStats : public BLProfStats {
                               int whichProc);
 
     void ReduceToLocal(const amrex::Vector<std::string> local_fileList);
+ 
 
   private:
     int currentDataBlock;
     int csVersion;
     int maxFNumber;
+    const static int notInRegionNumber;
 
     amrex::Vector<std::map<std::string, int> > mFNameNumbersPerProc;  // [proc][fname, fnumber]
     amrex::Vector<amrex::Vector<int> > fnameRemap;  // [dataNProc, indexed from dataProcs][remappedfnumber]

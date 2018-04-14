@@ -59,6 +59,7 @@ class DataServices {
       RunSendsPFRequest,
       RunTimelinePFRequest,
       MakeRegionPltRequest,
+      MakeRegionPictureRequest,
       MakeFilterFileRequest,
 #endif
     };
@@ -155,6 +156,10 @@ class DataServices {
     bool TraceDataAvailable()  const { return bTraceDataAvailable;  }
     bool CommDataAvailable()   const { return bCommDataAvailable;   }
 
+    // TEMPORARY. For Parallel testing. Remove and directly access the elements of ProfData 
+    //             with DataServices functions such as ProfStats objects immediately below.
+    ProfData &GetProfData() { return profData; }
+
     BLProfStats &GetBLProfStats() { return blProfStats_H; }
     RegionsProfStats &GetRegionsProfStats() { return regOutputStats_H; }
     CommProfStats &GetCommOutputStats() { return commOutputStats_H; }
@@ -189,6 +194,8 @@ class DataServices {
 
     BLProfStats::TimeRange FindCalcTimeRange();
     void MakeRegionPlt(std::string &plotfileName);
+    void MakeRegionPicture(int width, int height, amrex::Vector<amrex::Vector<amrex::Box>> &regionBoxes,
+                                                  BLProfStats::TimeRange &calcTimeRange);
     void MakeFilterFile(std::string &fFileName);
 
     void ProcessGridLog(const std::string &gridlogFileName);

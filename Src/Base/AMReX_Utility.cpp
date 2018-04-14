@@ -1184,6 +1184,85 @@ amrex::Vector<std::string> amrex::UnSerializeStringArray(const Vector<char> &cha
   return stringArray;
 }
 
+void amrex::SendVectorOfVectorOfBoxes(const Vector<Vector<Box>> &bVVB, int rootId, const int tag)
+{
+  // Size of each inner vector to send.
+  int boxNum=0;
+  int outersize = bVVB.size();
+  Vector<int> VVSize(bVVB.size()); //size array
+  ParallelDescriptor::Send(&outersize, 1, rootId, tag);
+
+  for(int i(0); i< bVVB.size(); ++i)
+  {
+    VVSize[i] = bVVB[i].size();
+    boxNum+=VVSize[i];
+  }
+  ParallelDescriptor::Send(VVSize, rootId, tag);
+
+  // Serialize and send.
+  int boxIter=0;
+  int nIntsInBox(3 * BL_SPACEDIM);
+  Vector<int> sBT(boxNum*nIntsInBox, -1);
+  Vector<int> sBox;
+  for (int i(0); i<VVSize.size(); ++i)
+  {
+    for (int j(0); j<VVSize[i]; ++j)
+    {
+      sBox = amrex::SerializeBox(bVVB[i][j]);
+      for (int k(0); k<sBox.size(); ++k)
+      {
+        sBT[boxIter * nIntsInBox + k] = sBox[k];
+      }
+    ++boxIter;
+    }
+  }
+
+  ParallelDescriptor::Send(sBT, rootId, tag);
+}
+
+void amrex::RecvVectorOfVectorOfBoxes(Vector<Vector<Box>> &bVVB, int recvId, const int tag)
+{
+  // Get and properly size the vector of vectors.
+  int nIntsInBox(3 * BL_SPACEDIM);
+  int outersize = 0;
+  int boxNum = 0;
+  Vector<int> VVSize; // size array
+  Vector<int> sVVB;   // serialized box 
+  ParallelDescriptor::Recv(&outersize, 1, recvId, tag);
+  VVSize.resize(outersize, -1);
+  ParallelDescriptor::Recv(VVSize, recvId, tag);
+
+  // Fully wipe clean and then resize.
+  bVVB.clear();
+  bVVB.resize(0);
+  bVVB.resize(VVSize.size());
+  for (int i(0); i<VVSize.size(); ++i)
+  {
+    bVVB[i].resize(VVSize[i]);
+    boxNum+=VVSize[i];
+  }
+
+  sVVB.resize(boxNum * nIntsInBox);
+  // Recieve Serialized version and unpack.
+  ParallelDescriptor::Recv(sVVB, recvId, tag);
+  int nBoxes(sVVB.size() / nIntsInBox);
+  int boxCount = 0;
+  BL_ASSERT(nBoxes == boxNum);
+  for (int i(0); i < bVVB.size() ; ++i)
+  {
+    for (int j(0); j < bVVB[i].size() ; ++j)
+    {
+      Vector<int> sBox(nIntsInBox);
+      for (int k(0); k < nIntsInBox; ++k)
+      {
+        sBox[k] = sVVB[boxCount*nIntsInBox + k];
+      }
+      bVVB[i][j] = amrex::UnSerializeBox(sBox);
+      ++boxCount;
+    }
+  }
+}
+
 void amrex::BroadcastBool(bool &bBool, int myLocalId, int rootId, const MPI_Comm &localComm)
 {
   int numBool;

@@ -369,7 +369,7 @@ void BLProfStats::InitBLProfDataBlock(const int proc, const std::string &filenam
   // Store files for each proc number.
   dataProcs.insert(proc);
 
-  std::map<int, std::string>::iterator iter =  procNumbersToFiles.find(proc);
+  std::map<int, std::string>::iterator iter = procNumbersToFiles.find(proc);
   if(iter == procNumbersToFiles.end()) {
     procNumbersToFiles.insert(std::pair<int, std::string>(proc, filename));
   } else {

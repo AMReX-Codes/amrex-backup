@@ -5,6 +5,7 @@
 #include <AMReX_DataServices.H>
 #include <AMReX_ParallelDescriptor.H>
 #include <AMReX_XYPlotDataList.H>
+//#include <AMReX_PlotFileUtil.H>
 
 #ifdef BL_USE_PROFPARSER
 #include <AMReX_BLWritePlotFile.H>
@@ -107,7 +108,7 @@ namespace ParallelDescriptor {
 // ---------------------------------------------------------------
 DataServices::DataServices(const string &filename, const Amrvis::FileType &filetype)
              : fileName(filename), fileType(filetype), bAmrDataOk(false),
-               iWriteToLevel(-1), profData(filename)
+               iWriteToLevel(-1), profData()
 {
   numberOfUsers = 0;  // the user must do all incrementing and decrementing
   bAmrDataOk = amrData.ReadData(fileName, fileType);
@@ -125,8 +126,8 @@ DataServices::DataServices(const string &filename, const Amrvis::FileType &filet
   bRegionDataAvailable = false;
   bTraceDataAvailable = false;
   bCommDataAvailable = false;
-
   if(profiler) {
+    profData.Init(filename);
     Init(filename, filetype);
   }
 #endif
@@ -1138,6 +1139,44 @@ void DataServices::Dispatch(DSRequestType requestType, DataServices *ds, ...) {
 
       std::string *plotfileNamePtr = (std::string *) va_arg(ap, void *);
       ds->MakeRegionPlt(*plotfileNamePtr);
+    }
+    break;
+
+    case MakeRegionPictureRequest:
+    {
+      if(ParallelDescriptor::IOProcessor()) { std::cout << "Dispatch::---- MakeRegionPictureRequest:" << std::endl; }
+
+      // Inputs
+      int width;
+      int height;
+
+      // Outputs to IO Proc
+      amrex::Vector<amrex::Vector<amrex::Box>> *regionBoxes;
+      BLProfStats::TimeRange *calcTimeRange;
+
+      // Placeholder objects for other procs
+      amrex::Vector<amrex::Vector<amrex::Box>> tempBoxes;
+      BLProfStats::TimeRange tempTimeRange;
+
+      width = va_arg(ap, int);
+      height = va_arg(ap, int);
+
+      if (ParallelDescriptor::IOProcessor())
+      {
+        regionBoxes = (amrex::Vector<amrex::Vector<amrex::Box>> *) va_arg(ap, void *);
+        calcTimeRange = (BLProfStats::TimeRange *) va_arg(ap, void *);
+      }
+      else
+      {
+        regionBoxes = &tempBoxes;
+        calcTimeRange = &tempTimeRange;
+      }
+
+      ParallelDescriptor::Bcast(&width, 1, ParallelDescriptor::IOProcessorNumber(), ParallelDescriptor::Communicator());
+      ParallelDescriptor::Bcast(&height, 1, ParallelDescriptor::IOProcessorNumber(), ParallelDescriptor::Communicator());
+
+      ds->MakeRegionPicture(width, height, *regionBoxes, *calcTimeRange);
+
     }
     break;
 
@@ -2606,8 +2645,43 @@ void DataServices::MakeFilterFile(std::string &fFileName)
     blProfStats_H.MakeFilterFile(fFileName);
   }
 }
+// ----------------------------------------------------------------------
+void DataServices::MakeRegionPicture(int width, int height,
+                                     amrex::Vector<amrex::Vector<amrex::Box>> &regionBoxes,
+                                     BLProfStats::TimeRange &calcTimeRange)
+{
+  // Dispatched call to make region boxes.
+  calcTimeRange = profData.GetRegionsProfStats().MakeRegionBoxes(regionBoxes, width, height); 
 
+  // Send data to io-proc.
+  // If already there, do nothing.
+#ifdef BL_USE_MPI
+  int ioProcNum(ParallelDescriptor::IOProcessorNumber());
+  Real timeMin(0.0), timeMax(0.0);
 
+  if (!ParallelDescriptor::IOProcessor())
+  {
+    if(!regionBoxes.empty())
+    {
+      ParallelDescriptor::Send(&calcTimeRange.startTime, 1, ioProcNum, 307);
+      ParallelDescriptor::Send(&calcTimeRange.stopTime,  1, ioProcNum, 308);
+      SendVectorOfVectorOfBoxes(regionBoxes, ioProcNum, 309);
+    }
+  }
+  else
+  {
+    if (regionBoxes.empty())
+    {
+      ParallelDescriptor::Recv(&timeMin, 1, MPI_ANY_SOURCE, 307);
+      ParallelDescriptor::Recv(&timeMax, 1, MPI_ANY_SOURCE, 308);
+      RecvVectorOfVectorOfBoxes(regionBoxes, MPI_ANY_SOURCE, 309);
+
+      calcTimeRange = BLProfStats::TimeRange(timeMin, timeMax);
+    }
+  }
+#endif
+
+}
 // ----------------------------------------------------------------------
 void DataServices::MakeRegionPlt(std::string &plotfileName)
 {
@@ -2623,34 +2697,64 @@ void DataServices::MakeRegionPlt(std::string &plotfileName)
       return;
     }
 
-    FArrayBox rFab;
-    int noRegionNumber(0);
+    // Is this needed? Good check for __NoRegion__, but no longer need to lookup the 
+    //    number for the NoRegion, as moved to fixed static.
+    //    (The value looked up here actually wasn't being used at all.)
+    // ==============================================================================
     std::string rname("\"__NoRegion__\"");
     const std::map<std::string, int> &regionNamesH = regOutputStats_H.RegionNames();
     std::map<std::string, int>::const_iterator itn = regionNamesH.find(rname);
     if(itn == regionNamesH.end()) {
-      cout << "rname not found:  " << rname << endl;
+      amrex::Print() << "rname not found:  " << rname << endl;
     } else {
-      cout << "found rname:  " << rname << "  rnum = " << itn->second << endl;
-      noRegionNumber = itn->second;
+      amrex::Print() << "found rname:  " << rname << "  rnum = " << itn->second << endl;
     }
+    // ==============================================================================
 
+    // Old,  parallel version.
+    FArrayBox rFab;
     Vector<Vector<Box>> regionBoxArray;
-    regOutputStats_H.MakeRegionPlt(rFab, noRegionNumber, 320, 12, regionBoxArray);
+//    if (bIOP)
+//    {
+//      profData.GetRegionsProfStats().MakeRegionBoxes(regionBoxArray, 320, 12);
+//    }
+//    profData.GetRegionsProfStats().MakeRegionFArrayBox(rFab, 320, 12, regionBoxArray);
 
-    // ---- write the data as a plot file
+    // New parallel version.
+    profData.GetRegionsProfStats().MakeRegionBoxes(regionBoxArray, 320, 12);
+    profData.GetRegionsProfStats().MakeRegionFArrayBox(rFab, 320, 12, regionBoxArray);
+
+    int rankWithData=0;
+#ifdef BL_USE_MPI
+      if (!regionBoxArray.empty())
+      {
+        rankWithData = ParallelDescriptor::MyProc();
+      }
+
+      ParallelDescriptor::ReduceIntSum(rankWithData);
+#endif
+
+   // ---- write the data as a plot file
     int finestLevel(0), nLevels(1), numState(1), nGrow(0);
     Vector<Box> probDomain(nLevels);
     BoxArray dnpBoxArray(rFab.box());
     probDomain[0] = rFab.box();
     Vector<MultiFab> state(nLevels);
-    const DistributionMapping dnpDM(dnpBoxArray);
+    const DistributionMapping dnpDM(amrex::Vector<int>(1, rankWithData));
     state[finestLevel].define(dnpBoxArray, dnpDM, numState, nGrow);
     MultiFab &regionsMF = state[finestLevel];
-    if(bIOP) {
+/*
+    if (bIOP)
+    {
       regionsMF[0].copy(rFab);
     }
-    if(bIOP) { cout << "Writing plotfile:  " << plotfileName << endl; }
+*/
+    if (!regionBoxArray.empty())   // add data into Multifab
+    {
+      regionsMF[0].copy(rFab);
+    }
+ 
+    amrex::Print() << "Writing plotfile:  " << plotfileName << endl;
 
     std::string plotFileVersion("RegionsProf-V1.0");
     Real time(0.0);

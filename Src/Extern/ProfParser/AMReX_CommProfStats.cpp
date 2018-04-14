@@ -141,6 +141,18 @@ void CommProfStats::InitCommDataBlock(const int proc, const long ncommstats,
 {
   dataProcs.insert(proc);
 
+  std::map<int, std::string>::iterator iter = procNumbersToFiles.find(proc);
+  if(iter == procNumbersToFiles.end()) {
+    procNumbersToFiles.insert(std::pair<int, std::string>(proc, filename));
+  } else {
+    if (iter->second != filename)
+    {
+      amrex::Print() << "CommProfStats::InitCommDataBlock(): " << proc << "-> "
+                     << filename << " & " << iter->second << std::endl;
+      amrex::Abort("Database corrupted. Single processor claims to have written multiple files.");
+    }
+  }
+
   int streamindex;
   std::map<std::string, int>::iterator it =  commDataFileNames.find(filename);
   if(it == commDataFileNames.end()) {

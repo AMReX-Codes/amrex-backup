@@ -300,6 +300,9 @@ namespace amrex
     template <typename T> long bytesOf (const std::vector<T>& v);
     template <typename Key, typename T, class Compare> long bytesOf (const std::map<Key,T,Compare>& m);
 
+    void SendVectorOfVectorOfBoxes(const Vector<Vector<Box>> &bBT, int rootId, const int tag);
+    void RecvVectorOfVectorOfBoxes(Vector<Vector<Box>> &bBT, int rootId, const int tag);
+
     void BroadcastBool(bool &bBool, int myLocalId, int rootId, const MPI_Comm &localComm);
 
     void BroadcastString(std::string &bStr, int myLocalId, int rootId, const MPI_Comm &localComm);

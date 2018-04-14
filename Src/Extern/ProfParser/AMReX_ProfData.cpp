@@ -67,8 +67,7 @@ ProfData::ProfData(const string &dirname)
   bTraceDataAvailable = false;
   bCommDataAvailable = false;
 
-  Init();
-
+  Init(dirname);
 }
 
 
@@ -77,14 +76,15 @@ ProfData::~ProfData() {
 }
 
 // ---------------------------------------------------------------
-void ProfData::Init() {
+void ProfData::Init(const string &dirname) {
 
   BL_PROFILE("ProfData::Init()");
 
   bProfDataOk = false;
+  dirName = dirname;
 
 #if (BL_SPACEDIM == 2)
-    int  displayProc(0);  // TEMPORARY. Needs to be passed into init in the future. Data rank displayed to screen.
+//    int  displayProc(0);  // TEMPORARY. Needs to be passed into init in the future. Data rank displayed to screen.
     bool bIOP(ParallelDescriptor::IOProcessor());
 //    int  myProc(ParallelDescriptor::MyProc());
 //    int  nProcs(ParallelDescriptor::NProcs());
@@ -96,7 +96,6 @@ void ProfData::Init() {
     if(bIOP) { cout << "Parsing main blprof header file." << endl; }
     string blpFileName_H(BLProfStats::GetProfFilePrefix()+"_H");   // bl_prof_H
     string blpFullFileName_H(dirName + '/' + blpFileName_H);
-    cout << blpFullFileName_H << endl;
     if(amrex::BcastAndParseFile(blpFullFileName_H, &blProfStats_H))
     {
       bProfDataAvailable = true;
@@ -117,7 +116,6 @@ void ProfData::Init() {
     if(bIOP) { cout << "Parsing main comm header file." << endl; }
     string commPrefix_H(CommProfStats::GetCommFilePrefix()+"_H");
     string commFileName_H(dirName + '/' + commPrefix_H);
-    cout << commFileName_H << endl;
     if(amrex::BcastAndParseFile(commFileName_H, &commOutputStats_H))
     {
       bCommDataAvailable = true;
@@ -138,7 +136,6 @@ void ProfData::Init() {
     if(bIOP) { cout << "Parsing main call stats header file." << endl; }
     string regPrefix_H(RegionsProfStats::GetRegFilePrefix()+"_H");
     string regFileName_H(dirName + '/' + regPrefix_H);
-    cout << regFileName_H << endl;
     if (amrex::BcastAndParseFile(regFileName_H, &regOutputStats_H))
     {
       bRegionDataAvailable = true;
@@ -154,12 +151,12 @@ void ProfData::Init() {
       }
     }
 
+    // -------- parse the comm data headers. Reads only the header assigned to this rank. 
     if(bCommDataAvailable) {
       if(bIOP) { cout << "Parsing comm data headers." << endl; }
       const Vector<string> &commHeaderFileNames = commOutputStats_H.GetHeaderFileNames();
       for(int i(0); i < commHeaderFileNames.size(); ++i) {
         std::string commFileName_H_nnnnn(dirName + '/' + commHeaderFileNames[i]);
-        cout << commFileName_H_nnnnn << endl;
         if(!amrex::ParseFile(commFileName_H_nnnnn, &commOutputStats_H))
         {
             cerr << "DataServices::Init:  2:  Cannot open file:  " << commFileName_H_nnnnn
@@ -169,13 +166,13 @@ void ProfData::Init() {
       }
     }
 
-    if(bTraceDataAvailable) {
+   // -------- parse the regions data headers. Reads only the header assigned to this rank. 
+   if(bTraceDataAvailable) {
       // -------- parse the data headers.  everyone does this for now
       if(bIOP) { cout << "Parsing region data headers." << endl; }
       const Vector<string> &regHeaderFileNames = regOutputStats_H.GetHeaderFileNames();
       for(int i(0); i < regHeaderFileNames.size(); ++i) {
         std::string regFileName_H_nnnnn(dirName + '/' + regHeaderFileNames[i]);
-        cout << regFileName_H_nnnnn << endl;
         if( !amrex::ParseFile(regFileName_H_nnnnn, &regOutputStats_H)) {
           if(bIOP) {
             cerr << "DataServices::Init:  2:  Cannot open file:  " << regFileName_H_nnnnn

@@ -48,12 +48,14 @@ const int ZDIR(2);
 
 bool RegionsProfStats::bInitDataBlocks(true);
 bool RegionsProfStats::persistentStreams(true);
+const int RegionsProfStats::notInRegionNumber(-1);
 
 std::map<Real, std::string, std::greater<Real> > RegionsProfStats::mTimersTotalsSorted;
 std::string RegionsProfStats::regFilePrefix("bl_call_stats");
 Vector<std::string> RegionsProfStats::regHeaderFileNames;
 std::map<std::string, int> RegionsProfStats::regDataFileNames;
 Vector<std::ifstream *> RegionsProfStats::regDataStreams;
+
 
 extern std::string SanitizeName(const std::string &s);
 extern void amrex::MakeFuncPctTimesMF(const Vector<Vector<BLProfStats::FuncStat> > &funcStats,
@@ -213,7 +215,7 @@ void RegionsProfStats::AddTimeMinMax(double tmin, double tmax) {
   dataBlocks[currentDataBlock].timeMax = tmax;
 }
 
-
+/*
 // ----------------------------------------------------------------------
 BLProfStats::TimeRange RegionsProfStats::MakeRegionPlt(FArrayBox &rFab, int noregionnumber,
                                      int width, int height,
@@ -287,7 +289,224 @@ BLProfStats::TimeRange RegionsProfStats::MakeRegionPlt(FArrayBox &rFab, int nore
   return TimeRange(timeMin, timeMax);
 #endif
 }
+*//*
+// ----------------------------------------------------------------------
+BLProfStats::TimeRange RegionsProfStats::MakeRegionPlt(FArrayBox &rFab,
+                                     int width, int height,
+				     Vector<Vector<Box>> &regionBoxes)
+{
+#if (BL_SPACEDIM != 2)
+  cout << "**** Error:  RegionsProfStats::MakeRegionPlt only supported for 2D" << endl;
+  return TimeRange(0, 0);
+#else
+  BL_PROFILE("RegionsProfStats::MakeRegionPlt()");
+  int displayProc(ParallelDescriptor::IOProcessorNumber());
+  int xLength(width), yHeight(height);
+  int nRegions(maxRNumber + 1);
+  Real timeMax(-std::numeric_limits<Real>::max());
+  Box b(IntVect(0, 0), IntVect(xLength - 1, (yHeight * nRegions) - 1));
+  rFab.resize(b, 1);
+  rFab.setVal(GetNotInRegionNumber());
 
+  if (IsDataProcLocal(displayProc))
+  {
+    cout << "Proc " << ParallelDescriptor::MyProc() << " is building the region plt." << endl;
+
+    Vector<Real> rStartTime(nRegions, -1.0);
+    regionBoxes.clear();
+    regionBoxes.resize(nRegions);
+
+    // need a better way to get the real minmax time
+    for(int idb(0); idb < dataBlocks.size(); ++idb) {
+      DataBlock &dBlock = dataBlocks[idb];
+      timeMax = std::max(timeMax, dBlock.timeMax);
+      if(dBlock.proc == displayProc) {
+        ReadBlock(dBlock, true, false);  // dont need to read the trace data
+        for(int iss(0); iss < dBlock.rStartStop.size(); ++iss) {
+          BLProfiler::RStartStop &rss = dBlock.rStartStop[iss];
+          timeMax = std::max(timeMax, rss.rssTime);
+        }
+        ClearBlock(dBlock);
+      }
+    }
+
+    for(int idb(0); idb < dataBlocks.size(); ++idb) {
+      DataBlock &dBlock = dataBlocks[idb];
+      if(dBlock.proc != displayProc) {
+        continue;
+      }
+      ReadBlock(dBlock, true, false);  // dont need to read the trace data
+
+      for(int i(0); i < dBlock.rStartStop.size(); ++i) {
+        BLProfiler::RStartStop &rss = dBlock.rStartStop[i];
+        if(rss.rssStart) {     // start region
+          if(rStartTime[rss.rssRNumber] < 0.0) {  // not started yet
+            rStartTime[rss.rssRNumber] = rss.rssTime;
+          } else {                             // already started, mismatched start/stop
+          }
+        } else {            // stop region
+          if(rStartTime[rss.rssRNumber] < 0.0) {  // not started yet, mismatched start/stop
+          } else {                             // stopping
+            Real rtStart(rStartTime[rss.rssRNumber]), rtStop(rss.rssTime);
+            rStartTime[rss.rssRNumber] = -1.0;
+            int xStart(xLength * rtStart / timeMax);
+            int xStop(xLength * rtStop / timeMax);
+  	    xStop = std::min(xStop, xLength - 1);
+            int yLo(rss.rssRNumber * yHeight), yHi(((rss.rssRNumber + 1) *  yHeight) - 1);
+            Box rBox(IntVect(xStart, yLo), IntVect(xStop, yHi));
+	    regionBoxes[rss.rssRNumber].push_back(rBox);
+            rFab.setVal(rss.rssRNumber, rBox, 0);
+          }
+        }
+      }
+    ClearBlock(dBlock);
+    }
+    if (!ParallelDescriptor::IOProcessor())
+    { 
+      ParallelDescriptor::Send(&timeMax, 1, ParallelDescriptor::IOProcessorNumber(), 1116);
+      amrex::SendVectorOfVectorOfBoxes(regionBoxes, ParallelDescriptor::IOProcessorNumber(), 1117);
+    }
+  }
+  else
+  {
+    // This way, can test if data is local with !regionBoxes.empty().
+    regionBoxes.clear();
+    regionBoxes.resize(0);
+  }
+
+  if (ParallelDescriptor::IOProcessor())
+  {
+    if (!IsDataProcLocal(displayProc))
+    { 
+      ParallelDescriptor::Recv(&timeMax, 1, MPI_ANY_SOURCE, 1116);
+      amrex::RecvVectorOfVectorOfBoxes(regionBoxes, MPI_ANY_SOURCE, 1117); 
+    }
+
+    for (int i(0); i<regionBoxes.size(); ++i)
+    {
+      for (int j(0); j<regionBoxes[i].size(); ++j)
+      {
+        rFab.setVal(i, regionBoxes[i][j], 0);
+      }
+    }
+  }
+
+  Real timeMin(0.0);
+  return TimeRange(timeMin, timeMax);
+#endif
+}
+*/
+// ----------------------------------------------------------------------
+BLProfStats::TimeRange RegionsProfStats::MakeRegionBoxes(Vector<Vector<Box>> &regionBoxes,
+                                                         int width, int height)
+{
+#if (BL_SPACEDIM != 2)
+  cout << "**** Error:  RegionsProfStats::MakeRegionPlt only supported for 2D" << endl;
+  return TimeRange(0, 0);
+#else
+  BL_PROFILE("RegionsProfStats::MakeRegionPlt()");
+  int displayProc(ParallelDescriptor::IOProcessorNumber());
+  int xLength(width), yHeight(height);
+  int nRegions(maxRNumber + 1);
+  Real timeMax(-std::numeric_limits<Real>::max());
+
+  if (IsDataProcLocal(displayProc))
+  {
+    cout << "Proc " << ParallelDescriptor::MyProc() << " is building the region plt." << endl;
+
+    Vector<Real> rStartTime(nRegions, -1.0);
+    regionBoxes.clear();
+    regionBoxes.resize(nRegions);
+
+    // need a better way to get the real minmax time
+    for(int idb(0); idb < dataBlocks.size(); ++idb) {
+      DataBlock &dBlock = dataBlocks[idb];
+      timeMax = std::max(timeMax, dBlock.timeMax);
+      if(dBlock.proc == displayProc) {
+        ReadBlock(dBlock, true, false);  // dont need to read the trace data
+        for(int iss(0); iss < dBlock.rStartStop.size(); ++iss) {
+          BLProfiler::RStartStop &rss = dBlock.rStartStop[iss];
+          timeMax = std::max(timeMax, rss.rssTime);
+        }
+        ClearBlock(dBlock);
+      }
+    }
+
+    for(int idb(0); idb < dataBlocks.size(); ++idb) {
+      DataBlock &dBlock = dataBlocks[idb];
+      if(dBlock.proc != displayProc) {
+        continue;
+      }
+      ReadBlock(dBlock, true, false);  // dont need to read the trace data
+
+      for(int i(0); i < dBlock.rStartStop.size(); ++i) {
+        BLProfiler::RStartStop &rss = dBlock.rStartStop[i];
+        if(rss.rssStart) {     // start region
+          if(rStartTime[rss.rssRNumber] < 0.0) {  // not started yet
+            rStartTime[rss.rssRNumber] = rss.rssTime;
+          } else {                             // already started, mismatched start/stop
+          }
+        } else {            // stop region
+          if(rStartTime[rss.rssRNumber] < 0.0) {  // not started yet, mismatched start/stop
+          } else {                             // stopping
+            Real rtStart(rStartTime[rss.rssRNumber]), rtStop(rss.rssTime);
+            rStartTime[rss.rssRNumber] = -1.0;
+            int xStart(xLength * rtStart / timeMax);
+            int xStop(xLength * rtStop / timeMax);
+  	    xStop = std::min(xStop, xLength - 1);
+            int yLo(rss.rssRNumber * yHeight), yHi(((rss.rssRNumber + 1) *  yHeight) - 1);
+            Box rBox(IntVect(xStart, yLo), IntVect(xStop, yHi));
+	    regionBoxes[rss.rssRNumber].push_back(rBox);
+          }
+        }
+      }
+    ClearBlock(dBlock);
+    }
+  }
+  else
+  {
+    // This way, can test if data is local with !regionBoxes.empty().
+    regionBoxes.clear();
+    regionBoxes.resize(0);
+  }
+
+  Real timeMin(0.0);
+  return TimeRange(timeMin, timeMax);
+#endif
+}
+
+// ----------------------------------------------------------------------
+void RegionsProfStats::MakeRegionFArrayBox(FArrayBox &rFab, int width, int height,
+                                           Vector<Vector<Box>> &regionBoxes)
+{
+#if (BL_SPACEDIM != 2)
+  cout << "**** Error:  RegionsProfStats::MakeRegionPlt only supported for 2D" << endl;
+  return;
+#else
+
+  // Set appropriate size on all ranks.
+  int nRegions(maxRNumber + 1);
+  Box b(IntVect(0, 0), IntVect(width - 1, (height * nRegions) - 1));
+  rFab.resize(b, 1);
+  rFab.setVal(GetNotInRegionNumber());
+
+  // When parallel, only the rank with this data has any size.
+  // Each dataProc rank should be read by exactly one amrvis rank.
+  // (Unique association tested in ProfData Init's & initial header reads.
+  //    so does not need to be repeated here.)
+  if (!regionBoxes.empty())
+  {
+    for (int i(0); i<regionBoxes.size(); ++i)
+    {
+      for (int j(0); j<regionBoxes[i].size(); ++j)
+      {
+        rFab.setVal(i, regionBoxes[i][j], 0);
+      }
+    }
+  }
+  return;
+#endif
+}
 
 // ----------------------------------------------------------------------
 void RegionsProfStats::FillRegionTimeRanges(Vector<Vector<TimeRange>> &rtr,
@@ -1425,6 +1644,18 @@ void RegionsProfStats::InitCStatsDataBlock(int proc, long nrss, long ntracestats
                                            const std::string &filename, long seekpos)
 {
   dataProcs.insert(proc);
+
+  std::map<int, std::string>::iterator iter = procNumbersToFiles.find(proc);
+  if(iter == procNumbersToFiles.end()) {
+    procNumbersToFiles.insert(std::pair<int, std::string>(proc, filename));
+  } else {
+    if (iter->second != filename)
+    {
+      amrex::Print() << "RegionsProfStats::InitCStatsDataBlock(): " << proc << "-> "
+                     << filename << " & " << iter->second << std::endl;
+      amrex::Abort("Database corrupted. Single processor claims to have written multiple files.");
+    }
+  }
 
   int streamindex;
   std::map<std::string, int>::iterator it =  regDataFileNames.find(filename);

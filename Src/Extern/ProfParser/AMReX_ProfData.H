@@ -33,7 +33,7 @@ class ProfData {
 //    ProfData();
     ~ProfData();
 
-    void Init();
+    void Init(const string &dirname);
 //    void InitRegionTimeRanges();
 
 //    static void SetBatchMode();
@@ -92,6 +92,7 @@ class ProfData {
     amrex::Vector<int> fileNumbers;     // List of local file numbers.
                                         // Each filename is stored in the database object.
                                         //   since there are separate names for each type.
+    
 //#endif
 };
 

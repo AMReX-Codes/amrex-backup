@@ -442,8 +442,6 @@ void amrex::CollectMProfStats(std::map<std::string, BLProfiler::ProfStats> &mPro
     mProfStats.insert(std::pair<std::string, BLProfiler::ProfStats>(fName, ps));
   }
 }
-
-
 // ----------------------------------------------------------------------
 void amrex::GraphTopPct(const std::map<std::string, BLProfiler::ProfStats> &mProfStats,
                         const Vector<Vector<BLProfStats::FuncStat> > &funcStats,
@@ -586,16 +584,9 @@ amrex::Vector<std::string> amrex::CalcFileNames(int nFiles, std::string filePref
       local_fileNames[i] = amrex::Concatenate(filePrefix, local_fileNumbers[i], NFilesIter::GetMinDigits()); 
     }
 
-    amrex::USleep(myRank);
-    std::cout << "local file numbers: " << myRank << std::endl;
-    for (int i(0); i<local_fileNumbers.size(); ++i)
-    {
-      std::cout << local_fileNames[i] << " ";
-    }
-    std::cout << endl;
-
     return local_fileNames;
 }
+
 // ----------------------------------------------------------------------
 // ----------------------------------------------------------------------
 #endif
