@@ -363,10 +363,14 @@ endif
 
 ifeq ($(USE_OMP),TRUE)
     OMPSuffix	:= .OMP
-    CPPFLAGS	+= -DBL_USE_OMP -DAMREX_USE_OMP
-    DEFINES     += -DAMREX_USE_OMP
+    DEFINES     += -DAPPLICATION_USE_OMP
 else
     OMPSuffix	:=
+endif
+
+ifeq ($(USE_AMREX_OMP), TRUE)
+    CPPFLAGS	+= -DBL_USE_OMP -DAMREX_USE_OMP
+    DEFINES     += -DAMREX_USE_OMP
 endif
 
 ifeq ($(USE_ACC),TRUE)
