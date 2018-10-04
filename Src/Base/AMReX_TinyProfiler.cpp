@@ -13,7 +13,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_Print.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -61,7 +61,7 @@ TinyProfiler::~TinyProfiler ()
 void
 TinyProfiler::start ()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp master
 #endif
     if (stats.empty())
@@ -87,7 +87,7 @@ TinyProfiler::start ()
 void
 TinyProfiler::stop ()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp master
 #endif
     if (!stats.empty()) 

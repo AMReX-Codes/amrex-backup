@@ -80,7 +80,7 @@ PhysBCFunct::FillBoundary (MultiFab& mf, int, int, Real time)
 	}
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf); mfi.isValid(); ++mfi)

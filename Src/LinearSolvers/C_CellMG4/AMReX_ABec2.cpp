@@ -28,7 +28,7 @@ ABec2::altApplyBC (int  level,
     int bndry_comp = 0;
     const BoxArray& ba = boxArray(level);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(a); mfi.isValid(); ++mfi)
@@ -106,7 +106,7 @@ ABec2::Fsmooth (MultiFab&       solnL,
 
   const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter solnLmfi(solnL,tiling); solnLmfi.isValid(); ++solnLmfi)
@@ -200,7 +200,7 @@ ABec2::Fsmooth_jacobi (MultiFab&       solnL,
   Real alpha = get_alpha();
   Real beta = get_beta();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter solnLmfi(solnL); solnLmfi.isValid(); ++solnLmfi)

@@ -31,7 +31,7 @@ MultiMask::define (const BoxArray& regba, const DistributionMapping& dm, const G
     BoxArray mskba(regba, bbatrans);
     m_fa.define(mskba, dm, ncomp, 0, MFInfo(), DefaultFabFactory<Mask>());
     
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     if (initval)
@@ -107,7 +107,7 @@ MultiMask::Copy (MultiMask& dst, const MultiMask& src)
     BL_ASSERT(dst.nComp() == src.nComp());
     BL_ASSERT(dst.boxArray() == src.boxArray());
     BL_ASSERT(dst.DistributionMap() == src.DistributionMap());
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst.m_fa); mfi.isValid(); ++mfi) {

@@ -483,7 +483,7 @@ Particle<NReal, NInt>::NextID ()
 {
     int next;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #if (__GNUC__ < 5)
 #pragma omp critical (amrex_particle_nextid)
 #else

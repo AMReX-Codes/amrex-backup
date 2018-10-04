@@ -533,7 +533,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::MoveRandom (i
     for (auto& kv : pmap) {
         auto& aos = kv.second.GetArrayOfStructs();
         const int n = aos.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < n; i++)
@@ -900,7 +900,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
   std::map<int, Vector<char> > not_ours;
   
   int num_threads = 1;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single
   num_threads = omp_get_num_threads();
@@ -935,16 +935,16 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
   for (int lev = lev_min; lev <= nlevs_particles; lev++) {
       auto& pmap = m_particles[lev];
       typename std::map<std::pair<int, int>, ParticleTileType >::iterator pmap_it;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single nowait
 #endif
       for (pmap_it = pmap.begin(); pmap_it != pmap.end(); pmap_it++) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp task firstprivate(pmap_it)
 #endif
           {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
               int thread_num = omp_get_thread_num();
 #else
               int thread_num = 0;
@@ -1080,12 +1080,12 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
       for (pmap_it=tmp_local[lev].begin(); pmap_it != tmp_local[lev].end(); pmap_it++)
           m_particles[lev][pmap_it->first];
       
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single nowait
 #endif
       for (pmap_it=tmp_local[lev].begin(); pmap_it != tmp_local[lev].end(); pmap_it++) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp task firstprivate(pmap_it)
 #endif
           {
@@ -1120,12 +1120,12 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
   }
 
   std::map<int, Vector<Vector<char> > >::iterator it;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single nowait
 #endif
   for (it=tmp_remote.begin(); it != tmp_remote.end(); it++) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp task firstprivate(it)
 #endif
       {
@@ -1204,7 +1204,7 @@ BuildRedistributeMask(int lev, int nghost) {
             redistribute_mask_ptr.reset(new iMultiFab(ba, dmap, 2, nghost));
             redistribute_mask_ptr->setVal(-1, nghost);
             
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(*redistribute_mask_ptr, this->do_tiling ? this->tile_size : IntVect::TheZeroVector());
@@ -1345,7 +1345,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
         Vector<int> rcv_tile(npart);
 
         ParticleLocData pld;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for private(pld)
 #endif                
         for (int i = 0; i < npart; ++i)
@@ -2761,7 +2761,7 @@ AssignCellDensitySingleLevel (int rho_index,
     if (mf_pointer->nGrow() < 1) 
        amrex::Error("Must have at least one ghost cell when in AssignDensitySingleLevel");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     const int       ng          = mf_pointer->nGrow();
 #endif
     const Real      strttime    = amrex::second();
@@ -2780,7 +2780,7 @@ AssignCellDensitySingleLevel (int rho_index,
 
     using ParConstIter = ParConstIter<NStructReal, NStructInt, NArrayReal, NArrayInt>;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -2792,7 +2792,7 @@ AssignCellDensitySingleLevel (int rho_index,
             FArrayBox& fab = (*mf_pointer)[pti];
             Real* data_ptr;
             const int *lo, *hi;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
             Box tile_box = pti.tilebox();
             tile_box.grow(ng);
             local_rho.resize(tile_box,ncomp);
@@ -2816,7 +2816,7 @@ AssignCellDensitySingleLevel (int rho_index,
             }
                 
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
             amrex_atomic_accumulate_fab(BL_TO_FORTRAN_3D(local_rho), 
                                         BL_TO_FORTRAN_3D(fab), ncomp);
 #endif
@@ -2886,7 +2886,7 @@ InterpolateSingleLevel (MultiFab& mesh_data, int lev)
 
     using ParIter = ParIter<NStructReal, NStructInt, NArrayReal, NArrayInt>;
     
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (ParIter pti(*this, lev); pti.isValid(); ++pti) {
@@ -2946,7 +2946,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::moveKick (Mul
       const int n = pbox.size();
       const FArrayBox& gfab = (*ac_pointer)[grid];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
       for (int i = 0; i < n; i++)

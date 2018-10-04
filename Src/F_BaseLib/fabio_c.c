@@ -802,11 +802,11 @@ fab_contains_nan (double dptr[], const int* countp, int* result)
 {
     int i;
     int rr=0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:rr)
 #endif
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp for private(i)
 #endif
       for (i = 0; i < *countp; i++) {
@@ -823,11 +823,11 @@ fab_contains_inf (double dptr[], const int* countp, int* result)
 {
     int i;
     int rr=0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:rr)
 #endif
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp for private(i)
 #endif
       for (i = 0; i < *countp; i++) {

@@ -54,7 +54,7 @@ BF_init::BF_init ()
         the_nvar_arena->SetHostAlloc();
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 	{
 	    amrex::private_total_bytes_allocated_in_fabs     = 0;
@@ -87,7 +87,7 @@ BF_init::~BF_init ()
 long 
 TotalBytesAllocatedInFabs()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     long r=0;
 #pragma omp parallel reduction(+:r)
     {
@@ -102,7 +102,7 @@ TotalBytesAllocatedInFabs()
 long 
 TotalBytesAllocatedInFabsHWM()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     long r=0;
 #pragma omp parallel reduction(+:r)
     {
@@ -117,7 +117,7 @@ TotalBytesAllocatedInFabsHWM()
 long 
 TotalCellsAllocatedInFabs()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     long r=0;
 #pragma omp parallel reduction(+:r)
     {
@@ -132,7 +132,7 @@ TotalCellsAllocatedInFabs()
 long 
 TotalCellsAllocatedInFabsHWM()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     long r=0;
 #pragma omp parallel reduction(+:r)
     {
@@ -147,7 +147,7 @@ TotalCellsAllocatedInFabsHWM()
 void 
 ResetTotalBytesAllocatedInFabsHWM()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {

@@ -15,7 +15,7 @@
 #include <AMReX_Amr.H>
 #include <AMReX_AmrLevel.H>
 
-//#ifdef _OPENMP
+//#ifdef AMREX_USE_OMP
 #include <omp.h>
 //#endif
 
@@ -135,7 +135,7 @@ namespace amrex {
 	    virtual bool DependSignal(){return true;}
 
 	    void tileIndices(int &beginIndex, int &endIndex){
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 		int tid = omp_get_thread_num();
 		int nthreads= omp_get_num_threads();
 		int ntot= ta.tileArray.size();
@@ -164,7 +164,7 @@ namespace amrex {
 		    if(_iter>0)FillBoundary_Pull(); //communication at step 0 is already governed by _communicateFirstTimeStep 
 		    if(!_do_tiling) Compute(validbox());//execute task at Fab level
 		    else{
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 			{
 #endif
@@ -173,7 +173,7 @@ namespace amrex {
 			    for(int tile=beginIndex; tile<endIndex; tile++){
 				Compute(ta.tileArray[tile]);
 			    }
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 			}
 #endif
 		    }

@@ -3,7 +3,7 @@
 #include <AMReX_EBFluxRegister_F.H>
 #include <AMReX_EBFArrayBox.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -35,7 +35,7 @@ EBFluxRegister::defineExtra (const BoxArray& fba, const DistributionMapping& fdm
     BoxArray cfba = fba;
     cfba.coarsen(m_ratio);
     m_cfp_inside_mask.define(cfba, fdm, 1, 0, MFInfo(),DefaultFabFactory<IArrayBox>());
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(m_cfp_inside_mask); mfi.isValid(); ++mfi)
@@ -197,7 +197,7 @@ EBFluxRegister::Reflux (MultiFab& crse_state, const amrex::MultiFab& crse_vfrac,
 {
     if (!m_cfp_mask.empty())
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(m_cfpatch); mfi.isValid(); ++mfi)
@@ -218,7 +218,7 @@ EBFluxRegister::Reflux (MultiFab& crse_state, const amrex::MultiFab& crse_vfrac,
         
         m_crse_data.setVal(0.0);
         
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -266,7 +266,7 @@ EBFluxRegister::Reflux (MultiFab& crse_state, const amrex::MultiFab& crse_vfrac,
     MultiFab cf(ba, fine_state.DistributionMap(), m_ncomp, 0, MFInfo(), FArrayBoxFactory());
     cf.ParallelCopy(m_crse_data);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(cf,true); mfi.isValid(); ++mfi)

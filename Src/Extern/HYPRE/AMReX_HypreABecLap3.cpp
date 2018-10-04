@@ -197,7 +197,7 @@ HypreABecLap3::prepareSolver ()
 #endif
 
     HYPRE_Int ncells_proc = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:ncells_proc)
 #endif
     {  BaseFab<HYPRE_Int> ifab;
@@ -262,7 +262,7 @@ HypreABecLap3::prepareSolver ()
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(proc_end == proc_begin+ncells_proc,
                                      "HypreABecLap3::prepareSolver: how did this happen?");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(cell_id,true); mfi.isValid(); ++mfi)

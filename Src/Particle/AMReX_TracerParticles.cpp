@@ -62,7 +62,7 @@ TracerParticleContainer::AdvectWithUmac (MultiFab* umac, int lev, Real dt)
 						 &((*umac_pointer[1])[grid]),
 						 &((*umac_pointer[2])[grid])) };
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
             for (int i = 0; i < n; i++)
@@ -164,7 +164,7 @@ TracerParticleContainer::AdvectWithUcc (const MultiFab& Ucc, int lev, Real dt)
 	  const int n    = pbox.size();
 	  const FArrayBox& fab = Ucc[grid];
 	    
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
             for (int i = 0; i < n; i++)

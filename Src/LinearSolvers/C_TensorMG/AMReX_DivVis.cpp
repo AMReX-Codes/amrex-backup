@@ -305,7 +305,7 @@ DivVis::Fsmooth (MultiFab&       solnL,
 
     int nc = solnL.nComp();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter solnLmfi(solnL); solnLmfi.isValid(); ++solnLmfi)
@@ -445,7 +445,7 @@ DivVis::compFlux (AMREX_D_DECL(MultiFab& xflux,
     oitr++;
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter xmfi(x); xmfi.isValid(); ++xmfi)
@@ -571,7 +571,7 @@ DivVis::Fapply (MultiFab&       y,
     oitr++;
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter xmfi(x); xmfi.isValid(); ++xmfi)

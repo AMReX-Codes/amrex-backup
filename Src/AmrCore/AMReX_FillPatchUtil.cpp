@@ -8,7 +8,7 @@
 #include <AMReX_EBFabFactory.H>
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -76,7 +76,7 @@ namespace amrex
 		sameba = false;
 	    }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel 
 #endif
 	    for (MFIter mfi(*dmf,true); mfi.isValid(); ++mfi)
@@ -178,7 +178,7 @@ namespace amrex
 		int idummy1=0, idummy2=0;
 		bool cc = fpc.ba_crse_patch.ixType().cellCentered();
                 ignore_unused(cc);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel if (cc)
 #endif
 		for (MFIter mfi(mf_crse_patch); mfi.isValid(); ++mfi)
@@ -284,7 +284,7 @@ namespace amrex
 
 	int idummy1=0, idummy2=0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -365,7 +365,7 @@ namespace amrex
 
             const int use_limiter = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             {

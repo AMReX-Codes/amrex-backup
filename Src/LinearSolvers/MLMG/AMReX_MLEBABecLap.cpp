@@ -88,7 +88,7 @@ MLEBABecLap::define (const Vector<Geometry>& a_geom,
         }
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -171,7 +171,7 @@ MLEBABecLap::setEBDirichlet (int amrlev, const MultiFab& phi, const MultiFab& be
     auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][0].get());
     const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(phi, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -340,7 +340,7 @@ MLEBABecLap::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) c
     const int is_eb_dirichlet = isEBDirichlet();
     FArrayBox foo(Box::TheUnitBox());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(out, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -450,7 +450,7 @@ MLEBABecLap::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
     const int is_eb_dirichlet = isEBDirichlet();
     FArrayBox foo(Box::TheUnitBox());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(sol,MFItInfo().SetDynamic(true));
@@ -679,7 +679,7 @@ MLEBABecLap::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
     auto fcent = (factory) ? factory->getFaceCent():
         Array<const MultiCutFab*, AMREX_SPACEDIM>{AMREX_D_DECL(nullptr, nullptr, nullptr)}; 
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(sol, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -754,7 +754,7 @@ MLEBABecLap::normalize (int amrlev, int mglev, MultiFab& mf) const
     const int is_eb_dirichlet = isEBDirichlet();
     FArrayBox foo(Box::TheUnitBox());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
@@ -819,7 +819,7 @@ MLEBABecLap::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiF
     auto factory = dynamic_cast<EBFArrayBoxFactory const*>(m_factory[amrlev][fmglev].get());
     const FabArray<EBCellFlagFab>* flags = (factory) ? &(factory->getMultiEBCellFlagFab()) : nullptr;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(crse,true); mfi.isValid(); ++mfi)
@@ -894,7 +894,7 @@ MLEBABecLap::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
     FArrayBox foo(Box::TheUnitBox(),ncomp);
     foo.setVal(10.0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(in, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)

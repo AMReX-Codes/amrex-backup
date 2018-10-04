@@ -10,7 +10,7 @@
 #include <AMReX_MemProfiler.H>
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -430,7 +430,7 @@ BoxArray::numPts () const
 {
     long result = 0;
     const int N = size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for reduction(+:result)
 #endif
     for (int i = 0; i < N; ++i)
@@ -445,7 +445,7 @@ BoxArray::d_numPts () const
 {
     double result = 0;
     const int N = size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for reduction(+:result)
 #endif
     for (int i = 0; i < N; ++i)
@@ -550,7 +550,7 @@ BoxArray::refine (const IntVect& iv)
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -576,7 +576,7 @@ BoxArray::coarsenable(const IntVect& refinement_ratio, int min_width) const
     bool res = first.coarsenable(refinement_ratio,min_width);
     if (res == false) return false;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for reduction(&&:res)
 #endif
     for (long ibox = 0; ibox < sz; ++ibox)
@@ -608,7 +608,7 @@ BoxArray::growcoarsen (int n, const IntVect& iv)
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -623,7 +623,7 @@ BoxArray::grow (int n)
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -638,7 +638,7 @@ BoxArray::grow (const IntVect& iv)
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -654,7 +654,7 @@ BoxArray::grow (int dir,
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -670,7 +670,7 @@ BoxArray::growLo (int dir,
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -686,7 +686,7 @@ BoxArray::growHi (int dir,
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -750,7 +750,7 @@ BoxArray::convert (Box (*fp)(const Box&))
     if (N > 0) {
         uniqify();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < N; ++i) {
@@ -767,7 +767,7 @@ BoxArray::shift (int dir,
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -782,7 +782,7 @@ BoxArray::shift (const IntVect& iv)
     uniqify();
 
     const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
     for (int i = 0; i < N; i++) {
@@ -932,7 +932,7 @@ BoxArray::minimalBox () const
     const int N = size();
     if (N > 0)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 	bool use_single_thread = omp_in_parallel();
 	const int nthreads = use_single_thread ? 1 : omp_get_max_threads();
 #else
@@ -949,11 +949,11 @@ BoxArray::minimalBox () const
 	else
 	{
 	    Vector<Box> bxs(nthreads, m_ref->m_abox[0]);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	    {
-#ifndef _OPENMP
+#ifndef AMREX_USE_OMP
 		int tid = 0;
 #else
 		int tid = omp_get_thread_num();
@@ -982,7 +982,7 @@ BoxArray::minimalBox (int& npts_avg_box) const
     long npts_tot = 0;
     if (N > 0)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 	bool use_single_thread = omp_in_parallel();
 	const int nthreads = use_single_thread ? 1 : omp_get_max_threads();
 #else
@@ -1001,11 +1001,11 @@ BoxArray::minimalBox (int& npts_avg_box) const
 	else
 	{
 	    Vector<Box> bxs(nthreads, m_ref->m_abox[0]);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:npts_tot)
 #endif
 	    {
-#ifndef _OPENMP
+#ifndef AMREX_USE_OMP
 		int tid = 0;
 #else
 		int tid = omp_get_thread_num();
@@ -1356,7 +1356,7 @@ BoxArray::getHashMap () const
 
     if (m_ref->HasHashMap()) return BoxHashMap;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     #pragma omp critical(intersections_lock)
 #endif
     {
@@ -1409,7 +1409,7 @@ BoxArray::uniqify ()
     }
     if (m_crse_ratio != 1) {
         const int N = m_ref->m_abox.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < N; i++) {
@@ -1472,7 +1472,7 @@ intersect (const BoxArray& ba,
     BoxArray r(N);
 
     if (N > 0) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < N; i++)
@@ -1498,7 +1498,7 @@ intersect (const BoxArray& ba,
     BoxArray r(N);
 
     if (N > 0) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < N; i++)

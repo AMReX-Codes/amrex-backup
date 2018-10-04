@@ -5,7 +5,7 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_AmrCore.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -103,7 +103,7 @@ extern "C" {
     {
         const int n = leaves->size();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < n; ++i) {

@@ -156,7 +156,7 @@ namespace amrex
             int my_proc = ParallelDescriptor::MyProc(comm);
             if (rank == AllProcs || rank == my_proc) {
                 std::string proc_file_name = file_name + "." + std::to_string(my_proc);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
                 proc_file_name += "." + std::to_string(omp_get_thread_num());
 #endif
                 ofs.open(proc_file_name, std::ios_base::app);

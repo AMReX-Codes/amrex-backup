@@ -94,7 +94,7 @@ Level::coarsenFromFine (Level& fineLevel, bool fill_boundary)
     auto const& f_levelset = fineLevel.m_levelset;
     m_levelset.define(amrex::convert(m_grids,IntVect::TheNodeVector()), m_dmap, 1, 0);
     int mvmc_error = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:mvmc_error)
 #endif
     {
@@ -169,7 +169,7 @@ Level::coarsenFromFine (Level& fineLevel, bool fill_boundary)
         {
             const std::vector<IntVect>& pshifts = fine_period.shiftIntVect();
             
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             {
@@ -197,7 +197,7 @@ Level::coarsenFromFine (Level& fineLevel, bool fill_boundary)
     }
 
     int error = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:error)
 #endif
     for (MFIter mfi(m_volfrac,true); mfi.isValid(); ++mfi)
@@ -282,7 +282,7 @@ Level::buildCellFlag ()
         m_areafrac[idim].FillBoundary(0,1,{AMREX_D_DECL(1,1,1)},m_geom.periodicity());
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(m_cellflag,true); mfi.isValid(); ++mfi)
@@ -326,7 +326,7 @@ Level::fillEBCellFlag (FabArray<EBCellFlagFab>& cellflag, const Geometry& geom) 
     }
 
     auto cov_val = EBCellFlag::TheCoveredCell();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -368,7 +368,7 @@ Level::fillVolFrac (MultiFab& vfrac, const Geometry& geom) const
 
     Real cov_val = 0.0; // for covered cells
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     if (!m_covered_grids.empty())
@@ -392,7 +392,7 @@ Level::fillVolFrac (MultiFab& vfrac, const Geometry& geom) const
 namespace {
     void copyMultiFabToMultiCutFab (MultiCutFab& dstmf, const MultiFab& srcmf)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(dstmf.data()); mfi.isValid(); ++mfi)
@@ -526,7 +526,7 @@ Level::fillAreaFrac (Array<MultiCutFab*,AMREX_SPACEDIM> const& a_areafrac, const
 
     Real cov_val = 0.0; // for covered cells
         
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     if (!m_covered_grids.empty())
@@ -572,7 +572,7 @@ Level::fillAreaFrac (Array<MultiFab*,AMREX_SPACEDIM> const& a_areafrac, const Ge
 
     Real cov_val = 0.0; // for covered cells
         
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     if (!m_covered_grids.empty())
@@ -643,7 +643,7 @@ Level::fillLevelSet (MultiFab& levelset, const Geometry& geom) const
 
     Real cov_val = 1.0; // for covered cells
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     if (!m_covered_grids.empty())

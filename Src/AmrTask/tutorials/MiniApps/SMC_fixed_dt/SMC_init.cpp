@@ -63,7 +63,7 @@ SMC::init_from_scratch ()
 	dx[i] = (prob_hi[i]-prob_lo[i]) / Real(ncell[i]);
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
     for (MFIter mfi(U,true); mfi.isValid(); ++mfi)

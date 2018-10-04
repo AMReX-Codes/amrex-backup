@@ -149,7 +149,7 @@ class GShopLSFactory {
             std::unique_ptr<MultiFab> mf_impfunc = std::unique_ptr<MultiFab>(new MultiFab);
             mf_impfunc->define(m_ls_ba, m_ls_dm, 1, m_ls_pad);
 
-            #ifdef _OPENMP
+            #ifdef AMREX_USE_OMP
             #pragma omp parallel
             #endif
             for(MFIter mfi(* mf_impfunc, true); mfi.isValid(); ++ mfi)

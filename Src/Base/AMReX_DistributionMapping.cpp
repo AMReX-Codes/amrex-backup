@@ -1300,7 +1300,7 @@ DistributionMapping::makeKnapSack (const MultiFab& weight, int nmax)
 #if BL_USE_MPI
     {
 	Vector<Real> rcost(cost.size(), 0.0);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(weight); mfi.isValid(); ++mfi) {
@@ -1336,7 +1336,7 @@ DistributionMapping::makeRoundRobin (const MultiFab& weight)
 #if BL_USE_MPI
     {
 	Vector<Real> rcost(cost.size(), 0.0);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(weight); mfi.isValid(); ++mfi) {
@@ -1371,7 +1371,7 @@ DistributionMapping::makeSFC (const MultiFab& weight, bool sort)
 #if BL_USE_MPI
     {
 	Vector<Real> rcost(cost.size(), 0.0);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(weight); mfi.isValid(); ++mfi) {

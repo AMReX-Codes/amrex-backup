@@ -167,7 +167,7 @@ MFIter::MFIter (const BoxArray& ba, const DistributionMapping& dm, const MFItInf
     num_local_tiles(nullptr)
 {
     if (dynamic) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp barrier
 #pragma omp single
         nextDynamicIndex = omp_get_num_threads();
@@ -193,7 +193,7 @@ MFIter::MFIter (const FabArrayBase& fabarray_, const MFItInfo& info)
     num_local_tiles(nullptr)
 {
     if (dynamic) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp barrier
 #pragma omp single
         nextDynamicIndex = omp_get_num_threads();
@@ -296,7 +296,7 @@ MFIter::Initialize ()
 	    }
 	}
 	
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 	int nthreads = omp_get_num_threads();
 	if (nthreads > 1)
 	{
@@ -471,7 +471,7 @@ MFIter::grownnodaltilebox (int dir, int a_ng) const
     return bx;
 }
 
-#if !defined(_OPENMP) && defined(AMREX_USE_CUDA)
+#if !defined(AMREX_USE_OMP) && defined(AMREX_USE_CUDA)
 void
 MFIter::operator++ ()
 {
@@ -589,7 +589,7 @@ MFGhostIter::Initialize ()
 
     int tid = 0;
     int nthreads = 1;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     nthreads = omp_get_num_threads();
     if (nthreads > 1)
 	tid = omp_get_thread_num();

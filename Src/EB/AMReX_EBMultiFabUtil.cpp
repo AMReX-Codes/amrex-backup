@@ -8,7 +8,7 @@
 #include <AMReX_EBCellFlag.H>
 #include <AMReX_MultiCutFab.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -25,7 +25,7 @@ EB_set_covered (MultiFab& mf, Real val)
 void
 EB_set_covered (MultiFab& mf, int icomp, int ncomp, const Vector<Real>& vals)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
@@ -49,7 +49,7 @@ EB_set_covered_faces (const Array<MultiFab*,AMREX_SPACEDIM>& umac, Real val)
     const auto& area = factory->getAreaFrac();
     const auto& flags = factory->getMultiEBCellFlagFab();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*umac[0],true); mfi.isValid(); ++mfi)
@@ -85,7 +85,7 @@ EB_average_down (const MultiFab& S_fine, MultiFab& S_crse, const MultiFab& vol_f
     
     MultiFab crse_S_fine(crse_S_fine_BA,fine_dm,ncomp,0,MFInfo(),FArrayBoxFactory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(crse_S_fine,true); mfi.isValid(); ++mfi)
@@ -163,7 +163,7 @@ EB_average_down (const MultiFab& S_fine, MultiFab& S_crse, int scomp, int ncomp,
         if (crse_S_fine_BA == S_crse.boxArray() 
             and S_fine.DistributionMap() == S_crse.DistributionMap())
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(S_crse,true); mfi.isValid(); ++mfi)
@@ -198,7 +198,7 @@ EB_average_down (const MultiFab& S_fine, MultiFab& S_crse, int scomp, int ncomp,
             MultiFab crse_S_fine(crse_S_fine_BA, S_fine.DistributionMap(),
                                  ncomp, 0, MFInfo(),FArrayBoxFactory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(crse_S_fine,true); mfi.isValid(); ++mfi)
@@ -263,7 +263,7 @@ void EB_average_down_faces (const Array<const MultiFab*,AMREX_SPACEDIM>& fine,
 
         if (isMFIterSafe(*fine[0], *crse[0]))
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (int n=0; n<AMREX_SPACEDIM; ++n) {
@@ -334,7 +334,7 @@ void EB_average_down_boundaries (const MultiFab& fine, MultiFab& crse,
 
         if (isMFIterSafe(fine, crse))
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(crse, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -383,7 +383,7 @@ void EB_computeDivergence (MultiFab& divu, const Array<MultiFab const*,AMREX_SPA
         iMultiFab cc_mask(divu.boxArray(), divu.DistributionMap(), 1, 1);
         cc_mask.setVal(0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -406,7 +406,7 @@ void EB_computeDivergence (MultiFab& divu, const Array<MultiFab const*,AMREX_SPA
         }
 
         const Real* dxinv = geom.InvCellSize();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(divu,MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -469,7 +469,7 @@ EB_average_face_to_cellcenter (MultiFab& ccmf, int dcomp,
 	Real problo[3] = {0.,0.,0.};
 	int coord_type = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(ccmf,MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)

@@ -9,7 +9,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_SPACE.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -104,7 +104,7 @@ Geometry::Finalize ()
 void
 Geometry::Setup (const RealBox* rb, int coord, int* isper)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     BL_ASSERT(!omp_in_parallel());
 #endif
 
@@ -171,7 +171,7 @@ Geometry::GetVolume (MultiFab&       vol,
 void
 Geometry::GetVolume (MultiFab&       vol) const
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(vol,true); mfi.isValid(); ++mfi)
@@ -198,7 +198,7 @@ Geometry::GetDLogA (MultiFab&       dloga,
                     int             ngrow) const
 {
     dloga.define(grds,dm,1,ngrow,MFInfo(),FArrayBoxFactory());
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dloga,true); mfi.isValid(); ++mfi)
@@ -226,7 +226,7 @@ void
 Geometry::GetFaceArea (MultiFab&       area,
                        int             dir) const
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(area,true); mfi.isValid(); ++mfi)

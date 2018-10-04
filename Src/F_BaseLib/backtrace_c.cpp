@@ -15,7 +15,7 @@
 #include <csignal>
 #include <cfenv>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -116,7 +116,7 @@ extern "C"
 	{
 	    std::ostringstream ss;
 	    ss << "Backtrace." << myproc;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 		ss << "." << omp_get_thread_num();
 #endif
 	    errfilename = ss.str();

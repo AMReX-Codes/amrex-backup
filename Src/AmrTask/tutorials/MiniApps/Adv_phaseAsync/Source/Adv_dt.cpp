@@ -19,7 +19,7 @@ Adv::estTimeStep (Real)
     const Real cur_time = state[State_Type].curTime();
     const MultiFab& S_new = get_new_data(State_Type);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(min:dt_est)
 #endif
     {

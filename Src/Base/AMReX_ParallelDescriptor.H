@@ -21,7 +21,7 @@
 #include <atomic>
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -171,7 +171,7 @@ namespace ParallelDescriptor
         //! memory fence
 	void MemoryBarrier () const {
 	    if (m_size > 1) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 		if (omp_in_parallel()) {
                     #pragma omp barrier
 	        }
@@ -341,7 +341,7 @@ namespace ParallelDescriptor
 	    }
 	}
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 	int nthreads = omp_get_num_threads();
 	if (nthreads > 1) {
 	    int tid = omp_get_thread_num();

@@ -400,7 +400,7 @@ MGT_Solver::set_abeclap_coeffs (Real alpha,
 	set_cfa_const (alpha, lev);
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -439,7 +439,7 @@ MGT_Solver::set_abeclap_coeffs (const Vector<MultiFab*>& aa,
 	mgt_init_coeffs_lev(&lev);
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -480,7 +480,7 @@ MGT_Solver::set_abeclap_coeffs (Real alpha,
 	mgt_init_coeffs_lev(&lev);
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -550,7 +550,7 @@ MGT_Solver::set_nodal_coefficients(const Vector<MultiFab*>& sig)
 	mgt_init_nodal_coeffs_lev(&lev);
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int lev = 0; lev < m_nlevel; ++lev ) {
@@ -600,7 +600,7 @@ MGT_Solver::solve(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& rh, cons
 
     // Copy the boundary register values into the solution array to be copied into F90
     int lev = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (OrientationIter oitr; oitr; ++oitr)
@@ -613,7 +613,7 @@ MGT_Solver::solve(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& rh, cons
 	}
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
     for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -632,7 +632,7 @@ MGT_Solver::solve(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& rh, cons
 
     int ng = (need_grad_phi == 1) ? 1 : 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -647,7 +647,7 @@ MGT_Solver::solve_nodal(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& rh
 {
     BL_PROFILE("MGT_Solver::solve_nodal()");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
     for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -661,7 +661,7 @@ MGT_Solver::solve_nodal(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& rh
     int need_grad_phi = 0;
     int ng = (need_grad_phi == 1) ? 1 : 0;
     
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -675,7 +675,7 @@ MGT_Solver::applyop(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& res, c
 {
   // Copy the boundary register values into the solution array to be copied into F90
   int lev = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (OrientationIter oitr; oitr; ++oitr)
@@ -688,7 +688,7 @@ MGT_Solver::applyop(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& res, c
       }
   }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
   for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -698,7 +698,7 @@ MGT_Solver::applyop(const Vector<MultiFab*>& uu, const Vector<MultiFab*>& res, c
 
   mgt_applyop();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -713,7 +713,7 @@ MGT_Solver::compute_residual(const Vector<MultiFab*>& uu, const Vector<MultiFab*
 {
   // Copy the boundary register values into the solution array to be copied into F90
   int lev = 0;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (OrientationIter oitr; oitr; ++oitr)
@@ -726,7 +726,7 @@ MGT_Solver::compute_residual(const Vector<MultiFab*>& uu, const Vector<MultiFab*
       }
   }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
   for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -737,7 +737,7 @@ MGT_Solver::compute_residual(const Vector<MultiFab*>& uu, const Vector<MultiFab*
 
   mgt_compute_residual();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for ( int ilev = 0; ilev < m_nlevel; ++ilev )
@@ -751,7 +751,7 @@ MGT_Solver::get_fluxes(int lev, const Vector<MultiFab*>& flux, const Real* dx)
 {
   mgt_compute_flux(lev);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for ( int dir = 0; dir < BL_SPACEDIM; ++dir )
@@ -768,7 +768,7 @@ MGT_Solver::nodal_project(const Vector<MultiFab*>& p, const Vector<MultiFab*>& v
 			  const Real& tol, const Real& abs_tol,
 			  int* lo_inflow, int* hi_inflow)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -805,7 +805,7 @@ MGT_Solver::nodal_project(const Vector<MultiFab*>& p, const Vector<MultiFab*>& v
 
   Real rhmax = -1.0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   {
@@ -840,7 +840,7 @@ MGT_Solver::nodal_project(const Vector<MultiFab*>& p, const Vector<MultiFab*>& v
       }
 
       if (verbose > 0) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp critical (mgt_rhmax)
 #endif
 	  rhmax = std::max(rmax_this,rhmax);
@@ -860,7 +860,7 @@ MGT_Solver::nodal_project(const Vector<MultiFab*>& p, const Vector<MultiFab*>& v
 
   mgt_newu();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for ( int lev = 0; lev < m_nlevel; ++lev )
@@ -896,7 +896,7 @@ void MGT_Solver::fill_sync_resid(MultiFab& sync_resid, const MultiFab& msk,
 
   const int lev = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(msk, true); mfi.isValid(); ++mfi) {
@@ -921,7 +921,7 @@ void MGT_Solver::fill_sync_resid(MultiFab& sync_resid, const MultiFab& msk,
     mgt_compute_sync_resid_fine();
   }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(sync_resid, true); mfi.isValid(); ++mfi) {
@@ -958,7 +958,7 @@ MGT_Solver::set_cfa_const (Real alpha, int lev)
 	MFInfo info;
 	info.SetAlloc(false);
 	MultiFab cc(m_grids[lev], m_dmap[lev], 1, 0, info, FArrayBoxFactory()); // cell-centered MF      
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc, true); mfi.isValid(); ++mfi)

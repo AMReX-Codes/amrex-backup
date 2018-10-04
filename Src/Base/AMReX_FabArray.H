@@ -12,7 +12,7 @@
 #include <set>
 #include <string>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -1282,7 +1282,7 @@ FabArray<FAB>::setBndry (value_type val,
 {
     if (n_grow.max() > 0)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter fai(*this); fai.isValid(); ++fai)
@@ -1315,7 +1315,7 @@ FabArray<FAB>::setDomainBndry (value_type val,
             domain_box.grow(idim, n);
         }
     }
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter fai(*this); fai.isValid(); ++fai)
@@ -1363,7 +1363,7 @@ FabArray<FAB>::setVal (value_type val)
 {
     BL_PROFILE("FabArray::setVal(val)");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter fai(*this,true); fai.isValid(); ++fai)
@@ -1405,7 +1405,7 @@ FabArray<FAB>::setVal (value_type val,
 
     BL_PROFILE("FabArray::setVal(val,comp,ncomp,nghost)");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter fai(*this,true); fai.isValid(); ++fai)
@@ -1441,7 +1441,7 @@ FabArray<FAB>::setVal (value_type val,
 
     BL_PROFILE("FabArray::setVal(val,region,comp,ncomp,nghost)");
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter fai(*this,true); fai.isValid(); ++fai)
@@ -1463,7 +1463,7 @@ FabArray<FAB>::shift (const IntVect& v)
       boxarray.shift(id, v[id]);
     }
     addThisBD();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter fai(*this); fai.isValid(); ++fai)
@@ -1622,7 +1622,7 @@ FabArray<FAB>::BuildMask (const Box& phys_domain, const Periodicity& period,
 	}
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this, true); mfi.isValid(); ++mfi)
@@ -1640,7 +1640,7 @@ FabArray<FAB>::BuildMask (const Box& phys_domain, const Periodicity& period,
     }
 
     int N_locs = LocTags.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for if (TheFB.m_threadsafe_loc)
 #endif
     for (int i = 0; i < N_locs; ++i) {
@@ -1650,7 +1650,7 @@ FabArray<FAB>::BuildMask (const Box& phys_domain, const Periodicity& period,
 
     for (MapOfCopyComTagContainers::const_iterator it = RcvTags.begin(); it != RcvTags.end(); ++it) {
 	int N = it->second.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for if (TheFB.m_threadsafe_rcv)
 #endif
 	for (int i = 0; i < N; ++i) {

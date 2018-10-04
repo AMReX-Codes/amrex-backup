@@ -94,7 +94,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
             mask_ptr.reset(new iMultiFab(ba, dmap, 2, num_neighbor_cells));
             mask_ptr->setVal(-1, num_neighbor_cells);
             
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(*mask_ptr, this->do_tiling ? this->tile_size : IntVect::TheZeroVector());
@@ -155,7 +155,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
     std::map<NeighborCommTag, Vector<NeighborIndexMap> > remote_map;
     
     int num_threads = 1;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single
     num_threads = omp_get_num_threads();
@@ -178,14 +178,14 @@ NeighborParticleContainer<NStructReal, NStructInt>
 
     // First pass - each thread collects the NeighborIndexMaps it owes to other
     // grids / tiles / procs
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
         Vector<NeighborCopyTag> tags;
         tags.reserve(AMREX_D_TERM(3, *3, *3));            
         for (MyParIter pti(*this, lev); pti.isValid(); ++pti) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
             int thread_num = omp_get_thread_num();
 #else
             int thread_num = 0;
@@ -278,7 +278,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
     }
 
     // second pass - for each tile, collect the neighbors owed from all threads
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi = this->MakeMFIter(lev); mfi.isValid(); ++mfi) {
@@ -296,12 +296,12 @@ NeighborParticleContainer<NStructReal, NStructInt>
 
     // do the same for the remote neighbors
     typename std::map<NeighborCommTag, Vector<Vector<NeighborIndexMap> > >::iterator it;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single nowait
 #endif
     for (it=tmp_remote_map.begin(); it != tmp_remote_map.end(); it++) {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp task firstprivate(it)
 #endif
         {
@@ -323,7 +323,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
         const int num_ghosts = map.size();
         neighbors[dst_index].resize(num_ghosts * pdata_size);
         local_neighbor_sizes[dst_index] = neighbors[dst_index].size();  // store this for later
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < num_ghosts; ++i) {
@@ -362,7 +362,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
         std::memcpy(dst, &(kv.first.tile_id), sizeof(int)); dst += sizeof(int);
         std::memcpy(dst, &data_size,          sizeof(int)); dst += sizeof(int);        
         size_t buffer_offset = old_size + 2*sizeof(int) + sizeof(int);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
         for (int i = 0; i < np; ++i) {
@@ -398,7 +398,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
     const DistributionMapping& dmap = this->ParticleDistributionMap(lev);
 
     int num_threads = 1;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #pragma omp single
     num_threads = omp_get_num_threads();
@@ -410,7 +410,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
         for (int j = 0; j < num_threads; ++j) {
             auto& tags = buffer_tag_cache[src_index][j];
             int num_tags = tags.size();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel for
 #endif
             for (unsigned i = 0; i < num_tags; ++i) {
@@ -453,7 +453,7 @@ NeighborParticleContainer<NStructReal, NStructInt>
         }
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi = this->MakeMFIter(lev); mfi.isValid(); ++mfi) {
@@ -667,7 +667,7 @@ buildNeighborList(int lev, CheckPair check_pair, bool sort) {
         neighbor_list[index]; // = IntVector();
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {

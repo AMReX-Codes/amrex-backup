@@ -2,7 +2,7 @@
 #include <AMReX_MLNodeLinOp.H>
 #include <AMReX_MLNodeLap_F.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -68,7 +68,7 @@ MLNodeLinOp::makeOwnerMask (const BoxArray& a_ba, const DistributionMapping& dm,
                                                DefaultFabFactory<IArrayBox>())};
     p->setVal(owner);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -130,7 +130,7 @@ MLNodeLinOp::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const M
     apply(amrlev, mglev, resid, x, BCMode::Inhomogeneous, StateMode::Solution);
 
     const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][0];
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(resid, true); mfi.isValid(); ++mfi)

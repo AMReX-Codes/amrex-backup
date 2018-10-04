@@ -7,7 +7,7 @@
 #include <limits>
 #include <array>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -36,7 +36,7 @@ namespace amrex
     extern long private_total_bytes_allocated_in_fabs_hwm; // high-water-mark over a given interval
     extern long private_total_cells_allocated_in_fabs;     // total cells at any given time
     extern long private_total_cells_allocated_in_fabs_hwm; // high-water-mark over a given interval
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp threadprivate(private_total_bytes_allocated_in_fabs)
 #pragma omp threadprivate(private_total_bytes_allocated_in_fabs_hwm)
 #pragma omp threadprivate(private_total_cells_allocated_in_fabs)

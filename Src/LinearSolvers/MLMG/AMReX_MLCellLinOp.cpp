@@ -302,7 +302,7 @@ MLCellLinOp::restriction (int, int, MultiFab& crse, MultiFab& fine) const
 void
 MLCellLinOp::interpolation (int amrlev, int fmglev, MultiFab& fine, const MultiFab& crse) const
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(crse,true); mfi.isValid(); ++mfi)
@@ -453,7 +453,7 @@ MLCellLinOp::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
 
     FArrayBox foo(Box::TheUnitBox(),ncomp);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(in, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -508,7 +508,7 @@ MLCellLinOp::reflux (int crse_amrlev,
     applyBC(fine_amrlev, mglev, fine_sol, BCMode::Inhomogeneous, StateMode::Solution,
             m_bndry_sol[fine_amrlev].get());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -529,7 +529,7 @@ MLCellLinOp::reflux (int crse_amrlev,
             }
         }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp barrier
 #endif
 
@@ -562,7 +562,7 @@ MLCellLinOp::compFlux (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& fluxes
     applyBC(amrlev, mglev, sol, BCMode::Inhomogeneous, StateMode::Solution,
             m_bndry_sol[amrlev].get());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -597,7 +597,7 @@ MLCellLinOp::compGrad (int amrlev, const Array<MultiFab*,AMREX_SPACEDIM>& grad,
             m_bndry_sol[amrlev].get());
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(sol, MFItInfo().EnableTiling().SetDynamic(true));  mfi.isValid(); ++mfi)
@@ -632,7 +632,7 @@ MLCellLinOp::prepareForSolve ()
 
             BndryRegister& undrrelxr = m_undrrelxr[amrlev][mglev];
             MultiFab foo(m_grids[amrlev][mglev], m_dmap[amrlev][mglev], ncomp, 0, MFInfo().SetAlloc(false));
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(foo, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -689,7 +689,7 @@ MLCellLinOp::BndryCondLoc::setLOBndryConds (const Geometry& geom, const Real* dx
 {
     const Box&  domain = geom.Domain();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(bcloc); mfi.isValid(); ++mfi)
@@ -715,7 +715,7 @@ MLCellLinOp::applyMetricTerm (int amrlev, int mglev, MultiFab& rhs) const
 
     int nextra = rhs.ixType().cellCentered(0) ? 0 : 1;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(rhs,true); mfi.isValid(); ++mfi)
@@ -745,7 +745,7 @@ MLCellLinOp::unapplyMetricTerm (int amrlev, int mglev, MultiFab& rhs) const
     const auto& mfac = *m_metric_factor[amrlev][mglev];
 
     int nextra = rhs.ixType().cellCentered(0) ? 0 : 1;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(rhs,true); mfi.isValid(); ++mfi)
@@ -772,7 +772,7 @@ MLCellLinOp::MetricFactor::MetricFactor (const BoxArray& ba, const DistributionM
       inv_r_cellcenter(ba,dm),
       inv_r_celledge(ba,dm)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(r_cellcenter); mfi.isValid(); ++mfi)

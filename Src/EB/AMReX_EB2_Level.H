@@ -17,7 +17,7 @@
 #include <cmath>
 #include <type_traits>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -179,7 +179,7 @@ GShopLevel<G>::GShopLevel (IndexSpace const* is, G const& gshop, const Geometry&
     const Real* dxinv = geom.InvCellSize();
     const Real* problo = geom.ProbLo();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {

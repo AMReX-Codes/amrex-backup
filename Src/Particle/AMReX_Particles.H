@@ -42,7 +42,7 @@
 #include <AMReX_Lazy.H>
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -599,7 +599,7 @@ public:
     ParIterBase (ContainerRef pc, int level);
     ParIterBase (ContainerRef pc, int level, MFItInfo& info);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     void operator++ () {
         if (dynamic) {
 #pragma omp atomic capture

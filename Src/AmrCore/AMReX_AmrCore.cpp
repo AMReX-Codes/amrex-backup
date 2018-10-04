@@ -9,7 +9,7 @@
 #include <AMReX_AmrParGDB.H>
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -138,7 +138,7 @@ AmrCore::printGridSummary (std::ostream& os, int min_lev, int max_lev) const
 	    int lmax = -1;
 	    int smin = std::numeric_limits<int>::max();
 	    int imax, imin;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif	    
 	    {
@@ -147,7 +147,7 @@ AmrCore::printGridSummary (std::ostream& os, int min_lev, int max_lev) const
 		int lmax_this = -1;
 		int smin_this = std::numeric_limits<int>::max();
 		int imax_this, imin_this;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp for
 #endif	    	    
 		for (int k = 0; k < numgrid; k++) {
@@ -166,7 +166,7 @@ AmrCore::printGridSummary (std::ostream& os, int min_lev, int max_lev) const
 			imax_this = k;
 		    }
 		}
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp critical (amr_prtgs)
 #endif	    	    
 		{

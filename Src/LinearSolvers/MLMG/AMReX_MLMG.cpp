@@ -516,7 +516,7 @@ MLMG::interpCorrection (int alev)
 
     if (linop.isCellCentered())
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(fine_cor, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -559,7 +559,7 @@ MLMG::interpCorrection (int alev)
     else
     {
         AMREX_ALWAYS_ASSERT(amrrr == 2);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -621,7 +621,7 @@ MLMG::interpCorrection (int alev, int mglev)
 
     if (linop.isCellCentered())
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(fine_cor, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -661,7 +661,7 @@ MLMG::interpCorrection (int alev, int mglev)
     }
     else
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -943,7 +943,7 @@ MLMG::buildFineMask ()
         BoxArray baf = rhs[alev+1].boxArray();
         baf.coarsen(amrrr[alev]);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(*fine_mask[alev], MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)

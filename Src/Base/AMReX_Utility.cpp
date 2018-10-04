@@ -26,7 +26,7 @@
 #include <AMReX_BoxArray.H>
 #include <AMReX_Print.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -352,14 +352,14 @@ void
 amrex::InitRandom (unsigned long seed, int nprocs)
 {
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     nthreads = omp_get_max_threads();
 #else
     nthreads = 1;
 #endif
     generators.resize(nthreads);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
     {
         int tid = omp_get_thread_num();
@@ -379,7 +379,7 @@ void amrex::ResetRandomSeed(unsigned long seed)
 double
 amrex::RandomNormal (double mean, double stddev)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     int tid = omp_get_thread_num();
 #else
     int tid = 0;
@@ -391,7 +391,7 @@ amrex::RandomNormal (double mean, double stddev)
 double
 amrex::Random ()
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     int tid = omp_get_thread_num();
 #else
     int tid = 0;
@@ -403,7 +403,7 @@ amrex::Random ()
 unsigned long
 amrex::Random_int(unsigned long n)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     int tid = omp_get_thread_num();
 #else
     int tid = 0;

@@ -765,7 +765,7 @@ MultiGrid::average (MultiFab&       c,
     // Use Fortran function to average down (restrict) f to c.
     //
     const bool tiling = true;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter cmfi(c,tiling); cmfi.isValid(); ++cmfi)
@@ -794,7 +794,7 @@ MultiGrid::interpolate (MultiFab&       f,
     // Use fortran function to interpolate up (prolong) c to f
     // Note: returns f=f+P(c) , i.e. ADDS interp'd c to f.
     //
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(c,true); mfi.isValid(); ++mfi)

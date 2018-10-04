@@ -127,7 +127,7 @@ void average_down_faces (PArray<MultiFab>& fine, PArray<MultiFab>& crse, IntVect
 
     int ncomp = crse[0].nComp();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (int n=0; n<BL_SPACEDIM; ++n) {

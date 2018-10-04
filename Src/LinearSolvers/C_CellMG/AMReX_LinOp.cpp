@@ -209,7 +209,7 @@ LinOp::applyBC (MultiFab&      inout,
     // Fill boundary cells.
     //
     // OMP over boxes
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(inout); mfi.isValid(); ++mfi)
@@ -419,7 +419,7 @@ LinOp::makeCoefficients (MultiFab&       cs,
     switch (cdir)
     {
     case -1:
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter csmfi(cs,tiling); csmfi.isValid(); ++csmfi)
@@ -439,7 +439,7 @@ LinOp::makeCoefficients (MultiFab&       cs,
     case 2:
         if (harmavg)
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   	    for (MFIter csmfi(cs,tiling); csmfi.isValid(); ++csmfi)
@@ -460,7 +460,7 @@ LinOp::makeCoefficients (MultiFab&       cs,
         }
         else
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter csmfi(cs,tiling); csmfi.isValid(); ++csmfi)

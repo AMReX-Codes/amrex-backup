@@ -2102,7 +2102,7 @@ void Perilla::multifabExtractCopyAssoc(RegionGraph* gDst, RegionGraph* gSrc, con
 //#pragma omp parallel shared(gSrc, gDst, mfSrc, mfDst, nfabsSrc, nfabsDst)
             {
 		
-//#ifdef _OPENMP
+//#ifdef AMREX_USE_OMP
 //                int tid = omp_get_thread_num();//perilla::tid();//omp_get_thread_num();   
 //#else
 //		int tid = 0;
@@ -3076,7 +3076,7 @@ void Perilla::multifabExtractCopyAssoc(RegionGraph* gDst, RegionGraph* gSrc, con
 	    #pragma omp parallel shared(gSrc, gDst, mfSrc, mfDst, nfabsSrc, nfabsDst)
 //#endif
 	    {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 		int tid = omp_get_thread_num();//perilla::tid();//omp_get_thread_num();	  
 #else
 		int tid=0;

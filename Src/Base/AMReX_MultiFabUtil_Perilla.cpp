@@ -111,7 +111,7 @@ namespace amrex
 	MultiFab fvolume;
 	fgeom.GetVolume(fvolume, fine_BA, 0);
 
-	//#ifdef _OPENMP
+	//#ifdef AMREX_USE_OMP
 	//#pragma omp parallel
 	//#endif
         //for (MFIter mfi(crse_S_fine,true); mfi.isValid(); ++mfi)

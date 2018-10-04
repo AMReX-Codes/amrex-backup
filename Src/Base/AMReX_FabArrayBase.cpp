@@ -439,7 +439,7 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 
 	BaseFab<int> localtouch, remotetouch;
 	bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 	if (omp_get_max_threads() > 1) {
 	    check_local = true;
 	    check_remote = true;
@@ -782,7 +782,7 @@ FabArrayBase::FB::define_fb(const FabArrayBase& fa)
 
     BaseFab<int> localtouch, remotetouch;
     bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     if (omp_get_max_threads() > 1) {
 	check_local = true;
 	check_remote = true;
@@ -1004,7 +1004,7 @@ FabArrayBase::FB::define_epo (const FabArrayBase& fa)
 
     BaseFab<int> localtouch, remotetouch;
     bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     if (omp_get_max_threads() > 1) {
 	check_local = true;
 	check_remote = true;
@@ -1542,7 +1542,7 @@ FabArrayBase::getTileArray (const IntVect& tilesize) const
 {
     TileArray* p;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp critical(gettilearray)
 #endif
     {
@@ -1560,7 +1560,7 @@ FabArrayBase::getTileArray (const IntVect& tilesize) const
 					     m_TAC_stats.bytes);
 #endif
 	}
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp master
 #endif
 	{

@@ -58,7 +58,7 @@ MLPoisson::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& in) con
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
@@ -91,7 +91,7 @@ MLPoisson::normalize (int amrlev, int mglev, MultiFab& mf) const
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
@@ -145,7 +145,7 @@ MLPoisson::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs, i
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(sol,MFItInfo().EnableTiling().SetDynamic(true));
@@ -321,7 +321,7 @@ MLPoisson::makeNLinOp (int grid_size) const
     MultiFab alpha(ba, dm, 1, 0);
     alpha.setVal(1.e30*dxscale*dxscale);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {

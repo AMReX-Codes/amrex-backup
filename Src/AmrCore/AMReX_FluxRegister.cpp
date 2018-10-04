@@ -105,7 +105,7 @@ FluxRegister::SumReg (int comp) const
         const FabSet& lofabs = bndry[Orientation(dir,Orientation::low) ];
         const FabSet& hifabs = bndry[Orientation(dir,Orientation::high)];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:sum)
 #endif
         for (FabSetIter fsi(lofabs); fsi.isValid(); ++fsi)
@@ -138,7 +138,7 @@ FluxRegister::CrseInit (const MultiFab& mflx,
     MultiFab mf(mflx.boxArray(),mflx.DistributionMap(),numcomp,0,
                 MFInfo(), mflx.Factory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
     for (MFIter mfi(mflx,true); mfi.isValid(); ++mfi)
@@ -178,7 +178,7 @@ FluxRegister::CrseInit (const MultiFab& mflx,
 
             fs.copyFrom(mf,0,0,0,numcomp);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (FabSetIter mfi(fs); mfi.isValid(); ++mfi)
@@ -226,7 +226,7 @@ FluxRegister::CrseAdd (const MultiFab& mflx,
     MultiFab mf(mflx.boxArray(),mflx.DistributionMap(),numcomp,0,
                 MFInfo(), mflx.Factory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif    
     for (MFIter mfi(mflx,true); mfi.isValid(); ++mfi)
@@ -276,7 +276,7 @@ FluxRegister::FineAdd (const MultiFab& mflx,
                        int             numcomp,
                        Real            mult)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mflx); mfi.isValid(); ++mfi)
@@ -295,7 +295,7 @@ FluxRegister::FineAdd (const MultiFab& mflx,
                        int             numcomp,
                        Real            mult)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mflx); mfi.isValid(); ++mfi)
@@ -438,7 +438,7 @@ FluxRegister::Reflux (MultiFab&       mf,
 
 	bndry[face].copyTo(flux, 0, scomp, 0, nc, geom.periodicity());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
@@ -498,7 +498,7 @@ FluxRegister::ClearInternalBorders (const Geometry& geom)
 	const BoxArray& balo = frlo.boxArray();
 	const BoxArray& bahi = frhi.boxArray();
 	
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	{
@@ -561,7 +561,7 @@ FluxRegister::OverwriteFlux (Array<MultiFab*,AMREX_SPACEDIM> const& crse_fluxes,
     {
         const std::vector<IntVect>& pshifts = cperiod.shiftIntVect();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -599,7 +599,7 @@ FluxRegister::OverwriteFlux (Array<MultiFab*,AMREX_SPACEDIM> const& crse_fluxes,
         bndry[lo_face].copyTo(fine_flux, 0, srccomp, 0, numcomp, cperiod);
         bndry[hi_face].plusTo(fine_flux, 0, srccomp, 0, numcomp, cperiod);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(crse_flux,true); mfi.isValid(); ++mfi)

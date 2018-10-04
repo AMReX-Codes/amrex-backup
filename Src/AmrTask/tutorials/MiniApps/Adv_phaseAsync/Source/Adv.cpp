@@ -391,7 +391,7 @@ Adv::errorEst (TagBoxArray& tags,
 
     MultiFab& S_new = get_new_data(State_Type);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {

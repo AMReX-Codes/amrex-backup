@@ -34,7 +34,7 @@ Laplacian::compFlux (AMREX_D_DECL(MultiFab &xflux, MultiFab &yflux, MultiFab &zf
     applyBC(in,src_comp,num_comp,level,bc_mode,bnd_comp);
 
     const bool tiling = true;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter inmfi(in,tiling); inmfi.isValid(); ++inmfi)
@@ -107,7 +107,7 @@ Laplacian::Fsmooth (MultiFab&       solnL,
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter solnLmfi(solnL,tiling); solnLmfi.isValid(); ++solnLmfi)
@@ -225,7 +225,7 @@ Laplacian::Fapply (MultiFab&       y,
     BL_PROFILE("Laplacian::Fapply()");
 
     const bool tiling = true;
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter ymfi(y,tiling); ymfi.isValid(); ++ymfi)

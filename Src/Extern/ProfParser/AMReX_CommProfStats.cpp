@@ -36,7 +36,7 @@ using std::pair;
 
 using namespace amrex;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -1196,7 +1196,7 @@ void CommProfStats::SendRecvData(const std::string &filenameprefix,
   //float maxLF0(0.0), maxLF1(0.0);
   Real filterTLo(00.0), filterTHi(30000.0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
   int nReads(4);
   Vector<omp_lock_t> locks(nReads);
   for(int i(0); i < locks.size(); ++i) {
@@ -1468,7 +1468,7 @@ s2 += amrex::ParallelDescriptor::second() - st2;
 
 
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
   for(int i(0); i < locks.size(); ++i) {
     omp_destroy_lock(&(locks[i]));
   }

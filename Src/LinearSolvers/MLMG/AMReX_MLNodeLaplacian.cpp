@@ -5,7 +5,7 @@
 #include <AMReX_MLNodeLap_F.H>
 #include <AMReX_MultiFabUtil.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -142,7 +142,7 @@ MLNodeLaplacian::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>&
         const MultiFab* intg = m_integral[ilev].get();
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(*rhs[ilev], MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -224,7 +224,7 @@ MLNodeLaplacian::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>&
         const Real* fdxinv = fgeom.InvCellSize();
         const iMultiFab& fdmsk = *m_dirichlet_mask[ilev+1][0];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -317,7 +317,7 @@ MLNodeLaplacian::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>&
         const iMultiFab& c_cc_mask = *m_cc_fine_mask[ilev];
         const auto& has_fine_bndry = *m_has_fine_bndry[ilev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(*rhs[ilev], MFItInfo().EnableTiling().SetDynamic(true));
@@ -365,7 +365,7 @@ MLNodeLaplacian::compRHS (const Vector<MultiFab*>& rhs, const Vector<MultiFab*>&
 void
 MLNodeLaplacian::updateVelocity (const Vector<MultiFab*>& vel, const Vector<MultiFab const*>& sol) const
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
@@ -512,7 +512,7 @@ MLNodeLaplacian::averageDownCoeffsSameAmrLevel (int amrlev)
 
             MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
@@ -542,7 +542,7 @@ MLNodeLaplacian::FillBoundaryCoeff (MultiFab& sigma, const Geometry& geom)
     {
         const Box& domain = geom.Domain();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(sigma, MFItInfo().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -574,7 +574,7 @@ MLNodeLaplacian::buildMasks ()
         m_is_bottom_singular = m_domain_covered[0];
     }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -648,7 +648,7 @@ MLNodeLaplacian::buildMasks ()
 
         const std::vector<IntVect>& pshifts = m_geom[amrlev][0].periodicity().shiftIntVect();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -675,7 +675,7 @@ MLNodeLaplacian::buildMasks ()
             }
         }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(nd_mask,true); mfi.isValid(); ++mfi)
@@ -688,7 +688,7 @@ MLNodeLaplacian::buildMasks ()
     }
 
     auto& has_cf = *m_has_fine_bndry[m_num_amr_levels-1];
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(has_cf); mfi.isValid(); ++mfi)
@@ -709,7 +709,7 @@ MLNodeLaplacian::buildMasks ()
             nddomain.grow(1000); // hack to avoid masks being modified at Neuman boundary
         }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(m_bottom_dot_mask,true); mfi.isValid(); ++mfi)
@@ -739,7 +739,7 @@ MLNodeLaplacian::buildMasks ()
             nddomain.grow(1000); // hack to avoid masks being modified at Neuman boundary
         }
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(m_coarse_dot_mask,true); mfi.isValid(); ++mfi)
@@ -796,7 +796,7 @@ MLNodeLaplacian::buildStencil ()
             const MultiFab* vfrac = (factory) ? &(factory->getVolFrac()) : nullptr;
 #endif
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             {
@@ -894,7 +894,7 @@ MLNodeLaplacian::buildStencil ()
 
             MultiFab* pcrse = (need_parallel_copy) ? &cfine : &crse;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             {
@@ -935,7 +935,7 @@ MLNodeLaplacian::fixUpResidualMask (int amrlev, iMultiFab& resmsk)
 
     const iMultiFab& cfmask = *m_nd_fine_mask[amrlev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(resmsk,true); mfi.isValid(); ++mfi)
@@ -993,7 +993,7 @@ MLNodeLaplacian::restriction (int amrlev, int cmglev, MultiFab& crse, MultiFab& 
 
     const auto& stencil = m_stencil[amrlev][cmglev-1];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*pcrse, true); mfi.isValid(); ++mfi)
@@ -1045,7 +1045,7 @@ MLNodeLaplacian::interpolation (int amrlev, int fmglev, MultiFab& fine, const Mu
 
     const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][fmglev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -1140,7 +1140,7 @@ MLNodeLaplacian::restrictInteriorNodes (int camrlev, MultiFab& crhs, MultiFab& a
 
     applyBC(camrlev+1, 0, *frhs, BCMode::Inhomogeneous, StateMode::Solution);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(cfine, true); mfi.isValid(); ++mfi)
@@ -1161,7 +1161,7 @@ MLNodeLaplacian::restrictInteriorNodes (int camrlev, MultiFab& crhs, MultiFab& a
     const iMultiFab& c_nd_mask = *m_nd_fine_mask[camrlev];
     const auto& has_fine_bndry = *m_has_fine_bndry[camrlev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(crhs, MFItInfo().EnableTiling().SetDynamic(true));
@@ -1198,7 +1198,7 @@ MLNodeLaplacian::applyBC (int amrlev, int mglev, MultiFab& phi, BCMode/* bc_mode
 
     if (m_coarsening_strategy == CoarseningStrategy::Sigma)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(phi); mfi.isValid(); ++mfi)
@@ -1225,7 +1225,7 @@ MLNodeLaplacian::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& i
     const Box& domain_box = amrex::surroundingNodes(m_geom[amrlev][mglev].Domain());
     const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][mglev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(out,true); mfi.isValid(); ++mfi)
@@ -1290,7 +1290,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
 
         if (m_coarsening_strategy == CoarseningStrategy::RAP)
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol); mfi.isValid(); ++mfi)
@@ -1305,7 +1305,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         }
         else if (m_use_harmonic_average && mglev > 0)
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol); mfi.isValid(); ++mfi)
@@ -1328,7 +1328,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         }
         else
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol); mfi.isValid(); ++mfi)
@@ -1361,7 +1361,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
 
         if (m_coarsening_strategy == CoarseningStrategy::RAP)
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol); mfi.isValid(); ++mfi)
@@ -1377,7 +1377,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         }
         else if (m_use_harmonic_average && mglev > 0)
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol,true); mfi.isValid(); ++mfi)
@@ -1401,7 +1401,7 @@ MLNodeLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         }
         else
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(sol,true); mfi.isValid(); ++mfi)
@@ -1432,7 +1432,7 @@ MLNodeLaplacian::normalize (int amrlev, int mglev, MultiFab& mf) const
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
     const iMultiFab& dmsk = *m_dirichlet_mask[amrlev][mglev];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
@@ -1502,7 +1502,7 @@ MLNodeLaplacian::compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& a
 
     const std::vector<IntVect>& pshifts = geom.periodicity().shiftIntVect();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -1528,7 +1528,7 @@ MLNodeLaplacian::compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& a
     }
 
     MultiFab phi(ndba, dmap, 1, 1);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(phi, true); mfi.isValid(); ++mfi)
@@ -1548,7 +1548,7 @@ MLNodeLaplacian::compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& a
 
     if (m_coarsening_strategy == CoarseningStrategy::Sigma)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(phi); mfi.isValid(); ++mfi)
@@ -1567,7 +1567,7 @@ MLNodeLaplacian::compSyncResidualCoarse (MultiFab& sync_resid, const MultiFab& a
     const MultiFab& sigma_orig = *m_sigma[0][0][0];
     const iMultiFab& dmsk = *m_dirichlet_mask[0][0];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -1674,7 +1674,7 @@ MLNodeLaplacian::compSyncResidualFine (MultiFab& sync_resid, const MultiFab& phi
 
     const Real* dxinv = geom.InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -1785,7 +1785,7 @@ MLNodeLaplacian::reflux (int crse_amrlev,
 
     applyBC(crse_amrlev+1, 0, fine_res, BCMode::Inhomogeneous, StateMode::Solution);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(fine_res_for_coarse, true); mfi.isValid(); ++mfi)
@@ -1805,7 +1805,7 @@ MLNodeLaplacian::reflux (int crse_amrlev,
 
     const auto& fsigma = *m_sigma[crse_amrlev+1][0][0];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -1856,7 +1856,7 @@ MLNodeLaplacian::reflux (int crse_amrlev,
 
     const auto& csigma = *m_sigma[crse_amrlev][0][0];
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(res, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)
@@ -1902,7 +1902,7 @@ MLNodeLaplacian::buildIntegral ()
             const auto& vfrac = factory->getVolFrac();
             const auto& area = factory->getAreaFrac();
             const auto& bcent = factory->getBndryCent();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(*intg, MFItInfo().EnableTiling().SetDynamic(true)); mfi.isValid(); ++mfi)

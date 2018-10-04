@@ -52,7 +52,7 @@ LSFactory::LSFactory(int lev, int ls_ref, int eb_ref, int ls_pad, int eb_pad,
 
 
     // Initialize by setting all ls_phi = huge(c_real)
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid, true); mfi.isValid(); ++mfi){
@@ -131,7 +131,7 @@ void LSFactory::fill_valid_kernel(){
 
     int search_radius = 1;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid, true); mfi.isValid(); ++ mfi) {
@@ -181,7 +181,7 @@ void LSFactory::fill_valid(){
             )
         );
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid); mfi.isValid(); ++mfi){
@@ -229,7 +229,7 @@ std::unique_ptr<Vector<Real>> LSFactory::eb_facets(const EBFArrayBoxFactory & eb
     // while computing normals, count EB-facets
     int n_facets = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(dummy, true); mfi.isValid(); ++mfi) {
@@ -312,7 +312,7 @@ std::unique_ptr<Vector<Real>> LSFactory::eb_facets(const EBFArrayBoxFactory & eb
 
 void LSFactory::update_intersection(const MultiFab & ls_in, const iMultiFab & valid_in) {
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid, true); mfi.isValid(); ++mfi){
@@ -347,7 +347,7 @@ void LSFactory::update_intersection(const MultiFab & ls_in, const iMultiFab & va
             )
         );
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid); mfi.isValid(); ++mfi){
@@ -373,7 +373,7 @@ void LSFactory::update_intersection(const MultiFab & ls_in, const iMultiFab & va
 
 void LSFactory::update_union(const MultiFab & ls_in, const iMultiFab & valid_in) {
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid, true); mfi.isValid(); ++mfi){
@@ -408,7 +408,7 @@ void LSFactory::update_union(const MultiFab & ls_in, const iMultiFab & valid_in)
             )
         );
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid); mfi.isValid(); ++mfi){
@@ -499,7 +499,7 @@ void LSFactory::regrid(const BoxArray & ba, const DistributionMapping & dm)
 
 
 void LSFactory::invert() {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi( * ls_grid, true); mfi.isValid(); ++ mfi){
@@ -552,7 +552,7 @@ std::unique_ptr<iMultiFab> LSFactory::intersection_ebf(const EBFArrayBoxFactory 
     //                  onto the eb-facets
     //  -> eb_valid = 0 if eb_ls is the fall-back (euclidian) distance to the
     //                  nearest eb-facet
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(eb_ls, true); mfi.isValid(); ++mfi){
@@ -598,7 +598,7 @@ std::unique_ptr<iMultiFab> LSFactory::intersection_ebf(const EBFArrayBoxFactory 
             )
         );
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(eb_ls); mfi.isValid(); ++mfi){
@@ -656,7 +656,7 @@ std::unique_ptr<iMultiFab> LSFactory::union_ebf(const EBFArrayBoxFactory & eb_fa
     //                  onto the eb-facets
     //  -> eb_valid = 0 if eb_ls is the fall-back (euclidian) distance to the
     //                  nearest eb-facet
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(eb_ls, true); mfi.isValid(); ++mfi){
@@ -704,7 +704,7 @@ std::unique_ptr<iMultiFab> LSFactory::union_ebf(const EBFArrayBoxFactory & eb_fa
         );
 
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(eb_ls); mfi.isValid(); ++mfi){
@@ -751,7 +751,7 @@ std::unique_ptr<iMultiFab> LSFactory::intersection_impfunc(const MultiFab & mf_i
     //      -- implicit_function(r) < 0 : r in fluid (outside of EB)
     //      -- implicit_function(r) > 0 : r not in fluid (inside EB)
     //   => If implicit_function is a signed-distance function, we need to invert sign
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(* cp_impfunc, true); mfi.isValid(); ++ mfi){
@@ -783,7 +783,7 @@ std::unique_ptr<iMultiFab> LSFactory::union_impfunc(const MultiFab & mf_impfunc)
     //      -- implicit_function(r) < 0 : r in fluid (outside of EB)
     //      -- implicit_function(r) > 0 : r not in fluid (inside EB)
     //   => If implicit_function is a signed-distance function, we need to invert sign
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for(MFIter mfi(* cp_impfunc, true); mfi.isValid(); ++ mfi){

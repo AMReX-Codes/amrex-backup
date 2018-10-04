@@ -66,7 +66,7 @@ ABecLaplacian::norm (int nm, int level, const bool local)
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:res)
 #endif
     {
@@ -339,7 +339,7 @@ ABecLaplacian::compFlux (AMREX_D_DECL(MultiFab &xflux, MultiFab &yflux, MultiFab
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter inmfi(in,tiling); inmfi.isValid(); ++inmfi)
@@ -438,7 +438,7 @@ ABecLaplacian::Fsmooth (MultiFab&       solnL,
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter solnLmfi(solnL,tiling); solnLmfi.isValid(); ++solnLmfi)
@@ -552,7 +552,7 @@ ABecLaplacian::Fsmooth_jacobi (MultiFab&       solnL,
     //const int nc = solnL.nComp(); // FIXME: This LinOp only really supports single-component
     const int nc = 1;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter solnLmfi(solnL); solnLmfi.isValid(); ++solnLmfi)
@@ -662,7 +662,7 @@ ABecLaplacian::Fapply (MultiFab&       y,
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter ymfi(y,tiling); ymfi.isValid(); ++ymfi)

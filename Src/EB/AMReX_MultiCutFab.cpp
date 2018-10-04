@@ -2,7 +2,7 @@
 #include <AMReX_MultiCutFab.H>
 #include <AMReX_MultiFab.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -96,7 +96,7 @@ MultiCutFab::ok (const MFIter& mfi) const
 void
 MultiCutFab::setVal (Real val)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(m_data); mfi.isValid(); ++mfi)
@@ -117,7 +117,7 @@ MultiFab
 MultiCutFab::ToMultiFab (Real regular_value, Real covered_value) const
 {
     MultiFab mf(boxArray(), DistributionMap(), nComp(), nGrow());
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf); mfi.isValid(); ++mfi)

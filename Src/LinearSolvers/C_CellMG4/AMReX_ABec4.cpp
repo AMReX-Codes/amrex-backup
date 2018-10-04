@@ -108,7 +108,7 @@ ABec4::applyBC (MultiFab&     inout,
     const bool cross = false;
     inout.FillBoundary(src_comp,num_comp,geomarray[level].periodicity(),cross);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(inout); mfi.isValid(); ++mfi)
@@ -167,7 +167,7 @@ ABec4::applyBC (MultiFab&     inout,
   // blocking. 
     inout.EnforcePeriodicity(geomarray[level].periodicity());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(inout); mfi.isValid(); ++mfi) {
@@ -191,7 +191,7 @@ ABec4::ca2cc(const MultiFab& ca, MultiFab& cc,
 {
   const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(ca,tiling); mfi.isValid(); ++mfi) {
@@ -210,7 +210,7 @@ void
 ABec4::cc2ca(const MultiFab& cc, MultiFab& ca,
              int sComp, int dComp, int nComp)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(ca,true); mfi.isValid(); ++mfi) {
@@ -229,7 +229,7 @@ void
 ABec4::lo_cc2ec(const MultiFab& cc, MultiFab& ec,
                 int sComp, int dComp, int nComp, int dir, bool do_harm)
 {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
   for (MFIter mfi(ec,true); mfi.isValid(); ++mfi) {
@@ -417,7 +417,7 @@ ABec4::compFlux (AMREX_D_DECL(MultiFab &xflux, MultiFab &yflux, MultiFab &zflux)
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter inmfi(in,tiling); inmfi.isValid(); ++inmfi)
@@ -546,7 +546,7 @@ ABec4::Fapply (MultiFab&       y,
 
     const bool tiling = true;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter ymfi(y,tiling); ymfi.isValid(); ++ymfi)

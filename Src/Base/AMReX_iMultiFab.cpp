@@ -31,7 +31,7 @@ iMultiFab::Add (iMultiFab&       dst,
     BL_ASSERT(dst.distributionMap == src.distributionMap);
     BL_ASSERT(dst.nGrow() >= nghost && src.nGrow() >= nghost);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst,true); mfi.isValid(); ++mfi)
@@ -55,7 +55,7 @@ iMultiFab::Copy (iMultiFab&       dst,
     BL_ASSERT(dst.distributionMap == src.distributionMap);
     BL_ASSERT(dst.nGrow() >= nghost && src.nGrow() >= nghost);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst,true); mfi.isValid(); ++mfi)
@@ -79,7 +79,7 @@ iMultiFab::Subtract (iMultiFab&       dst,
     BL_ASSERT(dst.distributionMap == src.distributionMap);
     BL_ASSERT(dst.nGrow() >= nghost && src.nGrow() >= nghost);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst,true); mfi.isValid(); ++mfi)
@@ -103,7 +103,7 @@ iMultiFab::Multiply (iMultiFab&       dst,
     BL_ASSERT(dst.distributionMap == src.distributionMap);
     BL_ASSERT(dst.nGrow() >= nghost && src.nGrow() >= nghost);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst,true); mfi.isValid(); ++mfi)
@@ -127,7 +127,7 @@ iMultiFab::Divide (iMultiFab&       dst,
     BL_ASSERT(dst.distributionMap == src.distributionMap);
     BL_ASSERT(dst.nGrow() >= nghost && src.nGrow() >= nghost);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(dst,true); mfi.isValid(); ++mfi)
@@ -284,7 +284,7 @@ iMultiFab::min (int comp,
 
     int mn = std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(min:mn)
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -309,7 +309,7 @@ iMultiFab::min (const Box& region,
 
     int mn = std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(min:mn)
 #endif
     for ( MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -335,7 +335,7 @@ iMultiFab::max (int comp,
 
     int mx = -std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:mx)
 #endif
     for ( MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -359,7 +359,7 @@ iMultiFab::max (const Box& region,
 
     int mx = -std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:mx)
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -386,7 +386,7 @@ iMultiFab::minIndex (int comp,
 
     int mn = std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -405,7 +405,7 @@ iMultiFab::minIndex (int comp,
 	    }
 	}
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp critical (imultifab_minindex)
 #endif
 	{
@@ -471,7 +471,7 @@ iMultiFab::maxIndex (int comp,
 
     int mx = -std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -490,7 +490,7 @@ iMultiFab::maxIndex (int comp,
 	    }
 	}
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp critical (imultifab_maxindex)
 #endif
 	{
@@ -551,7 +551,7 @@ iMultiFab::norm0 (int comp, const BoxArray& ba, int nghost, bool local) const
 {
     int nm0 = -std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:nm0)
 #endif
     {
@@ -579,7 +579,7 @@ iMultiFab::norm0 (int comp, int nghost, bool local) const
 {
     int nm0 = -std::numeric_limits<int>::max();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(max:nm0)
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -598,7 +598,7 @@ iMultiFab::norm2 (int comp) const
 {
     int nm2 = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:nm2)
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -620,7 +620,7 @@ iMultiFab::norm1 (int comp, int ngrow, bool local) const
 {
     int nm1 = 0.e0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel reduction(+:nm1)
 #endif
     for (MFIter mfi(*this); mfi.isValid(); ++mfi)
@@ -647,7 +647,7 @@ iMultiFab::minus (const iMultiFab& mf,
     BL_ASSERT(strt_comp + num_comp - 1 < n_comp && strt_comp + num_comp - 1 < mf.n_comp);
     BL_ASSERT(nghost <= n_grow.min() && nghost <= mf.n_grow.min());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -670,7 +670,7 @@ iMultiFab::divide (const iMultiFab& mf,
     BL_ASSERT(strt_comp + num_comp - 1 < n_comp && strt_comp + num_comp - 1 < mf.n_comp);
     BL_ASSERT(nghost <= n_grow.min() && nghost <= mf.n_grow.min());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -691,7 +691,7 @@ iMultiFab::plus (int val,
     BL_ASSERT(comp+num_comp <= n_comp);
     BL_ASSERT(num_comp > 0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -711,7 +711,7 @@ iMultiFab::plus (int       val,
     BL_ASSERT(comp+num_comp <= n_comp);
     BL_ASSERT(num_comp > 0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -735,7 +735,7 @@ iMultiFab::plus (const iMultiFab& mf,
     BL_ASSERT(strt_comp + num_comp - 1 < n_comp && strt_comp + num_comp - 1 < mf.n_comp);
     BL_ASSERT(nghost <= n_grow.min() && nghost <= mf.n_grow.min());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -756,7 +756,7 @@ iMultiFab::mult (int val,
     BL_ASSERT(comp+num_comp <= n_comp);
     BL_ASSERT(num_comp > 0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -776,7 +776,7 @@ iMultiFab::mult (int       val,
     BL_ASSERT(comp+num_comp <= n_comp);
     BL_ASSERT(num_comp > 0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -796,7 +796,7 @@ iMultiFab::negate (int comp,
     BL_ASSERT(nghost >= 0 && nghost <= n_grow.min());
     BL_ASSERT(comp+num_comp <= n_comp);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)
@@ -814,7 +814,7 @@ iMultiFab::negate (const Box& region,
     BL_ASSERT(nghost >= 0 && nghost <= n_grow.min());
     BL_ASSERT(comp+num_comp <= n_comp);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(*this,true); mfi.isValid(); ++mfi)

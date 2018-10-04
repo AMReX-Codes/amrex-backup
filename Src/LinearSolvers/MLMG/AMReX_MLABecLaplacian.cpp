@@ -227,7 +227,7 @@ MLABecLaplacian::Fapply (int amrlev, int mglev, MultiFab& out, const MultiFab& i
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(out, true); mfi.isValid(); ++mfi)
@@ -264,7 +264,7 @@ MLABecLaplacian::normalize (int amrlev, int mglev, MultiFab& mf) const
 
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(mf, true); mfi.isValid(); ++mfi)
@@ -326,7 +326,7 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
     const int nc = 1;
     const Real* h = m_geom[amrlev][mglev].CellSize();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (MFIter mfi(sol,MFItInfo().EnableTiling().SetDynamic(true));

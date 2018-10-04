@@ -2,7 +2,7 @@
 #include <AMReX_YAFluxRegister.H>
 #include <AMReX_YAFluxRegister_F.H>
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #include <omp.h>
 #endif
 
@@ -48,7 +48,7 @@ YAFluxRegister::define (const BoxArray& fba, const BoxArray& cba,
 
     m_crse_fab_flag.resize(m_crse_flag.local_size(), crse_cell);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     {
@@ -95,7 +95,7 @@ YAFluxRegister::define (const BoxArray& fba, const BoxArray& cba,
     const int myproc = ParallelDescriptor::MyProc();
     const int n_cfba = cfba.size();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
     
     const int nthreads = omp_get_max_threads();
     Vector<BoxList> bl_priv(nthreads, BoxList());
@@ -194,7 +194,7 @@ YAFluxRegister::define (const BoxArray& fba, const BoxArray& cba,
 
         const Box& domainbox = m_crse_geom.Domain();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -332,7 +332,7 @@ YAFluxRegister::Reflux (MultiFab& state, int dc)
 {
     if (!m_cfp_mask.empty())
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(m_cfpatch); mfi.isValid(); ++mfi)

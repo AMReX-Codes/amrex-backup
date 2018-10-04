@@ -991,7 +991,7 @@ FillPatchIterator::Initialize (int  boxGrow,
 						  desc.interp(SComp));
 	
 #if defined(AMREX_CRSEGRNDOMP) || (!defined(AMREX_XSDK) && defined(CRSEGRNDOMP))
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 #endif
@@ -1510,7 +1510,7 @@ AmrLevel::FillCoarsePatch (MultiFab& mf,
 	    FillPatch(clev,crseMF,0,time,idx,SComp,NComp,0);
 	}
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(mf); mfi.isValid(); ++mfi)
@@ -1586,7 +1586,7 @@ AmrLevel::derive (const std::string& name,
         mf.reset(new MultiFab(dstBA, dmap, rec->numDerive(), ngrow, MFInfo(), *m_factory));
 
 #if defined(AMREX_CRSEGRNDOMP) || (!defined(AMREX_XSDK) && defined(CRSEGRNDOMP))
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(*mf,true); mfi.isValid(); ++mfi)
@@ -1722,7 +1722,7 @@ AmrLevel::derive (const std::string& name,
         }
 
 #if defined(AMREX_CRSEGRNDOMP) || (!defined(AMREX_XSDK) && defined(CRSEGRNDOMP))
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)

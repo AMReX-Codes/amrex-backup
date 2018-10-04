@@ -1055,7 +1055,7 @@ namespace amrex {
 		    bool cc = fpIter->m_fpc->ba_crse_patch.ixType().cellCentered();
 
 		    //std::cout << "Check CC : " << cc << std::endl;
-		    //#ifdef _OPENMP
+		    //#ifdef AMREX_USE_OMP
 		    //#pragma omp parallel if (cc)
 		    //#endif
 

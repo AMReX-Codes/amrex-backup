@@ -58,7 +58,7 @@ namespace amrex
 {
     void average_node_to_cellcenter (MultiFab& cc, int dcomp, const MultiFab& nd, int scomp, int ncomp)
     {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc,true); mfi.isValid(); ++mfi) 
@@ -75,7 +75,7 @@ namespace amrex
 	AMREX_ASSERT(cc.nComp() >= dcomp + AMREX_SPACEDIM);
 	AMREX_ASSERT(edge.size() == AMREX_SPACEDIM);
 	AMREX_ASSERT(edge[0]->nComp() == 1);
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc,true); mfi.isValid(); ++mfi) 
@@ -117,7 +117,7 @@ namespace amrex
 	Real problo[3] = {0.,0.,0.};
 	int coord_type = 0;
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc,true); mfi.isValid(); ++mfi) 
@@ -145,7 +145,7 @@ namespace amrex
 	const Real* problo = geom.ProbLo();
 	int coord_type = Geometry::Coord();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc,true); mfi.isValid(); ++mfi) 
@@ -181,7 +181,7 @@ namespace amrex
 	const Real* problo = geom.ProbLo();
 	int coord_type = Geometry::Coord();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
 	for (MFIter mfi(cc,true); mfi.isValid(); ++mfi) 
@@ -252,7 +252,7 @@ namespace amrex
 	MultiFab fvolume;
 	fgeom.GetVolume(fvolume, fine_BA, fine_dm, 0);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(crse_S_fine,true); mfi.isValid(); ++mfi)
@@ -303,7 +303,7 @@ namespace amrex
 
         MultiFab crse_S_fine(crse_S_fine_BA, S_fine.DistributionMap(), ncomp, nGrow, MFInfo(), FArrayBoxFactory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(crse_S_fine, true); mfi.isValid(); ++mfi)
@@ -338,7 +338,7 @@ namespace amrex
         
         if (crse_S_fine_BA == S_crse.boxArray() and S_fine.DistributionMap() == S_crse.DistributionMap())
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(S_crse,true); mfi.isValid(); ++mfi)
@@ -365,7 +365,7 @@ namespace amrex
         {
             MultiFab crse_S_fine(crse_S_fine_BA, S_fine.DistributionMap(), ncomp, 0, MFInfo(), FArrayBoxFactory());
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (MFIter mfi(crse_S_fine,true); mfi.isValid(); ++mfi)
@@ -433,7 +433,7 @@ namespace amrex
 
         if (isMFIterSafe(*fine[0], *crse[0]))
         {
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
             for (int n=0; n<AMREX_SPACEDIM; ++n) {
@@ -477,7 +477,7 @@ namespace amrex
 
 	int ncomp = crse[0]->nComp();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (int n=0; n<AMREX_SPACEDIM; ++n) {
@@ -504,7 +504,7 @@ namespace amrex
 
 	int ncomp = crse.nComp();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(crse,true); mfi.isValid(); ++mfi)
@@ -524,7 +524,7 @@ namespace amrex
     {
 
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
       for (MFIter mfi(mf); mfi.isValid(); ++mfi)
@@ -567,7 +567,7 @@ namespace amrex
                     MFInfo(), FArrayBoxFactory());
 
         const int ncomp = imf.nComp();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(mf,true); mfi.isValid(); ++mfi)
@@ -596,7 +596,7 @@ namespace amrex
         std::unique_ptr<MultiFab> slice = allocateSlice(dir, cc, ncomp, geom, coord, slice_to_full_ba_map);
         
         int nf = cc.nComp();        
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(*slice, true); mfi.isValid(); ++mfi) {
@@ -630,7 +630,7 @@ namespace amrex
         iMultiFab mask(cmf.boxArray(), cmf.DistributionMap(), 1, 0);
         const BoxArray& cfba = amrex::coarsen(fba,ratio);
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         {
@@ -656,7 +656,7 @@ namespace amrex
                             const Geometry& geom)
     {
         const Real* dxinv = geom.InvCellSize();
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
         for (MFIter mfi(divu,true); mfi.isValid(); ++mfi)

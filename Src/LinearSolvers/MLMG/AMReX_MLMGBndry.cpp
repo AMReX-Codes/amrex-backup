@@ -21,7 +21,7 @@ MLMGBndry::setLOBndryConds (const Array<LinOpBCType,AMREX_SPACEDIM>& lo,
     const Real*     dx     = geom.CellSize();
     const Box&      domain = geom.Domain();
 
-#ifdef _OPENMP
+#ifdef AMREX_USE_OMP
 #pragma omp parallel
 #endif
     for (FabSetIter fsi(bndry[Orientation(0,Orientation::low)]); fsi.isValid(); ++fsi)
