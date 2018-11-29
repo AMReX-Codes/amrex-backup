@@ -1,7 +1,66 @@
 #include "AMReX_SDCstruct.H"
 
 
+SDCstruct::SDCstruct(){
+  //  Empty constructor
+};
+
 SDCstruct::SDCstruct(int Nnodes_in,int Npieces_in, MultiFab& sol_in)
+{
+  
+  Nnodes=Nnodes_in;
+  Npieces=Npieces_in;       
+  
+  qnodes= new Real[Nnodes];
+  Qall= new Real[4*(Nnodes-1)*Nnodes];  
+  Nflags= new int[Nnodes];
+
+  Qgauss.resize(Nnodes-1, Vector<Real>(Nnodes));
+  Qexp.resize(Nnodes-1, Vector<Real>(Nnodes));
+  Qimp.resize(Nnodes-1, Vector<Real>(Nnodes));
+  QLU.resize(Nnodes-1, Vector<Real>(Nnodes));  
+
+  //  Make the quadrature tables
+  SDC_quadrature(&qtype, &Nnodes, &Nnodes,qnodes,Nflags, &Qall[0]);  
+
+  //  Load the quadrature nodes into their spots
+  for ( int j = 0; j < Nnodes-1; ++j)
+    for ( int k = 0; k < Nnodes; ++k)
+      {
+	Qgauss[j][k]=  Qall[0*(Nnodes-1)*(Nnodes) +j*(Nnodes) + k ];
+	Qexp[j][k]=    Qall[1*(Nnodes-1)*(Nnodes) +j*(Nnodes) + k ];
+	Qimp[j][k]=    Qall[2*(Nnodes-1)*(Nnodes) +j*(Nnodes) + k ];
+	QLU[j][k]=     Qall[3*(Nnodes-1)*(Nnodes) +j*(Nnodes) + k ];			
+      }
+
+  //  Resize the storage
+  sol.resize(Nnodes);
+  res.resize(Nnodes);
+  f.resize(Npieces);
+  if (Npieces == 3) 
+    Ithree.resize(Nnodes);
+
+  //  Assign  geomety and multifab info
+  const BoxArray &ba=sol_in.boxArray();
+  const DistributionMapping &dm=sol_in.DistributionMap();
+  const int Nghost=sol_in.nGrow();
+  const int Ncomp=sol_in.nComp();
+
+  for (auto& v : f) v.resize(Nnodes);  
+  for (int sdc_m = 0; sdc_m < Nnodes; sdc_m++)
+    {
+      sol[sdc_m].define(ba, dm, Ncomp, Nghost);
+      res[sdc_m].define(ba, dm, Ncomp, Nghost);
+      for (int i = 0; i < Npieces; i++)
+	{
+	  f[i][sdc_m].define(ba, dm, Ncomp, Nghost);
+	}
+      if (Npieces == 3)
+	Ithree[sdc_m].define(ba, dm, Ncomp, Nghost);      
+    }
+  
+}
+void SDCstruct::define(int Nnodes_in,int Npieces_in, MultiFab& sol_in)
 {
   
   Nnodes=Nnodes_in;

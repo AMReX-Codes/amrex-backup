@@ -37,8 +37,12 @@ class SDCstruct
    Vector<MultiFab> res;        // Temp storage
    Vector<MultiFab> Ithree;     // Integration piece for MISDC
 
+   // Constructs an empty SDCstruct
+   SDCstruct();
    //  Constructor
    SDCstruct(int Nnodes_in,int Npieces_in, MultiFab& sol_in);
+   //  Constructor
+   void define(int Nnodes_in,int Npieces_in, MultiFab& sol_in);
 
    //  Sweeper routines
    void SDC_rhs_integrals(Real dt);
