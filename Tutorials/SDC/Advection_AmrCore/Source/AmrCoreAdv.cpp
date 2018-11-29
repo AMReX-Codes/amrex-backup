@@ -42,7 +42,8 @@ AmrCoreAdv::AmrCoreAdv ()
 
     phi_new.resize(nlevs_max);
     phi_old.resize(nlevs_max);
-
+    SDCmats.resize(nlevs_max);
+    
     // periodic boundaries
     int bc_lo[] = {BCType::int_dir, BCType::int_dir, BCType::int_dir};
     int bc_hi[] = {BCType::int_dir, BCType::int_dir, BCType::int_dir};
@@ -178,7 +179,7 @@ AmrCoreAdv::MakeNewLevelFromCoarse (int lev, Real time, const BoxArray& ba,
     
     phi_new[lev].define(ba, dm, ncomp, nghost);
     phi_old[lev].define(ba, dm, ncomp, nghost);
-
+    SDCmats[lev].define(Nnodes[lev],Npieces,phi_old[lev]);
     t_new[lev] = time;
     t_old[lev] = time - 1.e200;
 
@@ -353,13 +354,18 @@ AmrCoreAdv::ReadParameters ()
 	pp.query("chk_file", chk_file);
 	pp.query("chk_int", chk_int);
         pp.query("restart",restart_chkfile);
-    }
+   }
 
     {
 	ParmParse pp("adv");
 	
 	pp.query("cfl", cfl);
         pp.query("do_reflux", do_reflux);
+    }
+    {
+	ParmParse pp("sdc");
+	pp.getarr("Nnodes",Nnodes);
+	pp.get("Npieces",Npieces);
     }
 }
 
@@ -571,10 +577,12 @@ AmrCoreAdv::Advance (int lev, Real time, Real dt_lev, int iteration, int ncycle)
     constexpr int num_grow = 3;
 
     std::swap(phi_old[lev], phi_new[lev]);
+    std::swap(phi_old[lev], SDCmats[lev].sol[0]);    
     t_old[lev] = t_new[lev];
     t_new[lev] += dt_lev;
 
-    MultiFab& S_new = phi_new[lev];
+    //    MultiFab& S_new = phi_new[lev];
+    MultiFab& S_new = SDCmats[lev].sol[0];
 
     const Real old_time = t_old[lev];
     const Real new_time = t_new[lev];

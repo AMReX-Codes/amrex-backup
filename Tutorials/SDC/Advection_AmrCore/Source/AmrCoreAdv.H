@@ -12,7 +12,7 @@
 #include <AMReX_AmrCore.H>
 #include <AMReX_FluxRegister.H>
 #include <AMReX_BCRec.H>
-
+#include <AMReX_SDCstruct.H>
 using namespace amrex;
 
 class AmrCoreAdv
@@ -139,6 +139,11 @@ private:
     amrex::Vector<amrex::MultiFab> phi_new;
     amrex::Vector<amrex::MultiFab> phi_old;
 
+    //  SDC stuff
+    amrex::Vector<SDCstruct> SDCmats;
+    amrex::Vector<int> Nnodes;
+    int Npieces;
+  
     // this is essentially a 2*DIM integer array storing the physical boundary
     // condition types at the lo/hi walls in each direction
     BCRec bcs;
