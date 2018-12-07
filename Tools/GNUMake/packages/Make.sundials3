@@ -20,6 +20,14 @@ INCLUDE_LOCATIONS += $(CVODE_LIB_DIR)/../include
 
 ifeq ($(USE_CVODE_LIBS),TRUE)
 LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_cvode
+
+ifeq ($(USE_KLU), TRUE)
+    LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_sunmatrixsparse
+    LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_sunlinsolklu
+    LIBRARIES += -llapack
+    SUITESPARSE_LIB_DIR := /home/amfelden/CODES/SuiteSparse/lib
+    LIBRARIES += -L$(SUITESPARSE_LIB_DIR) -lklu -lamd -lcolamd -lbtf -lsuitesparseconfig
+endif
 endif
 
 ifeq ($(USE_ARKODE_LIBS),TRUE)

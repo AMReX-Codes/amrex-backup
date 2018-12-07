@@ -4,11 +4,16 @@ f90EXE_sources += farkode.f90
 endif
 
 ifeq ($(USE_CVODE_LIBS), TRUE)
-f90EXE_sources += cvode_interface.f90
-f90EXE_sources += fcvode.f90
+    f90EXE_sources += cvode_interface.f90
+    f90EXE_sources += fcvode.f90
+    f90EXE_sources += fnvector_serial.f90
+    f90EXE_sources += fnvector_serial_fprefix.f90
+    f90EXE_sources += fsunlinsol_dense.f90
+    f90EXE_sources += fsunmat_dense.f90
+    f90EXE_sources += fsunlinsol_spgmr.f90
+    ifeq ($(USE_KLU), TRUE)
+        f90EXE_sources += fsunlinsol_klu.f90
+        f90EXE_sources += fsunmat_sparse.f90
+    endif
 endif
 
-f90EXE_sources += fnvector_serial.f90
-f90EXE_sources += fnvector_serial_fprefix.f90
-f90EXE_sources += fsunlinsol_dense.f90
-f90EXE_sources += fsunmat_dense.f90
