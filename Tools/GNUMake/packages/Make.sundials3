@@ -2,6 +2,7 @@
 
 USE_CVODE_LIBS ?= TRUE
 CPPFLAGS += -DAMREX_USE_SUNDIALS_3x4x
+DEFINES += -DUSE_SUNDIALS3x4x
 
 ifeq ($(lowercase_comp),pgi)
     USE_FORT_ODE = FALSE
