@@ -131,7 +131,9 @@ AMReX provides a number of memory pools.
    void free (void* p);
 
 ``The_Arena()`` is used for memory allocation of data in ``BaseFab``.
-Therefore the data in a ``MultiFab`` are in unified memory.
+Therefore the data in a ``MultiFab`` are in unified memory and they
+are accessible from both CPU host and GPU device.  This allows
+application codes to develop their GPU capability gradually.
 ``The_Managed_Arena()`` is also a memory pool of unified memory, but
 it is separated from ``The_Arena()`` for performance reason.  If you
 want to print out the current memory usage by the arenas, you can call
@@ -148,17 +150,106 @@ AMReX uses ``MFIter`` to iterate over a ``MultiFab``.  Inside the
 loop, we call functions to work on ``FArrayBox`` objects
 (see :ref:`sec:basics:mfiter`).  With GPU, we launch kernels inside
 ``MFIter`` loop.  A tutorial example can be found in
-``Tutorials/GPU/Launch``.  The kernel launch part is shown below.
+``Tutorials/GPU/Launch``.  The part launching a CUDA C++ kernel is
+shown below. 
 
+.. highlight:: c++
 
+::
 
-streams and mfiter
+    for (MFIter mfi(mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        FArrayBox* fab = mf.fabPtr(mfi);
+        AMREX_LAUNCH_DEVICE_LAMBDA ( bx, tbx,
+        {
+            plusone_cudacpp(tbx, *fab);
+        });
+    }
 
-inLaunchRegion
+The code above works whether it is compiled for GPU or CPU.  We use
+``TilingIfNotGPU()`` that returns ``false`` in the case of GPU to turn
+off tiling so that GPU kernels have more works.  When tiling is off,
+``tilebox()`` returns the valid box of the ``FArrayBox`` for that
+iteration.  ``MultiFab::fabPtr`` function takes ``MFIter`` and returns
+a managed pointer that is subsequently captured by an extended C++
+lambda function produced by the ``AMREX_LAUNCH_DEVICE_LAMBDA`` macro.
+The launch macro usually takes three arguments.  In this example, the
+first argument is a ``Box`` specifying the whole region of the kernel.
+The second argument is a ``Box`` variable that specifies the region a
+thread works on.  Note that the second argument is the name of a local
+variable to the thread defined by the macro, not an existing variable.
+The third argument is a block of codes delimited by a pair of curly
+braces.  In that block, we call a GPU device function
+``plusone_cudacpp`` with captured variable ``fab``.  In CUDA, an
+extended lambda function can only capture by value, not reference.
+That's why we capture a pointer to ``FArrayBox``.
 
-macro, cuda fortran and openacc
+We can also call CUDA Fortran device functions in the code block for
+the launch macro like below.
 
-refer back to Basic for calling C++ functions on FArrayBox
+.. highlight:: c++
+
+::
+
+    for (MFIter mfi(mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        FArrayBox* fab = mf.fabPtr(mfi);
+        AMREX_LAUNCH_DEVICE_LAMBDA ( bx, tbx,
+        {
+            plusone_cudafort(BL_TO_FORTRAN_BOX(tbx),
+                             BL_TO_FORTRAN_ANYD(*fab));
+        });
+    }
+
+Because ``Box`` and ``FArrayBox`` are C++ classes not understood by
+Fortran, we use some helper macros to pass them as Fortran data types
+(see :ref:`sec:basics:fortran`).
+
+The tutorial at ``Tutorials/GPU/Launch`` also shows an example of
+using OpenACC in Fortran.  We call a Fortran function and in that
+function we use OpenACC to offload work to GPU.
+
+.. highlight:: c++
+
+::
+
+    for (MFIter mfi(mf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
+    {
+        const Box& bx = mfi.tilebox();
+        FArrayBox& fab = mf[mfi];
+        plusone_acc(BL_TO_FORTRAN_BOX(tbx),
+                    BL_TO_FORTRAN_ANYD(fab));
+    }
+
+Note that here we use ``MultiFab::operator[]`` to get a reference to
+``FArrayBox`` as what we usually do for CPU codes, rather using
+``MultiFab::fabPtr`` to get a pointer for the CUDA examples we just
+showed above.  The reason for this is performance.  Function
+``plusone_acc`` is a CPU host function.  The reference we get from
+``operator[]`` is a reference to a ``FArrayBox`` in host memory even
+though its data pointer inside the object points to unified memory,
+whereas the pointer we get from ``fatPtr`` is a manged memory pointer.
+Because ``BL_TO_FORTRAN_ANYD`` in this case expands to the CPU version
+of some ``FArrayBox`` member functions (unlike GPU functions in the
+CUDA Fortran example above), having the metadata (i.e., ``Box``, the
+number of components and the data pointer itself) can minimize
+unnecessary data movement.  Since the data pointer passed to
+``plusone_acc`` as Fortran array by the ``BL_TO_FORTRAN_AND`` macro
+points to unified memory, we can take advantage of that by declaring
+it as OpenACC ``deviceptr``.
+
+See the source codes in ``Tutorials/GPU/Launch/`` for more details on
+the kernels.
+
+.. streams and mfiter
+
+.. inLaunchRegion
+
+.. macro, cuda fortran and openacc
+
+.. refer back to Basic for calling C++ functions on FArrayBox
 
 .. ===================================================================
 
@@ -174,7 +265,7 @@ GPU Safe Classes
 Assertion and Error Check
 =========================
 
-AMREX_GPU_SAFE_CALL(), AMREX_GPU_ERROR_CHECK();
+.. AMREX_GPU_SAFE_CALL(), AMREX_GPU_ERROR_CHECK();
 
 .. ===================================================================
 
@@ -201,8 +292,8 @@ CUDA Aware MPI
 
 .. _sec:gpu:limits:
 
-Limitations
-===========
+Pitfalls and Limitations
+========================
 
-At most one gpu per mpi rank.  OpenMP, AMR development are underway
-cmake and build as library
+.. At most one gpu per mpi rank.  OpenMP, AMR development are underway
+.. cmake and build as library
