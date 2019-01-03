@@ -3,6 +3,7 @@
 
 #include <AMReX_AmrLevel.H>
 #include <AMReX_FluxRegister.H>
+#include <AMReX_LayoutData.H>
 
 using namespace amrex;
 class CNS
@@ -35,7 +36,6 @@ public:
                             bool               dump_old = true) override;
 
     virtual std::string thePlotFileType () const override {
-//        return {"CartGrid-V2.0"};
         return {"HyperCLaw-V1.1"};
     }
 
@@ -156,6 +156,8 @@ protected:
 
     static int refine_max_dengrad_lev;
     static amrex::Real refine_dengrad;
+
+    static amrex::Real gravity;
 };
 
 void cns_bcfill (amrex::Box const& bx, amrex::FArrayBox& data,

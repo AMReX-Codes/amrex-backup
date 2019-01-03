@@ -46,7 +46,8 @@ public:
     virtual ~LSCoreBase ();
 
     // Initializes multilevel data
-    void InitData ();
+    void InitData (bool a_use_phierr = false);
+    void InitData (const Vector<Real> & m_phierr);
 
     // Make a new level using provided BoxArray and DistributionMapping and fill
     // with interpolated coarse level data. Overrides the pure virtual function
@@ -67,21 +68,35 @@ public:
     virtual void MakeNewLevelFromScratch (int lev, Real time, const BoxArray & ba,
                                           const DistributionMapping & dm) override = 0;
 
+    void UpdateGrids (int lev, const BoxArray & ba, const DistributionMapping & dm);
+
+
     // Tag all cells for refinement. Overrides the pure virtual function in
     // AmrCore
     virtual void ErrorEst (int lev, amrex::TagBoxArray& tags, amrex::Real time, int ngrow) override;
 
     // Write plotfile to disk
-    void WritePlotFile ();
+    void WritePlotFile () const;
 
     // Write checkpoint file to disk
     void WriteCheckpointFile () const;
+
+    const MultiFab * getLevelSet(int n) const {return & level_set[n];}
+    const iMultiFab * getValid(int n) const {return & level_set_valid[n];}
 
 protected:
 
     /****************************************************************************
      * protected member functions                                               *
      ***************************************************************************/
+
+    void Init ();
+
+    // Load tag levels from inputs database
+    void LoadTagLevels ();
+
+    // Set tag levels
+    void SetTagLevels (const Vector<Real> & phierr);
 
     // Read in some parameters from inputs file
     void ReadParameters ();
@@ -103,13 +118,14 @@ protected:
 
     // Construct a box over which to search for eb facets using the coarser
     // level to inform how many ghost cells to fill
-    Box EBSearchBox(const FArrayBox & ls_crse, const Geometry & geom_fine, bool & bail);
+    Box EBSearchBox(const Box & box, const FArrayBox & ls_crse,
+                    const Geometry & geom_fine, bool & bail);
 
     // Get plotfile name
     std::string PlotFileName (int lev) const;
 
     // Put together an array of multifabs for writing
-    Vector<const MultiFab *> PlotFileMF ();
+    Vector<MultiFab> PlotFileMF () const;
 
     // Set plotfile variables names
     Vector<std::string> PlotFileVarNames () const;
@@ -133,13 +149,12 @@ protected:
     Vector<const EB2::Level *>         eb_levels;
     Vector<std::unique_ptr<LSFactory>> ls_factory;
     // Apparently std::vector<bool> isn't a thing?! (more precisely it's a
-    // different thing)
+    // different thing) => use int vector
     Vector<int>                        rebuild_eb;
 
     // Level set data
     Vector<MultiFab>  level_set;
-    // Cell-centered level set data:
-    Vector<MultiFab>  level_set_cc;
+    Vector<iMultiFab> level_set_valid;
 
     // Resolve EB up to this many ghost cells (NOTE: these are scaled based on
     // local refinement level)
@@ -149,8 +164,9 @@ protected:
     // condition types at the lo/hi walls in each direction
     Vector<BCRec> bcs; // 1-component
 
-    amrex::Vector<int> istep;      // which step?
-
+    bool use_phierr = false;
+    bool phierr_set = false;
+    Vector<Real> phierr;
 
     /****************************************************************************
      * runtime parameters                                                       *

@@ -997,7 +997,7 @@ FillPatchIterator::Initialize (int  boxGrow,
 #endif
 		for (MFIter mfi(m_fabs); mfi.isValid(); ++mfi)
 		{
-		    fph->fill(m_fabs[mfi],DComp,mfi.index());
+		    fph->fill(*m_fabs.fabPtr(mfi),DComp,mfi.index());
 		}
 		
 		delete fph;
@@ -1543,9 +1543,11 @@ AmrLevel::FillCoarsePatch (MultiFab& mf,
 	    
 	    amrex::setBC(dbx,pdomain,SComp,0,NComp,desc.getBCs(),bcr);
 	    
-	    mapper->interp(crseMF[mfi],
+            FArrayBox const* crsefab = crseMF.fabPtr(mfi);
+            FArrayBox* finefab = mf.fabPtr(mfi);
+	    mapper->interp(*crsefab,
 			   0,
-			   mf[mfi],
+			   *finefab,
 			   DComp,
 			   NComp,
 			   dbx,
@@ -2199,7 +2201,7 @@ AmrLevel::CreateLevelDirectory (const std::string &dir)
             //MultiFab * dmf;
             int destcomp;
             bool sameba;
-            if (false && mf.boxArray() == smf[0]->boxArray())
+            if (mf.boxArray() == smf[0]->boxArray())
               {
                 //dmf = &mf;
                 destcomp = dcomp;
@@ -2343,22 +2345,19 @@ AmrLevel::CreateLevelDirectory (const std::string &dir)
         {
           //mf.copy(smf[0], scomp, dcomp, ncomp, 0, mf.nGrow(), geom.periodicity());      
           Perilla::multifabCopyPull( destGraph, srcGraph, &mf, smf[0], f, dcomp, scomp, ncomp, mf.nGrow(), 0, singleT);
-
         }
         else if (smf.size() == 2)
-          {
-
+        {
             BL_ASSERT(smf[0]->boxArray() == smf[1]->boxArray());
             //Vector<MultiFab> raii(PArrayManage);
             MultiFab * dmf;
             int destcomp;
             bool sameba;
-            if (false && mf.boxArray() == smf[0]->boxArray()) {
+            if (mf.boxArray() == smf[0]->boxArray()) {
               dmf = &mf;
               destcomp = dcomp;
               sameba = true;
             } else {
-
               //dmf = srcGraph->assocMF;              
               destcomp = 0;
               sameba = false;
@@ -2368,26 +2367,20 @@ AmrLevel::CreateLevelDirectory (const std::string &dir)
                 // Note that when sameba is true mf's BoxArray is nonoverlapping.
                 // So FillBoundary is safe.
                 //mf.FillBoundary(dcomp,ncomp,geom.periodicity());
-
-              Perilla::fillBoundaryPull(destGraph, dmf, f);
-
+              Perilla::fillBoundaryPull(destGraph, dmf, f, singleT);
             }
             else
             {
                 int src_ngrow = 0;
                 int dst_ngrow = mf.nGrow();
                 MultiFab* dummyMF;
-
                 //mf.copy(*dmf, 0, dcomp, ncomp, src_ngrow, dst_ngrow, geom.periodicity());
-
                 Perilla::multifabCopyPull( destGraph, srcGraph, &mf, dummyMF, f, dcomp, 0, ncomp, mf.nGrow(), 0, singleT);
-
             }
         }
         else {
             amrex::Abort("FillPatchSingleLevel: high-order interpolation in time not implemented yet");
         }
-
 #if 0
         physbcf.doit_fab(mf, f, dcomp, ncomp, time);
 #endif
@@ -3050,7 +3043,7 @@ FillPatchIterator::initFillPatch(int boxGrow, int time, int index, int scomp, in
                               //PArray<MultiFab> raii(PArrayManage);
                               //MultiFab * dmf;
 
-                              if (false && m_mf_crse_patch->boxArray() == smf_crse[0]->boxArray())
+                              if (m_mf_crse_patch->boxArray() == smf_crse[0]->boxArray())
                                 {
                                   //dmf = m_mf_crse_patch;
                                   m_rg_crse_patch = new RegionGraph(m_mf_crse_patch->IndexArray().size());
@@ -3161,7 +3154,7 @@ FillPatchIterator::initFillPatch(int boxGrow, int time, int index, int scomp, in
                   }
                   else if (smf_fine.size() == 2)
                   {
-                      if (false && m_fabs.boxArray() == smf_fine[0]->boxArray())
+                      if (m_fabs.boxArray() == smf_fine[0]->boxArray())
                       {
                           //dmf = &m_fabs;
                           destGraph = new RegionGraph(m_fabs.IndexArray().size());

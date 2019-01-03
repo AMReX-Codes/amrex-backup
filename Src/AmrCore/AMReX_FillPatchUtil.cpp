@@ -77,21 +77,21 @@ namespace amrex
 	    }
 
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-	    for (MFIter mfi(*dmf,true); mfi.isValid(); ++mfi)
+	    for (MFIter mfi(*dmf,TilingIfNotGPU()); mfi.isValid(); ++mfi)
 	    {
 		const Box& bx = mfi.tilebox();
-		(*dmf)[mfi].linInterp((*smf[0])[mfi],
-				      scomp,
-				      (*smf[1])[mfi],
-				      scomp,
-				      stime[0],
-				      stime[1],
-				      time,
-				      bx,
-				      destcomp,
-				      ncomp);
+                FArrayBox* dfab = dmf->fabPtr(mfi);
+                FArrayBox* sfab0 = smf[0]->fabPtr(mfi);
+                FArrayBox* sfab1 = smf[1]->fabPtr(mfi);
+                const Real t0 = stime[0];
+                const Real t1 = stime[1];
+
+                AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( bx, tbx,
+                {
+                    dfab->linInterp(*sfab0,scomp,*sfab1,scomp,t0,t1,time,tbx,destcomp,ncomp);
+                });
 	    }
 
 	    if (sameba)
@@ -119,10 +119,10 @@ namespace amrex
 			     const Vector<MultiFab*>& cmf, const Vector<Real>& ct,
 			     const Vector<MultiFab*>& fmf, const Vector<Real>& ft,
 			     int scomp, int dcomp, int ncomp,
-			     const Geometry& cgeom, const Geometry& fgeom, 
+			     const Geometry& cgeom, const Geometry& fgeom,
 			     PhysBCFunctBase& cbc, int cbccomp,
                              PhysBCFunctBase& fbc, int fbccomp,
-			     const IntVect& ratio, 
+			     const IntVect& ratio,
 			     Interpolater* mapper,
                              const Vector<BCRec>& bcs, int bcscomp,
                              const InterpHook& pre_interp,
@@ -163,7 +163,7 @@ namespace amrex
 		bool cc = fpc.ba_crse_patch.ixType().cellCentered();
                 ignore_unused(cc);
 #ifdef _OPENMP
-#pragma omp parallel if (cc)
+#pragma omp parallel if (cc && Gpu::notInLaunchRegion())
 #endif
                 {
                     Vector<BCRec> bcr(ncomp);
@@ -171,17 +171,19 @@ namespace amrex
                     {
                         FArrayBox& sfab = mf_crse_patch[mfi];
                         int li = mfi.LocalIndex();
-                        int gi = fpc.dst_idxs[li];	
+                        int gi = fpc.dst_idxs[li];
                         FArrayBox& dfab = mf[gi];
-                        const Box& dbx = fpc.dst_boxes[li];
-                        
+                        const Box& dbx = fpc.dst_boxes[li] & dfab.box();
+
                         amrex::setBC(dbx,fdomain,bcscomp,0,ncomp,bcs,bcr);
-                        
+
                         pre_interp(sfab, sfab.box(), 0, ncomp);
                         
-                        mapper->interp(sfab,
+                        FArrayBox const* sfabp = mf_crse_patch.fabPtr(mfi);
+                        FArrayBox* dfabp = mf.fabPtr(gi);
+                        mapper->interp(*sfabp,
                                        0,
-                                       dfab,
+                                       *dfabp,
                                        dcomp,
                                        ncomp,
                                        dbx,
@@ -190,7 +192,7 @@ namespace amrex
                                        fgeom,
                                        bcr,
                                        idummy1, idummy2);
-                        
+
                         post_interp(dfab, dbx, dcomp, ncomp);
                     }
                 }
@@ -200,12 +202,12 @@ namespace amrex
 	FillPatchSingleLevel(mf, time, fmf, ft, scomp, dcomp, ncomp, fgeom, fbc, fbccomp);
     }
 
-    void InterpFromCoarseLevel (MultiFab& mf, Real time, const MultiFab& cmf, 
+    void InterpFromCoarseLevel (MultiFab& mf, Real time, const MultiFab& cmf,
 				int scomp, int dcomp, int ncomp,
-				const Geometry& cgeom, const Geometry& fgeom, 
+				const Geometry& cgeom, const Geometry& fgeom,
 				PhysBCFunctBase& cbc, int cbccomp,
                                 PhysBCFunctBase& fbc, int fbccomp,
-                                const IntVect& ratio, 
+                                const IntVect& ratio,
 				Interpolater* mapper,
                                 const Vector<BCRec>& bcs, int bcscomp,
                                 const InterpHook& pre_interp,
@@ -257,7 +259,7 @@ namespace amrex
 	int idummy1=0, idummy2=0;
 
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
         {
 	    Vector<BCRec> bcr(ncomp);
@@ -267,14 +269,16 @@ namespace amrex
                 FArrayBox& sfab = mf_crse_patch[mfi];
                 FArrayBox& dfab = mf[mfi];
                 const Box& dbx = dfab.box() & fdomain_g;
-                
+
                 amrex::setBC(dbx,fdomain,bcscomp,0,ncomp,bcs,bcr);
 
                 pre_interp(sfab, sfab.box(), 0, ncomp);
 
-                mapper->interp(sfab,
+                FArrayBox const* sfabp = mf_crse_patch.fabPtr(mfi);
+                FArrayBox* dfabp = mf.fabPtr(mfi);
+                mapper->interp(*sfabp,
                                0,
-                               dfab,
+                               *dfabp,
                                dcomp,
                                ncomp,
                                dbx,
@@ -338,7 +342,7 @@ namespace amrex
             const int use_limiter = 0;
 
 #ifdef _OPENMP
-#pragma omp parallel
+#pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
             {
                 std::array<FArrayBox,AMREX_SPACEDIM> bfab;

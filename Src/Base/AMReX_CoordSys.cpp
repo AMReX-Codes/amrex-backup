@@ -251,15 +251,23 @@ CoordSys::SetVolume (FArrayBox& vol,
     AMREX_ASSERT(region.cellCentered());
 
     FArrayBox* volfab = &vol;
-    GpuArray<Real,AMREX_SPACEDIM> a_offset{AMREX_D_DECL(offset[0],offset[1],offset[2])};
-    GpuArray<Real,AMREX_SPACEDIM> a_dx    {AMREX_D_DECL(    dx[0],    dx[1],    dx[2])};
-    int coord = (int) c_sys;
-    AMREX_ASSERT(coord == 0 || AMREX_SPACEDIM < 3);
+    GpuArray<Real,AMREX_SPACEDIM> a_dx{AMREX_D_DECL(dx[0], dx[1], dx[2])};
 
+#if (AMREX_SPACEDIM == 3)
+    AMREX_ASSERT(IsCartesian());
+    const Real dv = a_dx[0]*a_dx[1]*a_dx[2];
+    AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
+    {
+        volfab->setVal(dv, tbx);
+    });
+#else
+    GpuArray<Real,AMREX_SPACEDIM> a_offset{AMREX_D_DECL(offset[0],offset[1],offset[2])};
+    int coord = (int) c_sys;
     AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
     {
         amrex_setvol(tbx, *volfab, a_offset, a_dx, coord);
     });
+#endif
 }
 
 void
@@ -289,15 +297,22 @@ CoordSys::SetDLogA (FArrayBox& dloga,
     AMREX_ASSERT(region.cellCentered());
 
     FArrayBox* dlogafab = &dloga;
+
+#if (AMREX_SPACEDIM == 3)
+    AMREX_ASSERT(IsCartesian());
+    AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
+    {
+        dlogafab->setVal(0.0, tbx);
+    });
+#else
     GpuArray<Real,AMREX_SPACEDIM> a_offset{AMREX_D_DECL(offset[0],offset[1],offset[2])};
     GpuArray<Real,AMREX_SPACEDIM> a_dx    {AMREX_D_DECL(    dx[0],    dx[1],    dx[2])};
     int coord = (int) c_sys;
-    AMREX_ASSERT(coord == 0 || AMREX_SPACEDIM < 3);
-
     AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
     {
         amrex_setdloga(tbx, *dlogafab, a_offset, a_dx, dir, coord);
     });
+#endif
 }
 
 FArrayBox*
@@ -328,21 +343,29 @@ CoordSys::SetFaceArea (FArrayBox& area,
     AMREX_ASSERT(ok);
 
     FArrayBox* areafab = &area;
+
+#if (AMREX_SPACEDIM == 3)
+    AMREX_ASSERT(IsCartesian());
+    const Real da = (dir == 0) ? dx[1]*dx[2] : ((dir == 1) ? dx[0]*dx[2] : dx[0]*dx[1]);
+    AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
+    {
+        areafab->setVal(da, tbx);
+    });
+#else
     GpuArray<Real,AMREX_SPACEDIM> a_offset{AMREX_D_DECL(offset[0],offset[1],offset[2])};
     GpuArray<Real,AMREX_SPACEDIM> a_dx    {AMREX_D_DECL(    dx[0],    dx[1],    dx[2])};
     int coord = (int) c_sys;
-    AMREX_ASSERT(coord == 0 || AMREX_SPACEDIM < 3);
-
     AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( region, tbx,
     {
         amrex_setarea(tbx, *areafab, a_offset, a_dx, dir, coord);
     });
+#endif
 }
 
 void
 CoordSys::GetEdgeLoc (Vector<Real>& loc, 
-                      const Box&   region,
-                      int          dir) const 
+                      const Box&    region,
+                      int           dir) const
 {
     AMREX_ASSERT(ok);
     AMREX_ASSERT(region.cellCentered());
@@ -351,6 +374,7 @@ CoordSys::GetEdgeLoc (Vector<Real>& loc,
     int len       = hi[dir] - lo[dir] + 2;
     Real off      = offset[dir] + dx[dir]*lo[dir];
     loc.resize(len);
+    AMREX_PRAGMA_SIMD
     for (int i = 0; i < len; i++)
     {
         loc[i] = off + dx[dir]*i;
@@ -369,6 +393,7 @@ CoordSys::GetCellLoc (Vector<Real>& loc,
     int len       = hi[dir] - lo[dir] + 1;
     Real off = offset[dir] + dx[dir]*(0.5 + (Real)lo[dir]);
     loc.resize(len);
+    AMREX_PRAGMA_SIMD
     for (int i = 0; i < len; i++)
     {
         loc[i] = off + dx[dir]*i;
@@ -392,6 +417,7 @@ CoordSys::GetEdgeVolCoord (Vector<Real>& vc,
     if (dir == 0 && c_sys == RZ)
     {
         int len = vc.size();
+        AMREX_PRAGMA_SIMD
         for (int i = 0; i < len; i++)
         {
             Real r = vc[i];
@@ -402,8 +428,8 @@ CoordSys::GetEdgeVolCoord (Vector<Real>& vc,
     {
         if(dir == 0 && c_sys == SPHERICAL) {
             int len = vc.size();
-            int i;
-            for (i = 0; i < len; i++) {
+            AMREX_PRAGMA_SIMD
+            for (int i = 0; i < len; i++) {
                 Real r = vc[i];
                 vc[i] = 0.3*r*r*r;
             }
@@ -429,6 +455,7 @@ CoordSys::GetCellVolCoord (Vector<Real>& vc,
     if (dir == 0 && c_sys == RZ)
     {
         int len = vc.size();
+        AMREX_PRAGMA_SIMD
         for (int i = 0; i < len; i++)
         {
             Real r = vc[i];
@@ -439,8 +466,8 @@ CoordSys::GetCellVolCoord (Vector<Real>& vc,
     {
         if(dir == 0 && c_sys == SPHERICAL) {
             int len = vc.size();
-            int i;
-            for (i = 0; i < len; i++) {
+            AMREX_PRAGMA_SIMD
+            for (int i = 0; i < len; i++) {
                 Real r = vc[i];
                 vc[i] = 0.3*r*r*r;
             }

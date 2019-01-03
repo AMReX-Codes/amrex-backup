@@ -54,13 +54,11 @@ void LSCoreBase::InitLSCoreBase() {
     int nlevs_max = max_level + 1;
 
     level_set.resize(nlevs_max);
-    level_set_cc.resize(nlevs_max);
+    level_set_valid.resize(nlevs_max);
 
     ls_factory.resize(nlevs_max);
     eb_levels.resize(nlevs_max);
     rebuild_eb.resize(nlevs_max, 1); // At first rebuild eb on each level
-
-    istep.resize(nlevs_max, 0);
 
     bcs.resize(1);
 
@@ -96,14 +94,37 @@ void LSCoreBase::InitLSCoreBase() {
 
 }
 
+void LSCoreBase::LoadTagLevels () {
+    // read in an array of "phierr", which is the tagging threshold in this
+    // example, we tag values of "phi" which are greater than phierr for that
+    // particular level in subroutine state_error, you could use more elaborate
+    // tagging, such as more advanced logical expressions, or gradients, etc.
+    ParmParse pp("amr");
+    int n = pp.countval("phierr");
+    if (n > 0) {
+        pp.getarr("phierr", phierr, 0, n);
+    }
+}
 
+void LSCoreBase::SetTagLevels (const Vector<Real> & m_phierr) {
+    phierr = m_phierr;
+}
 
 
 // Initializes multilevel data
-void LSCoreBase::InitData () {
+void LSCoreBase::Init () {
     if (restart_chkfile == "") {
         // start simulation from the beginning
         const Real time = 0.0;
+
+        // This tells the AmrMesh class not to iterate when creating the 
+        //    initial grid hierarchy
+        SetIterateToFalse();
+
+        // This tells the Cluster routine to use the new chopping
+        // routine which rejects cuts if they don't improve the efficiency
+        SetUseNewChop();
+
         InitFromScratch(time);
         AverageDown();
 
@@ -120,6 +141,20 @@ void LSCoreBase::InitData () {
 }
 
 
+void LSCoreBase::InitData (bool a_use_phierr) {
+    use_phierr = a_use_phierr;
+    if (use_phierr)
+        LoadTagLevels();
+    Init();
+}
+
+
+void LSCoreBase::InitData (const Vector<Real> & m_phierr) {
+    SetTagLevels(m_phierr);
+    Init();
+}
+
+
 // Make a new level using provided BoxArray and DistributionMapping and fill
 // with interpolated coarse level data. Overrides the pure virtual function in
 // AmrCore
@@ -130,15 +165,19 @@ void LSCoreBase::MakeNewLevelFromCoarse ( int lev, Real time, const BoxArray & b
 
     BoxArray ba_nd = amrex::convert(ba, IntVect{1, 1, 1});
     level_set[lev].define(ba_nd, dm, ncomp, nghost);
-    level_set_cc[lev].define(ba, dm, ncomp, nghost);
 
     FillCoarsePatch(lev, time, level_set[lev], 0, ncomp);
+
+    // At this point, we consider _everywhere_ as valid. This is maintained for
+    // legacy reasons. TODO: There might be a better way of doing things.
+    level_set_valid[lev].define(ba_nd, dm, ncomp, nghost);
+    level_set_valid[lev].setVal(1);
 }
 
 
 // Remake an existing level using provided BoxArray and DistributionMapping and
-// fill with existing fine and coarse data.
-// overrides the pure virtual function in AmrCore
+// fill with existing fine and coarse data. Overrides the pure virtual function
+// in AmrCore
 void LSCoreBase::RemakeLevel ( int lev, Real time, const BoxArray & ba,
                                const DistributionMapping & dm) {
     const int ncomp  = level_set[lev].nComp();
@@ -150,31 +189,43 @@ void LSCoreBase::RemakeLevel ( int lev, Real time, const BoxArray & ba,
     FillPatch(lev, time, new_state, 0, ncomp);
 
     std::swap(new_state, level_set[lev]);
+
+    // At this point, we consider _everywhere_ as valid. This is maintained for
+    // legacy reasons. TODO: There might be a better way of doing things.
+    level_set_valid[lev].define(ba_nd, dm, ncomp, nghost);
+    level_set_valid[lev].setVal(1);
 }
+
+
+void LSCoreBase::UpdateGrids (int lev, const BoxArray & ba, const DistributionMapping & dm){
+
+    bool ba_changed = ( ba != grids[lev] );
+    bool dm_changed = ( dm != dmap[lev] );
+
+    if (! (ba_changed || dm_changed))
+        return;
+
+
+    SetBoxArray(lev, ba);
+    SetDistributionMap(lev, dm);
+
+    BoxArray ba_nd = amrex::convert(ba, IntVect{AMREX_D_DECL(1, 1, 1)});
+
+    MultiFab ls_regrid = MFUtil::duplicate<MultiFab, MFUtil::SymmetricGhost> (ba_nd, dm, level_set[lev]);
+    iMultiFab valid_regrid = MFUtil::duplicate<iMultiFab, MFUtil::SymmetricGhost>
+        (ba_nd, dm, level_set_valid[lev]);
+
+    std::swap(ls_regrid, level_set[lev]);
+    std::swap(valid_regrid, level_set_valid[lev]);
+}
+
 
 
 // tag all cells for refinement
 // overrides the pure virtual function in AmrCore
 void LSCoreBase::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow) {
-    static bool first = true;
-    static Vector<Real> phierr;
 
-    // only do this during the first call to ErrorEst
-    if (first) {
-        first = false;
-        // read in an array of "phierr", which is the tagging threshold in this
-        // example, we tag values of "phi" which are greater than phierr for
-        // that particular level in subroutine state_error, you could use more
-        // elaborate tagging, such as more advanced logical expressions, or
-        // gradients, etc.
-        ParmParse pp("amr");
-        int n = pp.countval("phierr");
-        if (n > 0) {
-            pp.getarr("phierr", phierr, 0, n);
-        }
-    }
-
-    if (lev >= phierr.size()) return;
+    if (use_phierr && (lev >= phierr.size())) return;
 
     const int clearval = TagBox::CLEAR;
     const int   tagval = TagBox::SET;
@@ -182,7 +233,14 @@ void LSCoreBase::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow) {
     const Real * dx      = geom[lev].CellSize();
     const Real * prob_lo = geom[lev].ProbLo();
 
-    const MultiFab & state = level_set[lev];
+    MultiFab volfrac(grids[lev], dmap[lev], 1, 1);
+    const MultiFab * state = & level_set[lev];
+
+    if (! use_phierr) {
+        eb_levels[lev]->fillVolFrac( volfrac, geom[lev]);
+        state = & volfrac;
+    }
+
 
 #ifdef _OPENMP
 #pragma omp parallel
@@ -190,8 +248,7 @@ void LSCoreBase::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow) {
     {
         Vector<int>  itags;
 
-        for (MFIter mfi(state,true); mfi.isValid(); ++mfi)
-        {
+        for (MFIter mfi(* state, true); mfi.isValid(); ++mfi) {
             const Box &    tilebox = mfi.tilebox();
                   TagBox & tagfab  = tags[mfi];
 
@@ -207,17 +264,30 @@ void LSCoreBase::ErrorEst (int lev, TagBoxArray& tags, Real time, int ngrow) {
             const int * thi  = tilebox.hiVect();
 
             // tag cells for refinement
-            amrex_eb_state_error ( tptr,  AMREX_ARLIM_3D(tlo), AMREX_ARLIM_3D(thi),
-                                   BL_TO_FORTRAN_3D(state[mfi]),
-                                   &tagval, &clearval,
-                                   AMREX_ARLIM_3D(tilebox.loVect()),
-                                   AMREX_ARLIM_3D(tilebox.hiVect()),
-                                   AMREX_ZFILL(dx), AMREX_ZFILL(prob_lo),
-                                   &time, &phierr[lev]);
-            //
+            if (use_phierr) {
+                amrex_eb_levelset_error ( tptr, AMREX_ARLIM_3D(tlo), AMREX_ARLIM_3D(thi),
+                                          BL_TO_FORTRAN_3D((* state)[mfi]),
+                                          & tagval, & clearval,
+                                          BL_TO_FORTRAN_BOX(tilebox),
+                                          AMREX_ZFILL(dx), AMREX_ZFILL(prob_lo),
+                                          & time, & phierr[lev]);
+
+            } else {
+
+                Real tol = 0.000001; // TODO: Fix magic numbers (after talking with ANN)
+                amrex_eb_volfrac_error ( tptr, AMREX_ARLIM_3D(tlo), AMREX_ARLIM_3D(thi),
+                                         BL_TO_FORTRAN_3D((*state)[mfi]),
+                                         & tagval, & clearval, & tol,
+                                         BL_TO_FORTRAN_BOX(tilebox),
+                                         AMREX_ZFILL(dx), AMREX_ZFILL(prob_lo));
+            }
+
+            //___________________________________________________________________
             // Now update the tags in the TagBox in the tilebox region to be
             // equal to itags
             //
+            if (! use_phierr)
+                tagfab.buffer(8, 0); // TODO: Fix magic numbers (after talking with ANN)
             tagfab.tags_and_untags(itags, tilebox);
         }
     }
@@ -240,7 +310,7 @@ void LSCoreBase::ReadParameters () {
 
 // Set covered coarse cells to be the average of overlying fine cells
 void LSCoreBase::AverageDown () {
-    for (int lev = finest_level-1; lev >= 0; --lev) {
+    for (int lev = finest_level-1; lev >= 0; lev--) {
 
         amrex::average_down(level_set[lev + 1], level_set[lev],
                             0, level_set[lev].nComp(), refRatio(lev));
@@ -308,7 +378,33 @@ void LSCoreBase::FillCoarsePatch (int lev, Real time, MultiFab & mf, int icomp, 
 }
 
 
-    Box LSCoreBase::EBSearchBox(const FArrayBox & ls_crse, const Geometry & geom_fine, bool & bail) {
+// Constructs a box over which to look for EB facets. The Box size grows based
+// on the coarse-level level-set value. But it never grows larger than
+// max_eb_pad.
+Box LSCoreBase::EBSearchBox(const Box & tilebox, const FArrayBox & ls_crse,
+                            const Geometry & geom_fine, bool & bail) {
+
+    // Infinities don't work well with std::max, so just bail and construct the
+    // maximum box.
+    if (ls_crse.contains_inf()){
+        IntVect n_grow(AMREX_D_DECL(max_eb_pad, max_eb_pad, max_eb_pad));
+        Box bx = amrex::convert(ls_crse.box(), IntVect{0, 0, 0});
+        bx.grow(n_grow);
+
+        bail = true;
+        return bx;
+    }
+
+    // Something's gone wrong :( ... so just bail and construct the maximum box.
+    if (ls_crse.contains_nan()){
+        IntVect n_grow(AMREX_D_DECL(max_eb_pad, max_eb_pad, max_eb_pad));
+        Box bx = amrex::convert(ls_crse.box(), IntVect{0, 0, 0});
+        bx.grow(n_grow);
+
+        bail = true;
+        return bx;
+    }
+
 
     Real max_ls = std::max(ls_crse.max(), std::abs(ls_crse.min()));
 
@@ -317,12 +413,12 @@ void LSCoreBase::FillCoarsePatch (int lev, Real time, MultiFab & mf, int icomp, 
                                 geom_fine.InvCellSize(2)*max_ls));
 
     for (int i = 0; i < AMREX_SPACEDIM; i++)
-        if (n_grow[i] > max_eb_pad ) {
+        if (n_grow[i] > max_eb_pad) {
             n_grow[i] = max_eb_pad;
             bail = true;
         }
 
-    Box bx = amrex::convert(ls_crse.box(), IntVect{0, 0, 0});
+    Box bx = amrex::convert(tilebox, IntVect{AMREX_D_DECL(0, 0, 0)});
     bx.grow(n_grow);
 
     return bx;
@@ -330,38 +426,56 @@ void LSCoreBase::FillCoarsePatch (int lev, Real time, MultiFab & mf, int icomp, 
 
 
 
-// get plotfile name
+// Get plotfile name
 std::string LSCoreBase::PlotFileName (int lev) const {
-    return amrex::Concatenate(plot_file, lev, 5);
+    // return amrex::Concatenate(plot_file, lev, 5);
+    return plot_file;
 }
 
 
-// put together an array of multifabs for writing
-Vector<const MultiFab*> LSCoreBase::PlotFileMF () {
-    Vector<const MultiFab*> r;
-    for (int i = 0; i <= finest_level; ++i) {
-        amrex::average_node_to_cellcenter(level_set_cc[i], 0, level_set[i], 0, 1);
-        r.push_back(&level_set_cc[i]);
+// Put together an array of multifabs for writing
+Vector<MultiFab> LSCoreBase::PlotFileMF () const {
+    Vector<MultiFab> r(max_level + 1);
+    for (int i = 0; i < max_level + 1; i++) {
+        const int ncomp  = level_set[i].nComp();
+        const int nghost = level_set[i].nGrow();
+        r[i].define(grids[i], dmap[i], ncomp, nghost);
+
+        amrex::average_node_to_cellcenter(r[i], 0, level_set[i], 0, 1);
     }
-    return r;
+    return std::move(r);
 }
 
 
-// set plotfile variable names
+// Set plotfile variable names
 Vector<std::string> LSCoreBase::PlotFileVarNames () const {
-    return {"phi"};
+    return {"level-set"};
 }
 
 
-// write plotfile to disk
-void LSCoreBase::WritePlotFile () {
-    const std::string& plotfilename = PlotFileName(istep[0]);
-    const auto& mf = PlotFileMF();
-    const auto& varnames = PlotFileVarNames();
+// Write plotfile to disk
+void LSCoreBase::WritePlotFile () const {
+    // Get plotfile name
+    const std::string & plotfilename = PlotFileName(0);
 
-    amrex::Print() << "Writing plotfile " << plotfilename << "\n";
+    // Generate cell-centered data to put into plotfile
+    const Vector<MultiFab> mf_plt = PlotFileMF();
+    Vector<const MultiFab*> mf_ptr;
+    for (const MultiFab & mf : mf_plt)
+        mf_ptr.push_back(& mf);
 
-    amrex::WriteMultiLevelPlotfile(plotfilename, finest_level+1, mf, varnames,
+    // Get variable names
+    const auto & varnames = PlotFileVarNames();
+
+    // Keep user informed
+    amrex::Print() << "Writing ";
+    for (const std::string & str_name : varnames)
+        amrex::Print() << str_name << " ";
+    amrex::Print() << "plotfile: " << plotfilename << "\n";
+
+    // Save plot file
+    Vector<int> istep(max_level + 1, 0);
+    amrex::WriteMultiLevelPlotfile(plotfilename, finest_level + 1, mf_ptr, varnames,
                                    Geom(), 0., istep, refRatio());
 }
 
@@ -378,11 +492,12 @@ void LSCoreBase::WriteCheckpointFile () const {
     //                     each level of refinement
 
     // checkpoint file name, e.g., chk00010
-    const std::string& checkpointname = amrex::Concatenate(chk_file,istep[0]);
+    // const std::string & checkpointname = amrex::Concatenate(chk_file,istep[0]);
+    const std::string & checkpointname = chk_file;
 
     amrex::Print() << "Writing checkpoint " << checkpointname << "\n";
 
-    const int nlevels = finest_level+1;
+    const int nlevels = finest_level + 1;
 
     // ---- prebuild a hierarchy of directories
     // ---- dirName is built first.  if dirName exists, it is renamed.  then build
@@ -415,6 +530,7 @@ void LSCoreBase::WriteCheckpointFile () const {
         HeaderFile << finest_level << "\n";
 
         // write out array of istep
+        Vector<int> istep(max_level + 1, 0);
         for (int i = 0; i < istep.size(); ++i) {
             HeaderFile << istep[i] << " ";
         }
@@ -458,16 +574,6 @@ void LSCoreBase::ReadCheckpointFile () {
     // read in finest_level
     is >> finest_level;
     GotoNextLine(is);
-
-    // read in array of istep
-    std::getline(is, line);
-    {
-        std::istringstream lis(line);
-        int i = 0;
-        while (lis >> word) {
-            istep[i++] = std::stoi(word);
-        }
-    }
 
     for (int lev = 0; lev <= finest_level; ++lev) {
 

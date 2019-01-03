@@ -13,7 +13,7 @@ using namespace amrex;
 std::unique_ptr<CappedCylinderIF>
 make_cylinder_eb2_geom(int dir, Real radius, Real length, const RealVect & translation,
                        int lev, const Geometry & geom, const DistributionMapping & dm,
-                       LSFactory * level_set, LSCoreBase * ls_core) {
+                       LSFactory * level_set, LSCoreBase *& ls_core) {
     // Polynomial defining (curved) cylinder walls parallel to a given axis:
     //     IF = a^2 + b^2 - R^2
     // where a, b \in {a, x, z} - {axis} for example, if the cylinder lies on
@@ -89,8 +89,6 @@ make_cylinder_eb2_geom(int dir, Real radius, Real length, const RealVect & trans
     VisMF::Write(* walls_mf_impfunc, "ImpFunc_EndCaps");
 
 
-
-
     CylinderIF                    cylinder_if(EB2::PolynomialIF(poly), offset);
     EB2::GeometryShop<CylinderIF> cylinder_gshop(cylinder_if);
     GShopLSFactory<CylinderIF>    cylinder_ls_gshop(cylinder_gshop, * level_set);
@@ -99,22 +97,18 @@ make_cylinder_eb2_geom(int dir, Real radius, Real length, const RealVect & trans
     //  -- returned MF has the same DM as LSFactory
     std::unique_ptr<MultiFab> cylinder_mf_impfunc = cylinder_ls_gshop.fill_impfunc();
 
-    // LSCore<CylinderIF> amr_ls(cylinder_gshop);
-    // amr_ls.InitData();
-    // amr_ls.WritePlotFile();
-    // amr_ls.WriteCheckpointFile();
-
     VisMF::Write(* cylinder_mf_impfunc, "ImpFunc_SideWalls");
 
     Print() << "building cyldinder EB2" << std::endl;
     // Build level for cylinder walls
-    EB2::Build(cylinder_gshop, geom, max_level, max_level);
+    const Geometry & eb_geom = level_set->get_eb_geom();
+    EB2::Build(cylinder_gshop, eb_geom, max_level, max_level);
 
     const EB2::IndexSpace & cylinder_ebis = EB2::IndexSpace::top();
-    const EB2::Level &      cylinder_lev  = cylinder_ebis.getLevel(geom);
+    const EB2::Level &      cylinder_lev  = cylinder_ebis.getLevel(eb_geom);
 
     int eb_grow = ls_cylinder.get_eb_pad();
-    EBFArrayBoxFactory eb_factory_cylinder(cylinder_lev, geom, level_set->get_eb_ba(), dm,
+    EBFArrayBoxFactory eb_factory_cylinder(cylinder_lev, eb_geom, level_set->get_eb_ba(), dm,
                                            {eb_grow, eb_grow, eb_grow}, EBSupport::full);
 
     Print() << "adding cylinder walls" << std::endl;
@@ -125,7 +119,8 @@ make_cylinder_eb2_geom(int dir, Real radius, Real length, const RealVect & trans
 
     //ls_walls.intersection_ebf(eb_factory_cylinder, * cylinder_mf_impfunc);
     //level_set->update_union(* ls_walls.get_data(), * flag_valid);
-    level_set->intersection_ebf(eb_factory_cylinder, * cylinder_mf_impfunc);
+    //level_set->intersection_ebf(eb_factory_cylinder, * cylinder_mf_impfunc);
+    level_set->fill(eb_factory_cylinder, * cylinder_mf_impfunc);
 
     std::unique_ptr<CappedCylinderIF> ret = std::unique_ptr<CappedCylinderIF>(
         new CappedCylinderIF(EB2::TranslationIF<EB2::UnionIF<EB2::PlaneIF,EB2::PlaneIF>>(walls_if),
@@ -134,6 +129,10 @@ make_cylinder_eb2_geom(int dir, Real radius, Real length, const RealVect & trans
 
     EB2::GeometryShop<CappedCylinderIF> capped_cylinder_gshop(* ret);
     ls_core = new LSCore<CappedCylinderIF>(capped_cylinder_gshop);
+
+    // ls_core = new LSCore<CylinderIF>(cylinder_gshop);
+
+    // ls_core = new LSCore<WallsIF>(walls_gshop);
 
     return ret;
 }

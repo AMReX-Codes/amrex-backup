@@ -21,10 +21,6 @@ extern "C" {
 }
 #endif
 
-#ifndef AMREX_CUDA_MAX_THREADS
-#define AMREX_CUDA_MAX_THREADS 256
-#endif
-
 namespace amrex {
 namespace Cuda {
 
@@ -172,6 +168,7 @@ Device::Initialize ()
     }
 
     AMREX_GPU_SAFE_CALL(cudaSetDevice(device_id));
+    AMREX_GPU_SAFE_CALL(cudaSetDeviceFlags(cudaDeviceMapHost));
 
 #ifdef AMREX_USE_ACC
     amrex_initialize_acc(device_id);
@@ -184,7 +181,11 @@ Device::Initialize ()
 #endif
 
     if (amrex::Verbose()) {
+#ifdef AMREX_USE_MPI
         amrex::Print() << "CUDA initialized with 1 GPU per MPI rank\n";
+#else
+        amrex::Print() << "CUDA initialized with 1 GPU\n";
+#endif
     }
 
     cudaProfilerStart();
@@ -227,6 +228,12 @@ Device::initialize_cuda ()
 
     // Prefer L1 cache to shared memory (this has no effect on GPUs with a fixed L1 cache size).
     AMREX_GPU_SAFE_CALL(cudaDeviceSetCacheConfig(cudaFuncCachePreferL1));
+
+    if (sizeof(Real) == 8) {
+        AMREX_GPU_SAFE_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeEightByte));
+    } else if (sizeof(Real) == 4) {
+        AMREX_GPU_SAFE_CALL(cudaDeviceSetSharedMemConfig(cudaSharedMemBankSizeFourByte));
+    }
 
     for (int i = 0; i < max_cuda_streams; ++i) {
         AMREX_GPU_SAFE_CALL(cudaStreamCreate(&cuda_streams[i]));
@@ -297,7 +304,7 @@ Device::streamSynchronize ()
 }
 
 void
-Device::device_htod_memcpy (void* p_d, const void* p_h, const std::size_t sz) {
+Device::htod_memcpy (void* p_d, const void* p_h, const std::size_t sz) {
 
 #ifdef AMREX_USE_CUDA
     AMREX_GPU_SAFE_CALL(cudaMemcpy(p_d, p_h, sz, cudaMemcpyHostToDevice));
@@ -306,7 +313,7 @@ Device::device_htod_memcpy (void* p_d, const void* p_h, const std::size_t sz) {
 }
 
 void
-Device::device_dtoh_memcpy (void* p_h, const void* p_d, const std::size_t sz) {
+Device::dtoh_memcpy (void* p_h, const void* p_d, const std::size_t sz) {
 
 #ifdef AMREX_USE_CUDA
     AMREX_GPU_SAFE_CALL(cudaMemcpy(p_h, p_d, sz, cudaMemcpyDeviceToHost));
@@ -315,7 +322,7 @@ Device::device_dtoh_memcpy (void* p_h, const void* p_d, const std::size_t sz) {
 }
 
 void
-Device::device_htod_memcpy_async (void* p_d, const void* p_h, const std::size_t sz) {
+Device::htod_memcpy_async (void* p_d, const void* p_h, const std::size_t sz) {
 
 #ifdef AMREX_USE_CUDA
     AMREX_GPU_SAFE_CALL(cudaMemcpyAsync(p_d, p_h, sz, cudaMemcpyHostToDevice, cuda_stream));
@@ -324,7 +331,7 @@ Device::device_htod_memcpy_async (void* p_d, const void* p_h, const std::size_t 
 }
 
 void
-Device::device_dtoh_memcpy_async (void* p_h, const void* p_d, const std::size_t sz) {
+Device::dtoh_memcpy_async (void* p_h, const void* p_d, const std::size_t sz) {
 
 #ifdef AMREX_USE_CUDA
     AMREX_GPU_SAFE_CALL(cudaMemcpyAsync(p_h, p_d, sz, cudaMemcpyDeviceToHost, cuda_stream));

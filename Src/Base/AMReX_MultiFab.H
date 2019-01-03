@@ -8,6 +8,7 @@
 #include <AMReX_BLassert.H>
 #include <AMReX_FArrayBox.H>
 #include <AMReX_FabArray.H>
+#include <AMReX_FabArrayUtility.H>
 #include <AMReX_Periodicity.H>
 
 namespace amrex
@@ -82,15 +83,6 @@ public:
      * MultiFab.
      */
     MultiFab (const MultiFab& rhs, MakeType maketype, int scomp, int ncomp);
-
-    /**
-     * \brief Make an ALIAS MultiFab given an array of Real pointers.
-     */
-    MultiFab (const BoxArray& ba, const DistributionMapping& dm, int ncomp, int ngrow,
-              const Vector<Real*>& p);
-
-    MultiFab (const BoxArray& ba, const DistributionMapping& dm, int ncomp, const IntVect& ngrow,
-              const Vector<Real*>& p);
 
     virtual ~MultiFab () override;
 
@@ -171,13 +163,6 @@ public:
     Real norm0 (int comp = 0, int nghost = 0, bool local = false) const;
 
     Real norm0 (const iMultiFab& mask, int comp = 0, int nghost = 0, bool local = false) const;
-
-    /**
-    * \brief Returns the maximum *absolute* value contained in
-    * component comp of the MultiFab in the intersection of the BoxArray
-    * and the valid regions of the MultiFab.
-    */
-    Real norm0 (int comp, const BoxArray& ba, int nghost = 0, bool local = false) const;
 
     /**
     * \brief Returns the maximum *absolute* values contained in
@@ -644,7 +629,12 @@ inline void GccPlacaterMF ()
 {
     std::allocator<MultiFab*> a1;
     std::allocator<MultiFab const*> a2;
+    std::allocator<FabArray<FArrayBox>*> a3;
+    std::allocator<FabArray<FArrayBox> const*> a4;
 }
+
+//  This is a special version of FillBoundary for warpx
+void FillBoundary (Vector<MultiFab*> const& mf, const Periodicity& period);
 
 }
 

@@ -62,6 +62,9 @@ AmrMesh::InitAmrMesh (int max_level_in, const Vector<int>& n_cell_in, std::vecto
     refine_grid_layout     = true;
     check_input            = true;
 
+    use_new_chop         = false;
+    iterate_on_new_grids = true;
+
     ParmParse pp("amr");
 
     pp.query("v",verbose);
@@ -86,7 +89,7 @@ AmrMesh::InitAmrMesh (int max_level_in, const Vector<int>& n_cell_in, std::vecto
 	n_error_buf[i] = 1;
         blocking_factor[i] = IntVect{AMREX_D_DECL(8,8,8)};
         max_grid_size[i] = (AMREX_SPACEDIM == 2) ? IntVect{AMREX_D_DECL(128,128,128)}
-                                              : IntVect{AMREX_D_DECL(32,32,32)};
+                                                 : IntVect{AMREX_D_DECL(32,32,32)};
     }
 
 
@@ -636,7 +639,12 @@ AmrMesh::MakeNewGrids (int lbase, Real time, int& new_finest, Vector<BoxArray>& 
             // Construct initial cluster.
             //
             ClusterList clist(&tagvec[0], tagvec.size());
-            clist.chop(grid_eff);
+            if (use_new_chop)
+            {
+               clist.new_chop(grid_eff);
+            } else {
+               clist.chop(grid_eff);
+            }
             BoxDomain bd;
             bd.add(p_n[levc]);
             clist.intersect(bd);
@@ -740,31 +748,34 @@ AmrMesh::MakeNewGrids (Real time)
 	while (finest_level < max_level);
 
 	// Iterate grids to ensure fine grids encompass all interesting junk.
-	for (int it=0; it<4; ++it)  // try at most 4 times
+        if (iterate_on_new_grids)
 	{
-	    for (int i = 1; i <= finest_level; ++i) {
-		new_grids[i] = grids[i];
+	    for (int it=0; it<4; ++it)  // try at most 4 times
+    	    {
+	        for (int i = 1; i <= finest_level; ++i) {
+		    new_grids[i] = grids[i];
+	        }
+
+	        int new_finest;
+	        MakeNewGrids(0, time, new_finest, new_grids);
+
+	        if (new_finest < finest_level) break;
+	        finest_level = new_finest;
+
+	        bool grids_the_same = true;
+	        for (int lev = 1; lev <= new_finest; ++lev) {
+		    if (new_grids[lev] != grids[lev]) {
+		        grids_the_same = false;
+		        DistributionMapping dm(new_grids[lev]);
+
+                        MakeNewLevelFromScratch(lev, time, new_grids[lev], dm);
+
+		        SetBoxArray(lev, new_grids[lev]);
+		        SetDistributionMap(lev, dm);
+		    }
+	        }
+	        if (grids_the_same) break;
 	    }
-
-	    int new_finest;
-	    MakeNewGrids(0, time, new_finest, new_grids);
-
-	    if (new_finest < finest_level) break;
-	    finest_level = new_finest;
-
-	    bool grids_the_same = true;
-	    for (int lev = 1; lev <= new_finest; ++lev) {
-		if (new_grids[lev] != grids[lev]) {
-		    grids_the_same = false;
-		    DistributionMapping dm(new_grids[lev]);
-
-                    MakeNewLevelFromScratch(lev, time, new_grids[lev], dm);
-
-		    SetBoxArray(lev, new_grids[lev]);
-		    SetDistributionMap(lev, dm);
-		}
-	    }
-	    if (grids_the_same) break;
 	}
     }
 }
@@ -849,7 +860,11 @@ AmrMesh::checkInput ()
         int len = domain.length(idim);
         if (blocking_factor[0][idim] <= max_grid_size[0][idim])
            if (len%blocking_factor[0][idim] != 0)
+           {
+              amrex::Print() << "domain size in direction " << idim << " is " << len << std::endl;
+              amrex::Print() << "blocking_factor is " << blocking_factor[0][idim] << std::endl;
               amrex::Error("domain size not divisible by blocking_factor");
+           }
     }
 
     //
@@ -861,7 +876,12 @@ AmrMesh::checkInput ()
         for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
            if (blocking_factor[i][idim] <= max_grid_size[i][idim])
               if (max_grid_size[i][idim]%blocking_factor[i][idim] != 0) {
+              {
+                 amrex::Print() << "max_grid_size in direction " << idim 
+                                << " is " << max_grid_size[i][idim] << std::endl;
+                 amrex::Print() << "blocking_factor is " << blocking_factor[i][idim] << std::endl;
                  amrex::Error("max_grid_size not divisible by blocking_factor");
+              }
             }
         }
     }
