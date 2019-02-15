@@ -9,6 +9,12 @@
 #include <pthread.h>
 #include "PerillaRts.H"
 
+using namespace perilla;
+#ifdef PERILLA_DEBUG
+#include <PerillaMemCheck.H>
+PerillaMemCheck memcheck;
+#endif
+
 #include <iostream>
 #include <queue>
 using namespace std;
@@ -61,7 +67,7 @@ namespace perilla{
     void RTS::runAMR(Amr* amr, int tid, int nThreads, int max_step, Real stop_time){
         while (amr->okToContinue() &&
               (amr->levelSteps(0) < max_step || max_step < 0) &&
-              (amr->cumTime() < stop_time || stop_time < 0.0) )
+              (amr->cumTime()<stop_time || stop_time < 0.0) )
             
         {
             // Do a coarse timestep, which calls one or multiple timestep updates (i.e. timeStep()) at each AMR level
@@ -116,6 +122,9 @@ namespace perilla{
     }
 
     void RTS::Finalize(){
+#ifdef PERILLA_DEBUG
+        memcheck.report();
+#endif
     }
 
     void RTS::Iterate(void* amrGraph, int max_step, Real stop_time){

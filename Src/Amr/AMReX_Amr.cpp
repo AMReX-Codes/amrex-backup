@@ -57,6 +57,19 @@
 #include <Perilla.H>
 #ifdef USE_PERILLA_PTHREADS
     pthread_mutex_t teamFinishLock=PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_USE_UPCXX
+extern struct rMsgMap_t{
+    std::map< int, std::map< int,  std::list< Package* > > > map;
+    volatile int size=0;
+    pthread_mutex_t lock= PTHREAD_MUTEX_INITIALIZER;
+}rMsgMap;
+extern struct sMsgMap_t{
+    std::map< int, std::map< int,  std::list< Package* > > > map;
+    volatile int size=0;
+    pthread_mutex_t lock= PTHREAD_MUTEX_INITIALIZER;
+}sMsgMap;
+
+#endif
 #endif
 #endif
 
@@ -599,6 +612,20 @@ Amr::clearStatePlotVarList ()
 }
 
 void
+Amr::fillStateSmallPlotVarList ()
+{
+    state_small_plot_vars.clear();
+    const DescriptorList &desc_lst = AmrLevel::get_desc_lst();
+    for (int typ(0); typ < desc_lst.size(); ++typ) {
+        for (int comp(0); comp < desc_lst[typ].nComp(); ++comp) {
+            if (desc_lst[typ].getType() == IndexType::TheCellType()) {
+                state_small_plot_vars.push_back(desc_lst[typ].name(comp));
+	    }
+	}
+    }
+}
+
+void
 Amr::clearStateSmallPlotVarList ()
 {
     state_small_plot_vars.clear();
@@ -857,6 +884,12 @@ Amr::writePlotFile ()
     if (first_plotfile) {
         first_plotfile = false;
         amr_level[0]->setPlotVariables();
+    }
+
+    // Don't continue if we have no variables to plot.
+
+    if (statePlotVars().size() == 0) {
+      return;
     }
 
     Real dPlotFileTime0 = amrex::second();
@@ -2016,9 +2049,17 @@ Amr::timeStep (int  level,
         }
 #ifdef USE_PERILLA
 	if(cnt){
-            for(int i=0; i<= finest_level; i++)
+	    if(ParallelDescriptor::NProcs()>1){
+	        Perilla::clearTagMap();
+	        Perilla::clearMyTagMap();
+	        Perilla::genTags=true;
+	        Perilla::uTags=0;
+	        Perilla::pTagCnt.clear();
+            }
+            for(int i=0; i<= finest_level; i++){
                 getLevel(i).initPerilla(cumtime);
- 	    Perilla::updateMetadata_done=1;
+	    }
+ 	    Perilla::updateMetadata_done++;
 	}
         delete metadataChanged;
 #endif
@@ -2213,7 +2254,11 @@ Amr::coarseTimeStep (Real stop_time)
 	    graphArray.resize(finest_level+1);
             for(int i=0; i<= finest_level; i++)
                 getLevel(i).initPerilla(cumtime);
-            Perilla::communicateTags();
+	    if(ParallelDescriptor::NProcs()>1){
+  	        Perilla::syncProcesses();
+                Perilla::communicateTags();
+	        Perilla::syncProcesses();
+	    }
         }
     }
     perilla::syncAllThreads();
@@ -2222,29 +2267,60 @@ Amr::coarseTimeStep (Real stop_time)
 
     if(perilla::isCommunicationThread())
     {
+	bool doublechecked=false;
         while(true){
-  	    if(!Perilla::updateMetadata_request){
+   	    if(!Perilla::updateMetadata_request){
                 Perilla::serviceMultipleGraphCommDynamic(flattenedGraphArray,true,perilla::tid());
                 if( Perilla::numTeamsFinished == perilla::NUM_THREAD_TEAMS)
 		{
+                    Perilla::syncProcesses();
 	            flattenedGraphArray.clear();
+                    Perilla::syncProcesses();
                     break;
 		}
             }else{
+	        Perilla::syncProcesses();
+        	for(int g=0; g<flattenedGraphArray.size(); g++)
+          	{
+		       //cancel messages preposted previously
+		       flattenedGraphArray[g]->graphTeardown();
+		}
+#ifdef PERILLA_USE_UPCXX
+                    pthread_mutex_lock(&(rMsgMap.lock));
+                    for(int i=0; i<rMsgMap.map.size(); i++){
+                        for(int j=0; j<rMsgMap.map[i].size(); j++){
+                            while(rMsgMap.map[i][j].size()>0){
+                               rMsgMap.map[i][j].pop_front();
+                               rMsgMap.size--;
+                            }
+                        }
+                    }
+                    pthread_mutex_unlock(&(rMsgMap.lock));
+                    while(sMsgMap.size>0){
+                    }
+#endif
+	        Perilla::syncProcesses();
 	        Perilla::updateMetadata_noticed=1;
-	        while(!Perilla::updateMetadata_done){
+	        while(Perilla::updateMetadata_done==0){//!= (max_level+1)){
 		
 	        }
 	        Perilla::updateMetadata_request=0;
 	        Perilla::updateMetadata_noticed=0;
 	        Perilla::updateMetadata_done=0;
+                if(ParallelDescriptor::NProcs()>1){
+	            Perilla::syncProcesses();
+                    Perilla::communicateTags();
+	            Perilla::syncProcesses();
+		}
 	        flattenedGraphArray.clear();
 		Perilla::flattenGraphHierarchy(graphArray, flattenedGraphArray);
 	        Perilla::serviceMultipleGraphCommDynamic(flattenedGraphArray,true,perilla::tid());
 
                 if( Perilla::numTeamsFinished == perilla::NUM_THREAD_TEAMS)
 		{
-	            flattenedGraphArray.clear();
+	 	    Perilla::syncProcesses();
+  	            flattenedGraphArray.clear();
+	 	    Perilla::syncProcesses();
                     break;
 		}
  	    }
@@ -2286,7 +2362,7 @@ Amr::coarseTimeStep (Real stop_time)
 #ifdef USE_PERILLA
     perilla::syncAllThreads();
     if(perilla::isMasterThread()){
-        if(level_steps[0] == Perilla::max_step){
+        if(!okToContinue() || (level_steps[0] == Perilla::max_step) || (stop_time -(dt_level[0] + cumTime())<=0)){
             for(int i=0; i<= finest_level; i++){
                 getLevel(i).finalizePerilla(cumtime);
             }
@@ -2310,6 +2386,7 @@ Amr::coarseTimeStep (Real stop_time)
     cumtime += dt_level[0];
 
     amr_level[0]->postCoarseTimeStep(cumtime);
+
 
     if (verbose > 0)
     {

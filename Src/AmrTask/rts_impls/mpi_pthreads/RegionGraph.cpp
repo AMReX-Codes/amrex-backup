@@ -23,6 +23,10 @@ RegionGraph::RegionGraph(int numtasks)
     okToReset = new bool[perilla::NUM_THREAD_TEAMS];
     finishLock= PTHREAD_MUTEX_INITIALIZER;
     Initialize();
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
+
 }
 
 void RegionGraph::Initialize()
@@ -499,6 +503,7 @@ void RegionGraph::graphTeardown()
     int tg= perilla::wid();
     int numfabs = numTasks;
 
+#if 0
     for(int f=0; f<numfabs; f++)
     {
 	if(WorkerThread::isMyRegion(tg,f))
@@ -593,10 +598,12 @@ void RegionGraph::graphTeardown()
 	    }
 	}
     }
+#endif
 
     if(ParallelDescriptor::NProcs() == 1) return;
 
 
+#if 1
 
     for(int f=0; f<numfabs; f++)
     {
@@ -611,6 +618,8 @@ void RegionGraph::graphTeardown()
 		    while(cpDst->r_con.rcv[i].pQueue.queueSize() >= 1)
 		    {
 			package = cpDst->r_con.rcv[i].pQueue.dequeue();
+			if(package->request != MPI_REQUEST_NULL)
+			    MPI_Cancel( &(package->request) );
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
@@ -638,6 +647,7 @@ void RegionGraph::graphTeardown()
 		    while(cpSrc->r_con.snd[i].pQueue.queueSize() >= 1)
 		    {
 			package = cpSrc->r_con.snd[i].pQueue.dequeue();
+			MPI_Wait( &(package->request), &status );
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
@@ -650,8 +660,10 @@ void RegionGraph::graphTeardown()
 	    }
 	}
     }
+#endif
 
 
+#if 0
     if(tg == 0)
     {
 	CopyMap* cpDst = rCopyMapHead;
@@ -714,16 +726,16 @@ void RegionGraph::graphTeardown()
 			cpSrc->map[f]->r_con.snd[i].recycleQueue.enqueue(package);
 		    }
 		}
-
 	    }
-
 	    cpSrc = cpSrc->next;
 	}
     }
+#endif
 
     //if(WorkerThread::isTeamMasterThread(tid)) commented out b/c its already call by single thread in a team
     //Perilla::globalBarrier->sync(perilla::NUM_THREAD_TEAMS);
 
+#if 0
     // Parallel Copy Reset on Local tg
     for(int f=0; f<numfabs; f++)
     {
@@ -794,7 +806,7 @@ void RegionGraph::graphTeardown()
 	    }
 	}
     }
-
+#endif
 }
 
 void RegionGraph::workerTeardown()
@@ -826,9 +838,12 @@ RegionGraph::~RegionGraph()
     sMap.clear();
     rMap.clear();
 
-    //for(int i=0; i<fabTiles.size(); i++) delete fabTiles[i];
-    //for(int i=0; i<fabTiles_gtbx.size(); i++) delete fabTiles_gtbx[i];
+    for(int i=0; i<fabTiles.size(); i++) delete fabTiles[i];
+    for(int i=0; i<fabTiles_gtbx.size(); i++) delete fabTiles_gtbx[i];
 
     fabTiles.clear();
     fabTiles_gtbx.clear();
+#ifdef PERILLA_DEBUG
+    memcheck.remove(memcheck.genKey(this));
+#endif
 }

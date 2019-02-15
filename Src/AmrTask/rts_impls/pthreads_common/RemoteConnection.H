@@ -5,6 +5,13 @@
 #include <PackageQueue.H>
 #include <pthread.h>
 
+using namespace perilla;
+#ifdef PERILLA_DEBUG
+#include "PerillaMemCheck.H"
+extern PerillaMemCheck memcheck;
+#endif
+
+
 class RemoteCommDescriptor
 {
 public:
@@ -24,9 +31,16 @@ public:
     sz(0), pr(0),
     cnt(0), r_gid(0),
     r_grids(0)
-  {}
+  {
+#ifdef PERILLA_DEBUG
+    	        memcheck.add(memcheck.genKey(this), (void*)this, "RemoteCommDescriptor");
+#endif
+  }
 
    ~RemoteCommDescriptor(){
+#ifdef PERILLA_DEBUG
+    	        memcheck.remove(memcheck.genKey(this));
+#endif
   }
 };
 
@@ -62,14 +76,16 @@ public:
     rcvLock(PTHREAD_MUTEX_INITIALIZER),
     ghostLock(PTHREAD_MUTEX_INITIALIZER)
   {
+//    	        memcheck.add(memcheck.genKey(this), (void*)this, "RemoteCommDescriptor");
   }
 
   ~RemoteConnection()
   {
-    if(!snd)
+    if(snd)
       delete[] snd;
-    if(!rcv)
+    if(rcv)
       delete[] rcv;
+//    	        memcheck.remove(memcheck.genKey(this));
   }
 };
 

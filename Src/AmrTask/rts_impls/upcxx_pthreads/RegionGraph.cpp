@@ -482,6 +482,7 @@ void RegionGraph::graphTeardown()
     int tg= perilla::wid();
     int numfabs = numTasks;
 
+#if 0
     for(int f=0; f<numfabs; f++)
     {
 	if(WorkerThread::isMyRegion(tg,f))
@@ -551,6 +552,7 @@ void RegionGraph::graphTeardown()
 	    }
 	}
     }
+#endif
 
     if(ParallelDescriptor::NProcs() == 1) return;
 
@@ -570,7 +572,7 @@ void RegionGraph::graphTeardown()
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
-			package->request = 0;		    
+                        if(package->request) delete package->request;
 			cpDst->r_con.rcv[i].recycleQueue.enqueue(package);
 		    }
 		}
@@ -597,7 +599,7 @@ void RegionGraph::graphTeardown()
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
-			package->request = 0;		    
+                        if(package->request) delete package->request;
 			cpSrc->r_con.snd[i].recycleQueue.enqueue(package);
 		    }
 		}
@@ -607,7 +609,8 @@ void RegionGraph::graphTeardown()
 	}
     }
 
-    //if(tg == 0)
+#if 0
+    if(tg == 0)
     {
 	CopyMap* cpDst = rCopyMapHead;
 	while(cpDst != 0)
@@ -625,7 +628,7 @@ void RegionGraph::graphTeardown()
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
-			package->request = 0;
+                        if(package->request) delete package->request;
 			cpDst->map[f]->r_con.rcv[i].recycleQueue.enqueue(package);
 		    }
 		}
@@ -649,7 +652,7 @@ void RegionGraph::graphTeardown()
 			package->completed = false;
 			package->served = false;
 			package->notified = false;
-			package->request = 0;		    
+                        if(package->request) delete package->request;
 			cpSrc->map[f]->r_con.snd[i].recycleQueue.enqueue(package);
 		    }
 		}
@@ -657,11 +660,13 @@ void RegionGraph::graphTeardown()
 	    cpSrc = cpSrc->next;
 	}
     }
+#endif
 
     //if(WorkerThread::isTeamMasterThread(tid)) commented out b/c its already call by single thread in a team
     //Perilla::globalBarrier->sync(perilla::NUM_THREAD_TEAMS);
 
     // Parallel Copy Reset on Local tg
+#if 0
     if(lMap.size() > 0)
     {
 	for(int f=0; f<numfabs; f++)
@@ -675,7 +680,7 @@ void RegionGraph::graphTeardown()
 		    package->completed = false;
 		    package->served = false;
 		    package->notified = false;
-		    package->request = 0;
+                    if(package->request) delete package->request;
 		    lMap[f]->r_con.snd[i].recycleQueue.enqueue(package);
 		}
 
@@ -686,7 +691,7 @@ void RegionGraph::graphTeardown()
 		    package->completed = false;
 		    package->served = false;
 		    package->notified = false;
-		    package->request = 0;
+                    if(package->request) delete package->request;
 		    lMap[f]->r_con.rcv[i].recycleQueue.enqueue(package);
 		}
 	}
@@ -703,7 +708,7 @@ void RegionGraph::graphTeardown()
 		    package->completed = false;
 		    package->served = false;
 		    package->notified = false;
-		    package->request = 0;
+                    if(package->request) delete package->request;
 		    rMap[f]->r_con.rcv[i].recycleQueue.enqueue(package);
 		}
 	    for(int i=0; i< sMap[f]->r_con.nsnd; i++)
@@ -713,11 +718,12 @@ void RegionGraph::graphTeardown()
 		    package->completed = false;
 		    package->served = false;
 		    package->notified = false;
-		    package->request = 0;
+                    if(package->request) delete package->request;
 		    sMap[f]->r_con.snd[i].recycleQueue.enqueue(package);
 		}
 	}
     }
+#endif
 }
 
 void RegionGraph::workerTeardown()
@@ -729,6 +735,32 @@ void RegionGraph::workerTeardown()
 
 RegionGraph::~RegionGraph()
 {
+    delete[] okToReset;
+    for(int tg=0; tg<perilla::NUM_THREAD_TEAMS; tg++)delete worker[tg];
+    worker.clear();
+    for(int i=0; i<task.size(); i++) delete task[i];
+    task.clear();
+
+    if(sCopyMapHead != 0)
+      delete sCopyMapHead;
+    if(rCopyMapHead != 0)
+      delete rCopyMapHead;
+
+    for(int i=0; i<lMap.size(); i++) delete lMap[i];
+    for(int i=0; i<sMap.size(); i++) delete sMap[i];
+    for(int i=0; i<rMap.size(); i++) delete rMap[i];
+
+    lMap.clear();
+    sMap.clear();
+    rMap.clear();
+
+    for(int i=0; i<fabTiles.size(); i++) delete fabTiles[i];
+    for(int i=0; i<fabTiles_gtbx.size(); i++) delete fabTiles_gtbx[i];
+
+    fabTiles.clear();
+    fabTiles_gtbx.clear();
+
+#if 0
     lMap.clear();
     sMap.clear();
     rMap.clear();
@@ -747,5 +779,6 @@ RegionGraph::~RegionGraph()
     worker.clear();
     task.clear();
     delete[] okToReset;
+#endif
 }
 

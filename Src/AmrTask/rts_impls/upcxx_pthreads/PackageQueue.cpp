@@ -1,6 +1,12 @@
 #include <PackageQueue.H>
 #include <iostream>
 
+#ifdef PERILLA_DEBUG
+#include <PerillaMemCheck.H>
+using namespace perilla;
+extern PerillaMemCheck memcheck;
+#endif
+
 Package::Package()
 {
     databuf = nullptr;
@@ -11,19 +17,31 @@ Package::Package()
     notified = false;
     served = false;
     request = 0;
+    tag=0;
     packageLock= PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
 }
 
 Package::~Package()
 {
     //if(databuf) free(databuf);
-    if(databuf!= nullptr) upcxx::deallocate(databuf);
+    //if(databuf!= nullptr) upcxx::deallocate(databuf);
+    if(databuf!= nullptr) 
+      if(databuf.is_local())
+      {
+	upcxx::delete_array(databuf);
+      }
+#ifdef PERILLA_DEBUG
+        memcheck.remove(memcheck.genKey(this));
+#endif
 }
 
 Package::Package(int size)
 {
     //databuf = new double[size];
-    databuf = upcxx::allocate(size);
+    databuf = (upcxx::global_ptr<double>)upcxx::new_array<double>(size);
     bufSize = size;
     source = 0;
     destination = 0;
@@ -31,14 +49,28 @@ Package::Package(int size)
     notified = false;
     served = false;
     request = 0;
+    tag=0;
     packageLock= PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
 }
 
 Package::Package(int src, int dest)
 {
     bufSize = 0;
+    databuf= nullptr;
     source = src;
     destination = dest;
+    completed = false;
+    notified = false;
+    served = false;
+    request = 0;
+    tag=0;
+    packageLock= PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
 }
 
 Package::Package(int src, int dest, int size)
@@ -46,7 +78,7 @@ Package::Package(int src, int dest, int size)
     source = src;
     destination = dest;
     //databuf = new double[size];
-    databuf = upcxx::allocate(size);
+    databuf = (upcxx::global_ptr<double>)upcxx::new_array<double>(size);
     bufSize = size;
     source = 0;
     destination = 0;
@@ -54,7 +86,11 @@ Package::Package(int src, int dest, int size)
     notified = false;
     served = false;
     request = 0;
+    tag=0;
     packageLock= PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
 }
 
 void Package::setPackageSource(int src)
@@ -89,7 +125,7 @@ bool Package::checkRequest(void)
 void Package::generatePackage(int size)
 {
     //databuf = new double[size];
-    databuf = upcxx::allocate(size);
+    databuf = (upcxx::global_ptr<double>)upcxx::new_array<double>(size);
     bufSize = size;
     source = 0;
     destination = 0;
@@ -97,7 +133,11 @@ void Package::generatePackage(int size)
     notified = false;
     served = false;
     request = 0;
+    tag=0;
     packageLock= PTHREAD_MUTEX_INITIALIZER;
+#ifdef PERILLA_DEBUG
+    memcheck.add(memcheck.genKey(this), (void*)this, "Package");
+#endif
 }
 
 PackageQueue::PackageQueue()
