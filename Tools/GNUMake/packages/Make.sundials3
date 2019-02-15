@@ -16,7 +16,6 @@ VPATH_LOCATIONS += $(AMREX_HOME)/Src/Extern/SUNDIALS3
 INCLUDE_LOCATIONS += $(AMREX_HOME)/Src/Extern/SUNDIALS3
 endif
 
-CVODE_LIB_DIR ?= ../../../../sundials/instdir/lib
 INCLUDE_LOCATIONS += $(CVODE_LIB_DIR)/../include
 
 ifeq ($(USE_CVODE_LIBS),TRUE)
