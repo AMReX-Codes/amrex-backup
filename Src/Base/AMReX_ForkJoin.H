@@ -43,7 +43,7 @@ class ForkJoin
 
     void SetVerbose (bool verbose_in) { flag_verbose = verbose_in; }
 
-    ComponentSet ComponentBounds(const std::string& name, int idx=0) const;
+    ComponentSet ComponentBounds (const std::string & name, int idx = 0) const;
 
     int NProcsTask (int task) const {
         AMREX_ASSERT(task + 1 < split_bounds.size());
@@ -129,22 +129,49 @@ class ForkJoin
         ParallelContext::set_last_frame_ofs(filename);
     }
 
+    void set_timers (bool ft) { flag_timers = ft; }
+
     template <class F>
     void fork_join (const F &fn)
     {
         flag_invoked = true; // set invoked flag
         const int io_rank = 0; // team's sub-rank 0 does IO
+
+        {
+            // this timer is just to synchronize ranks in the subgroup
+            MiniTimer t(timers.initial_sync_time, flag_timers, false, true);
+            // nothing else in this scope
+        }
+
         create_task_output_dir();
         MPI_Comm task_comm = split_tasks();
-        copy_data_to_tasks(); // move data to local tasks
+
+        {
+            MiniTimer t(timers.copy_to_tasks_time, flag_timers);
+            copy_data_to_tasks(); // copy data to children
+        }
+
         ParallelContext::push(task_comm, task_me, io_rank);
         set_task_output_file(get_io_filename());
-        fn(*this);
+
+        {
+            MiniTimer t(timers.task_time, flag_timers);
+            fn(*this);
+        }
+
         ParallelContext::pop();
 #ifdef BL_USE_MPI
         MPI_Comm_free(&task_comm);
 #endif
-        copy_data_from_tasks(); // move local data back
+
+        {
+            MiniTimer t(timers.copy_from_tasks_time, flag_timers);
+            copy_data_from_tasks(); // copy data from children
+        }
+
+        if (flag_timers) {
+            print_timer_data();
+        }
     }
 
   private:
@@ -171,6 +198,46 @@ class ForkJoin
 
         bool empty() const { return orig == nullptr; }
     };
+
+    struct MiniTimer
+    {
+        double & result; // reference to where to store result
+        bool flag_enable;
+        bool flag_pre_sync;
+        bool flag_post_sync;
+
+        MiniTimer (double & r, bool enable, bool pre_sync = true, bool post_sync = true)
+          : result(r), flag_enable(enable), flag_pre_sync(pre_sync), flag_post_sync(post_sync)
+        {
+            if (flag_enable) {
+                if (flag_pre_sync) {
+                    ParallelDescriptor::Barrier(ParallelContext::CommunicatorSub());
+                }
+                result = amrex::second();
+            }
+        }
+
+        ~MiniTimer ()
+        {
+            if (flag_enable) {
+                if (flag_post_sync) {
+                    ParallelDescriptor::Barrier(ParallelContext::CommunicatorSub());
+                }
+                result = amrex::second() - result;
+            }
+        }
+    };
+
+    struct Timers
+    {
+        double initial_sync_time;
+        double copy_to_tasks_time;
+        double task_time;
+        double copy_from_tasks_time;
+    };
+
+    Timers timers;
+    bool flag_timers = false;  //!< enable timers
 
     bool flag_verbose = false; //!< for debugging
     bool flag_invoked = false; //!< track if object has been invoked yet
@@ -207,6 +274,9 @@ class ForkJoin
 
     //! unique output file for this sub-task
     std::string get_io_filename (bool flag_unique = false);
+
+    //! print timer data from fork_join invocation
+    void print_timer_data () const;
 };
 
 }

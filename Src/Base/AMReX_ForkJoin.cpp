@@ -39,6 +39,21 @@ get_frame_id_vec ()
     return result;
 }
 
+template <class T>
+std::string to_str(const Vector<T> & v)
+{
+    std::ostringstream oss;
+    oss << "(";
+    bool first = true;
+    for (int i = 0; i < v.size(); ++i) {
+        if (!first) oss << ",";
+        oss << v[i];
+        first = false;
+    }
+    oss << ")";
+    return oss.str();
+}
+
 }
 
 namespace amrex {
@@ -168,7 +183,7 @@ ForkJoin::modify_split (const std::string &name, int idx, Vector<ComponentSet> c
 }
 
 ForkJoin::ComponentSet
-ForkJoin::ComponentBounds(const std::string& name, int idx) const
+ForkJoin::ComponentBounds (const std::string & name, int idx) const
 {
     const auto & mffork_vec = data.at(name);
     BL_ASSERT(idx >= 0 && idx < mffork_vec.size());
@@ -384,6 +399,24 @@ ForkJoin::get_io_filename (bool flag_unique)
     }
 
     return result;
+}
+
+void
+ForkJoin::print_timer_data () const
+{
+    Vector<double> vs(ParallelContext::NProcsSub());
+
+    Print() << "ForkJoin timer data:" << std::endl;
+//  ParallelGather::Gather(timers.initial_sync_time, vs.data(), 0, ParallelContext::CommunicatorSub());
+//  Print() << "  Initial sync time: " << to_str(vs) << std::endl;
+    Print() << "  Copy to tasks time: " << timers.copy_to_tasks_time << std::endl;
+    ParallelGather::Gather(timers.task_time, vs.data(), 0, ParallelContext::CommunicatorSub());
+    Vector<double> task_times(NTasks());
+    for (int i = 0; i < NTasks(); ++i) {
+        task_times[i] = vs[split_bounds[i]];
+    }
+    Print() << "  Task times: " << to_str(task_times) << std::endl;
+    Print() << "  Copy from tasks time: " << timers.copy_from_tasks_time << std::endl;
 }
 
 }

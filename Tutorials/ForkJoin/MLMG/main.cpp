@@ -22,6 +22,8 @@ namespace {
     Real w     = 0.05;  // contols the width of the jump
 
     int  fj_verbose = 0;
+    int  fj_timers = 1;
+
     int  mlmg_verbose = 0;
     Real tolerance_rel = 1.e-8;
     Real tolerance_abs = 0.0;
@@ -70,6 +72,7 @@ int main(int argc, char* argv[])
             pp.query("ncomp", ncomp);
             pp.query("modify_split", flag_modify_split);
             pp.query("task_output_dir", task_output_dir);
+            pp.query("fj_timers", fj_timers);
 
             int n_cell, max_grid_size;
             pp.get("n_cell", n_cell);
@@ -162,6 +165,7 @@ void top_fork(MultiFab& soln, const MultiFab& rhs,
     ForkJoin fj(Vector<int> {1, proc_n - 1});
     fj.SetVerbose(fj_verbose);
     fj.set_task_output_dir(task_output_dir);
+    fj.set_timers(fj_timers);
 
     // these multifabs go to task 0 only
     fj.reg_mf    (rhs  , "rhs"  , ForkJoin::Strategy::single, ForkJoin::Intent::in , 1);
@@ -192,6 +196,7 @@ void fork_solve(MultiFab& soln, const MultiFab& rhs,
     ForkJoin fj(ntasks);
     fj.SetVerbose(fj_verbose);
     fj.set_task_output_dir(task_output_dir);
+    fj.set_timers(fj_timers);
 
     // register how to copy multifabs to/from tasks
     fj.reg_mf    (rhs  , "rhs"  , ForkJoin::Strategy::split, ForkJoin::Intent::in);

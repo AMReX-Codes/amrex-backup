@@ -6,5 +6,6 @@ n_cell = 64
 max_grid_size = 32
 
 fj_verbose = 1
-mlmg_verbose = 0
+mlmg_verbose = 1
 task_output_dir = task_output
+fj_timers = 1
