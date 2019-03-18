@@ -71,6 +71,7 @@ private:
     int global_depth;
     std::vector<Stats*> stats;
 
+    std::string addend(std::string funcname);
     static std::vector<std::string> regionstack;
     static std::stack<std::pair<double,double> > ttstack;
     static std::map<std::string,std::map<std::string, Stats> > statsmap;

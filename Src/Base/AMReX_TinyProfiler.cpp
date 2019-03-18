@@ -12,6 +12,7 @@
 #include <AMReX_ParallelReduce.H>
 #include <AMReX_Utility.H>
 #include <AMReX_Print.H>
+#include <AMReX_Gpu.H>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -29,26 +30,40 @@ namespace {
     static constexpr char mainregion[] = "main";
 }
 
+std::string
+TinyProfiler::addend(std::string funcname)
+{
+    if (Gpu::inLaunchRegion())
+    {
+        return ("GPU +++ " + funcname);
+    }
+    else
+    {
+        return ("CPU - " + funcname); 
+    }
+} 
+
+
 TinyProfiler::TinyProfiler (std::string funcname) noexcept
-    : fname(std::move(funcname))
+    : fname(std::move(addend(funcname)))
 {
     start();
 }
 
 TinyProfiler::TinyProfiler (std::string funcname, bool start_) noexcept
-    : fname(std::move(funcname))
+    : fname(std::move(addend(funcname)))
 {
     if (start_) start();
 }
 
 TinyProfiler::TinyProfiler (const char* funcname) noexcept
-    : fname(funcname)
+    : fname(addend(funcname))
 {
     start();
 }
 
 TinyProfiler::TinyProfiler (const char* funcname, bool start_) noexcept
-    : fname(funcname)
+    : fname(addend(funcname))
 {
     if (start_) start();
 }
