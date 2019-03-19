@@ -7,7 +7,7 @@ DIM	= 3
 
 COMP    = gnu 
 
-USE_MPI   = FALSE
+USE_MPI   = TRUE 
 USE_OMP   = FALSE
 USE_CUDA  = TRUE
 TINY_PROFILE = TRUE

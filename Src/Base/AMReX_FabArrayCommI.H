@@ -383,6 +383,7 @@ FabArray<FAB>::FillBoundary_finish ()
     LayoutData<Vector<VoidCopyTag> > recv_copy_tags;
     if (N_rcvs > 0)
     {
+    BL_PROFILE("Recv_Tags");
 	for (int k = 0; k < N_rcvs; k++) 
 	{
             if (fb_recv_size[k] > 0)
@@ -426,6 +427,8 @@ FabArray<FAB>::FillBoundary_finish ()
 
     if (N_rcvs > 0)
     {
+        BL_PROFILE("PostCopyFromMem");
+
         if (!recv_copy_tags.empty())
         {
 #ifdef _OPENMP
@@ -480,6 +483,7 @@ FabArray<FAB>::FillBoundary_finish ()
     }
 
     if (N_snds > 0) {
+        BL_PROFILE("FinalWaitForSends");
         Vector<MPI_Status> stats;
         FabArrayBase::WaitForAsyncSends(N_snds,fb_send_reqs,fb_send_data,stats);
         amrex::The_FA_Arena()->free(fb_the_send_data);

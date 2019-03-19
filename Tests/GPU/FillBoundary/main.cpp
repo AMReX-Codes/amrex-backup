@@ -22,7 +22,6 @@ using namespace amrex;
 
 int main (int argc, char* argv[])
 {
-    std::cout << "**********************************\n";
     amrex::Initialize(argc, argv);
     {
     amrex::Print() << "amrex::Initialize complete." << "\n";
@@ -69,6 +68,10 @@ int main (int argc, char* argv[])
         // Periodic in all directions by default
         pp.queryarr("is_periodic", is_periodic);
     }
+
+    amrex::Print() << std::endl;
+    amrex::Print() << " Domain size: " << n_cell << " cells." << std::endl;
+    amrex::Print() << " Max grid size: " << max_grid_size << " cells." << std::endl << std::endl;
 
     // make BoxArray and Geometry
     BoxArray ba;
@@ -125,7 +128,7 @@ int main (int argc, char* argv[])
         }
         Real end_time = amrex::second();
 
-        std::cout << "Time for GPU to complete " << nsteps << " FillBoundary(s) " << end_time - start_time << std::endl;
+        std::cout << ParallelDescriptor::MyProc() << " : Time for GPU to complete " << nsteps << " FillBoundary(s) " << end_time - start_time << std::endl;
     }
 
     Gpu::setLaunchRegion(false);
@@ -153,7 +156,7 @@ int main (int argc, char* argv[])
         }
         Real end_time = amrex::second();
 
-        std::cout << "Time for CPU to complete " << nsteps << " FillBoundary(s) " << end_time - start_time << std::endl;
+        std::cout << ParallelDescriptor::MyProc() << " : Time for CPU to complete " << nsteps << " FillBoundary(s) " << end_time - start_time << std::endl;
 
     }
 
