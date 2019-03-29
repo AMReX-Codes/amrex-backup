@@ -6,14 +6,27 @@
 
 #include "myfunc.H"
 
+
 using namespace amrex;
 
 int main (int argc, char* argv[])
 {
     amrex::Initialize(argc,argv);
-    
-    main_main();
-    
+    {
+#ifdef AMREX_KOKKOS
+        Kokkos::InitArguments args;
+        args.device_id = amrex::Gpu::Device::deviceId();
+
+        Kokkos::initialize(args);
+        {
+#endif
+
+            main_main();
+#ifdef AMREX_KOKKOS
+        }
+        Kokkos::finalize();
+#endif
+    }
     amrex::Finalize();
     return 0;
 }
@@ -50,6 +63,9 @@ void main_main ()
 
         pp.queryarr("is_periodic", is_periodic);
     }
+
+    amrex::Print() << " Running HeatEquation with a " << n_cell << "^3 grid " << std::endl
+                   << " and maximum " <<  max_grid_size << " length-boxes." << std::endl;
 
     // make BoxArray and Geometry
     BoxArray ba;
@@ -88,6 +104,7 @@ void main_main ()
     GpuArray<Real,AMREX_SPACEDIM> dx = geom.CellSizeArray();
 
     init_phi(phi_new, geom);
+
     // ========================================
 
     Real dt = 0.9*dx[0]*dx[0] / (2.0*AMREX_SPACEDIM);
