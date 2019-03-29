@@ -44,7 +44,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
         //
 	int N_loc = (*TheFB.m_LocTags).size();
         bool is_thread_safe = FAB::isCopyOMPSafe() && TheFB.m_threadsafe_loc;
-//        if (true)
         if (Gpu::inLaunchRegion() || !is_thread_safe)
         {
             LayoutData<Vector<FabCopyTag<FAB> > > loc_copy_tags(boxArray(),DistributionMap());
@@ -65,7 +64,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
             {
                 const auto& tags = loc_copy_tags[mfi];
                 auto dfab = this->array(mfi);
-                BL_PROFILE("FillBoundary-1MPIloop");
                 for (auto const & tag : tags)
                 {
                     auto const sfab = tag.sfab->array();
@@ -82,7 +80,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
-            BL_PROFILE("FillBoundary-1MPIloop");
             for (int i = 0; i < N_loc; ++i)
             {
                 const CopyComTag& tag = (*TheFB.m_LocTags)[i];
@@ -135,8 +132,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
 
     if (N_snds > 0)
     {
-        BL_PROFILE("SetupSends");
-
         fb_send_data.clear();
         fb_send_reqs.clear();
 
@@ -198,8 +193,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
 
     if (!FAB::preAllocatable())
     {
-        BL_PROFILE("PreAllocatable");
-
         pre_reqs.resize(N_snds,MPI_REQUEST_NULL);
         for (int j=0; j<N_snds; ++j)
         {
@@ -217,8 +210,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
     fb_the_recv_data = nullptr;
 
     if (N_rcvs > 0) {
-        BL_PROFILE("PostRecv");
-
         PostRcvs(*TheFB.m_RcvTags, fb_the_recv_data,
                  fb_recv_data, fb_recv_size, fb_recv_from, fb_recv_reqs,
                  scomp, ncomp, SeqNum, preSeqNum);
@@ -230,8 +221,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
     //
     if (N_snds > 0)
     {
-        BL_PROFILE("PostSends");
-
         bool is_thread_safe = FAB::isCopyOMPSafe();
 #ifdef _OPENMP
 #pragma omp parallel if (is_thread_safe && Gpu::notInLaunchRegion())
@@ -290,8 +279,6 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
     // Do the local work.  Hope for a bit of communication/computation overlap.
     //
     {
-        BL_PROFILE("LocalWork");
-
         bool is_thread_safe = FAB::isCopyOMPSafe() && TheFB.m_threadsafe_loc;
         if (Gpu::inLaunchRegion() || !is_thread_safe)
         {
@@ -383,7 +370,6 @@ FabArray<FAB>::FillBoundary_finish ()
     LayoutData<Vector<VoidCopyTag> > recv_copy_tags;
     if (N_rcvs > 0)
     {
-    BL_PROFILE("Recv_Tags");
 	for (int k = 0; k < N_rcvs; k++) 
 	{
             if (fb_recv_size[k] > 0)
@@ -427,8 +413,6 @@ FabArray<FAB>::FillBoundary_finish ()
 
     if (N_rcvs > 0)
     {
-        BL_PROFILE("PostCopyFromMem");
-
         if (!recv_copy_tags.empty())
         {
 #ifdef _OPENMP
@@ -483,7 +467,6 @@ FabArray<FAB>::FillBoundary_finish ()
     }
 
     if (N_snds > 0) {
-        BL_PROFILE("FinalWaitForSends");
         Vector<MPI_Status> stats;
         FabArrayBase::WaitForAsyncSends(N_snds,fb_send_reqs,fb_send_data,stats);
         amrex::The_FA_Arena()->free(fb_the_send_data);
@@ -1248,8 +1231,6 @@ FabArray<FAB>::FillBoundary_test ()
 {
 #ifdef BL_USE_MPI
 #ifndef AMREX_DEBUG
-    BL_PROFILE("FillBoundary_test");
-
     if (!fb_recv_reqs.empty()) {
         int flag;
         MPI_Testall(fb_recv_reqs.size(), fb_recv_reqs.data(), &flag,
