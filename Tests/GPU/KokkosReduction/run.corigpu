@@ -6,10 +6,10 @@
 #SBATCH -A nstaff 
 
 #SBATCH -N 1
-#SBATCH -n 1 
+#SBATCH -n 2 
 #SBATCH -c 1
-#SBATCH --gres=gpu:1
-#SBATCH --ntasks-per-node=1
+#SBATCH --gres=gpu:2
+#SBATCH --ntasks-per-node=2
 
 # Note: Given exclusive configuration mode,
 #       you MUST specify your desired resources up top like this.
@@ -39,8 +39,8 @@
 # module purge
 # module load modules esslurm gcc cuda mvapich2 
 
-EXE=./main3d.gnu.TPROF.CUDA.ex
+EXE=./main3d.gnu.TPROF.MPI.CUDA.ex
 INPUTS=inputs_3d
 
-#srun ./main3d.gnu.TPROF.CUDA.ex inputs_3d
-srun nvprof --print-gpu-trace --profile-child-processes ${EXE} ${INPUTS} 
+srun ${EXE} ${INPUTS} 
+#srun nvprof --print-gpu-trace --profile-child-processes ${EXE} ${INPUTS} 

@@ -21,9 +21,15 @@ using namespace amrex;
 
 int main (int argc, char* argv[])
 {
-    std::cout << "**********************************\n";
+
     amrex::Initialize(argc, argv); {
-    Kokkos::initialize(); {
+    {
+        Kokkos::InitArguments args;
+        args.device_id = amrex::Gpu::Device::deviceId();
+
+        Kokkos::initialize(args);
+    }
+    {
 
         amrex::Print() << "amrex::Initialize complete." << "\n";
 
@@ -90,12 +96,13 @@ int main (int argc, char* argv[])
 
         // Malloc value for setval testing.
         Real* val;
-        cudaMallocManaged(&val, sizeof(Real));
+        cudaMallocHost(&val, sizeof(Real));
         *val = 0.0;
 
         // Create the MultiFab and touch the data.
         // Ensures the data in on the GPU for all further testing.
         MultiFab x(ba, dm, Ncomp, Nghost);
+
         x.setVal(*val);
 
         amrex::Print() << "MultiFab initialized with: " << n_cell << "^3, max_box_length = " << max_grid_size
@@ -107,13 +114,25 @@ int main (int argc, char* argv[])
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 //      Initial launch to remove any unknown costs in HtoD setup. 
 
+/*
         {
             BL_PROFILE("Initial");
             *val = 0.42;
 
             x.setVal(*val);
             double result = 0;
+            int numStreams = 16;
+            int local_boxes = x.local_size();
 
+            Kokkos::Cuda instances[numStreams];
+
+            for(int i=0; i<numStreams; ++i) {
+              amrex::Cuda::Device::setStreamIndex(i);
+              instances[i] = Kokkos::Cuda( amrex::Cuda::Device::cudaStream() );
+            }
+
+            Kokkos::View<double*,Kokkos::CudaHostPinnedSpace> results("Results", local_boxes);
+            Kokkos::fence();
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
                 // ..................
@@ -123,20 +142,29 @@ int main (int argc, char* argv[])
                 const auto lo = amrex::lbound(bx);
                 const auto hi = amrex::ubound(bx);
 
-                double sub_result = 0;
-                Kokkos::parallel_reduce(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
+                int localIndex = mfi.LocalIndex();
+
+                Kokkos::parallel_reduce(Kokkos::MDRangePolicy<Kokkos::Rank<3>>(instances[localIndex%numStreams],{lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k, double& sum)
                 {
                     sum += a(i,j,k);
-                }, sub_result);
-
-                result += sub_result;
+                    if (i == hi.x && j == hi.y && k == hi.z)
+                    {
+                    }
+                }, Kokkos::subview(results, localIndex));
+//              Shouldn't be needed. Currently being fixed?
+//                Kokkos::fence();
                 // ..................
-
+               
             }
+            Kokkos::parallel_reduce(local_boxes, KOKKOS_LAMBDA(const int i, double& lsum) { lsum+=results(i); },result);
+            Kokkos::fence();
+
+            ParallelAllReduce::Sum(result, ParallelContext::CommunicatorSub());
 
             amrex::Print() << "Initial sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
+*/
 
         {
             BL_PROFILE("Two");
@@ -165,6 +193,8 @@ int main (int argc, char* argv[])
                 // ..................
 
             }
+
+            ParallelAllReduce::Sum(result, ParallelContext::CommunicatorSub());
 
             amrex::Print() << "Two sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
@@ -197,6 +227,8 @@ int main (int argc, char* argv[])
                 // ..................
 
             }
+
+            ParallelAllReduce::Sum(result, ParallelContext::CommunicatorSub());
 
             amrex::Print() << "Three sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
@@ -242,16 +274,17 @@ int main (int argc, char* argv[])
 
             }
 
+            ParallelAllReduce::Sum(result, ParallelContext::CommunicatorSub());
+
             amrex::Print() << "Four sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
 
 
-
-
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
-        amrex::Print() << "Test Completed." << std::endl;
+    amrex::Print() << "Test Completed." << std::endl;
 
     } Kokkos::finalize();
     } amrex::Finalize();
+
 }
