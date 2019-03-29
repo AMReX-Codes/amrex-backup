@@ -1,5 +1,5 @@
-nsteps = 1
-plot_int = -1 
+nsteps = 1000
+plot_int = 100 
 n_cell = 256 
 max_grid_size = 64
 
