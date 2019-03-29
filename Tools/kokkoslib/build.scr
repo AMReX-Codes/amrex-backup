@@ -1,4 +1,4 @@
-git clone https://github.com/kokkos/kokkos ../kokkos
-../kokkos/generate_makefile.bash --with-cuda --arch=Volta70 --with-cuda-options=force_uvm,enable_lambda
+git clone https://github.com/kokkos/kokkos ../kokkos -b develop
+../kokkos/generate_makefile.bash --with-cuda --arch=Volta70 --with-cuda-options=enable_lambda,rdc
 make -j8 kokkoslib
 make -j8 install
