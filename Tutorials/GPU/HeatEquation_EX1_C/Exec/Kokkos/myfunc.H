@@ -4,6 +4,8 @@
 #include <AMReX_Geometry.H>
 #include <AMReX_MultiFab.H>
 
+#include <Kokkos_Core.hpp>
+
 using namespace amrex;
 
 void main_main ();

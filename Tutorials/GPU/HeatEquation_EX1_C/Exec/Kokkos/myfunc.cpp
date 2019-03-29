@@ -2,8 +2,6 @@
 #include "myfunc.H"
 #include "mykernel.H"
 
-#include <Kokkos_Core.hpp>
-
 void advance (MultiFab& phi_old,
               MultiFab& phi_new,
 	      Array<MultiFab, AMREX_SPACEDIM>& flux,
@@ -37,19 +35,31 @@ void advance (MultiFab& phi_old,
         auto const& fluxz = flux[2].array(mfi);
         auto const& phi = phi_old.array(mfi);
 
-        amrex::ParallelFor(xbx,
+        int xcells = xbx.numPts();
+        const auto xlo = lbound(xbx);
+        const auto xhi = ubound(xbx);
+
+        int ycells = ybx.numPts();
+        const auto ylo = lbound(ybx);
+        const auto yhi = ubound(ybx);
+
+        int zcells = zbx.numPts();
+        const auto zlo = lbound(zbx);
+        const auto zhi = ubound(zbx);
+
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({xlo.x,xlo.y,xlo.z},{xhi.x+1,xhi.y+1,xhi.z+1}, {32,4,4}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_x(i,j,k,fluxx,phi,dxinv);
         });
 
-        amrex::ParallelFor(ybx,
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({ylo.x,ylo.y,ylo.z},{yhi.x+1,yhi.y+1,yhi.z+1}, {32,4,4}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_y(i,j,k,fluxy,phi,dyinv);
         });
 
-        amrex::ParallelFor(zbx,
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({zlo.x,zlo.y,zlo.z},{zhi.x+1,zhi.y+1,zhi.z+1}, {32,4,4}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_z(i,j,k,fluxz,phi,dzinv);
@@ -66,7 +76,11 @@ void advance (MultiFab& phi_old,
         auto const& phiOld = phi_old.array(mfi);
         auto const& phiNew = phi_new.array(mfi);
 
-        amrex::ParallelFor(vbx,
+        int cells = vbx.numPts();
+        const auto lo = lbound(vbx);
+        const auto hi = ubound(vbx);
+
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}, {32,4,4}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             update_phi(i,j,k,phiOld,phiNew,fluxx,fluxy,fluxz,dt,dxinv,dyinv,dzinv);
@@ -74,12 +88,8 @@ void advance (MultiFab& phi_old,
     }
 }
 
-void init_phi(amrex::MultiFab& phi_new, amrex::Geometry const& geom){
-
-    //Kokkos::ScopeGuard sg();
-    Kokkos::initialize();
-    {
-
+void init_phi(amrex::MultiFab& phi_new, amrex::Geometry const& geom)
+{
 
     GpuArray<Real,AMREX_SPACEDIM> dx = geom.CellSizeArray();
     GpuArray<Real,AMREX_SPACEDIM> prob_lo = geom.ProbLoArray();
@@ -91,89 +101,17 @@ void init_phi(amrex::MultiFab& phi_new, amrex::Geometry const& geom){
         const Box& vbx = mfi.validbox();
         auto const& phiNew = phi_new.array(mfi);
 
-/*
-    int ncells = box.numPts();
-    const auto lo  = amrex::lbound(box);
-    const auto len = amrex::length(box);
-    const auto ec = Cuda::ExecutionConfig(ncells);
-    amrex::launch_global<<<ec.numBlocks, ec.numThreads, ec.sharedMem, amrex::Cuda::Device::cudaStream()>>>(
-    [=] AMREX_GPU_DEVICE () {
-        for (int icell = blockDim.x*blockIdx.x+threadIdx.x, stride = blockDim.x*gridDim.x;
-             icell < ncells; icell += stride) {
-            int icell = blockDim.x*blockIdx.x+threadIdx.x;
-            int k =  icell /   (len.x*len.y);
-            int j = (icell - k*(len.x*len.y)) /   len.x;
-            int i = (icell - k*(len.x*len.y)) - j*len.x;
-            i += lo.x;
-            j += lo.y;
-            k += lo.z;
-            f(i,j,k);
-        }
-    });
-*/
         int ncells = vbx.numPts();
         const auto lo = lbound(vbx);
-        const auto len = amrex::length(vbx);
         const auto hi = ubound(vbx);
 
-        Kokkos::parallel_for(ncells,
-        KOKKOS_LAMBDA (int icell)
-        {
-            //icell = blockDim.x*blockIdx.x+threadIdx.x;
-            int k =  icell /   (len.x*len.y);
-            int j = (icell - k*(len.x*len.y)) /   len.x;
-            int i = (icell - k*(len.x*len.y)) - j*len.x;
-            i += lo.x;
-            j += lo.y;
-            k += lo.z;
-            init_phi(i,j,k,phiNew,dx,prob_lo); 
-        });
-
-
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
-        KOKKOS_LAMBDA (int i, int j, int k)
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}, {32,4,4}),
+        [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             init_phi(i,j,k,phiNew,dx,prob_lo); 
         });
    
-        amrex::ParallelFor(vbx,
-        [=] AMREX_GPU_DEVICE (int i, int j, int k)
-        {
-            init_phi(i,j,k,phiNew,dx,prob_lo);
-        });
-
-        Kokkos::parallel_for(ncells,
-        KOKKOS_LAMBDA (int icell)
-        {
-            //icell = blockDim.x*blockIdx.x+threadIdx.x;
-            int k =  icell /   (len.x*len.y);
-            int j = (icell - k*(len.x*len.y)) /   len.x;
-            int i = (icell - k*(len.x*len.y)) - j*len.x;
-            i += lo.x;
-            j += lo.y;
-            k += lo.z;
-            init_phi(i,j,k,phiNew,dx,prob_lo); 
-        });
-
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
-        KOKKOS_LAMBDA (int i, int j, int k)
-        {
-            init_phi(i,j,k,phiNew,dx,prob_lo); 
-        });
-
-        amrex::ParallelFor(vbx,
-        [=] AMREX_GPU_DEVICE (int i, int j, int k)
-        {
-            init_phi(i,j,k,phiNew,dx,prob_lo);
-        });
-
     }
-
-//    Kokkos::fence();
-
-    }
-
-    Kokkos::finalize();
 
 }
 

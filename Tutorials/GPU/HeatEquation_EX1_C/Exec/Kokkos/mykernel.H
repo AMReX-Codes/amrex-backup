@@ -3,7 +3,7 @@
 
 #include <AMReX_FArrayBox.H>
 
-AMREX_GPU_HOST_DEVICE AMREX_INLINE
+AMREX_GPU_DEVICE AMREX_INLINE
 void init_phi (int i, int j, int k,
                amrex::Array4<amrex::Real> const& phi,
                GpuArray<amrex::Real,AMREX_SPACEDIM> const& dx,
