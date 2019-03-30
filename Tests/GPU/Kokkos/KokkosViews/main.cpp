@@ -143,8 +143,6 @@ int main (int argc, char* argv[])
 //      Initial launch to remove any unknown costs in HtoD setup. 
 
         {
-            BL_PROFILE("Kokkos One");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
                 // ..................
@@ -154,32 +152,36 @@ int main (int argc, char* argv[])
                 const auto lo = amrex::lbound(bx);
                 const auto hi = amrex::ubound(bx);
 
+                BL_PROFILE_VAR("Kokkos One",ko);
+
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
 
+                BL_PROFILE_VAR_STOP(ko);
+
                 // ..................
 
             }
-
-//            amrex::Print() << "Kokkos one sum = " << result << ". Expected = " << points*((*val)+1) << std::endl;
         }
 
         {
-            BL_PROFILE("Amrex One");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
                 const Box bx = mfi.validbox();
                 Array4<Real> a = x.array(mfi);
+
+                BL_PROFILE_VAR("Amrex One",ao);
 
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
+
+                BL_PROFILE_VAR_STOP(ao);
             }
 
         }
@@ -205,8 +207,6 @@ int main (int argc, char* argv[])
         }
 
         {
-            BL_PROFILE("Kokkos Two");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
                 // ..................
@@ -216,11 +216,15 @@ int main (int argc, char* argv[])
                 const auto lo = amrex::lbound(bx);
                 const auto hi = amrex::ubound(bx);
 
+                BL_PROFILE_VAR("Kokkos Two",koo);
+
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
+
+                BL_PROFILE_VAR_STOP(koo);
 
                 // ..................
 
@@ -229,19 +233,21 @@ int main (int argc, char* argv[])
         }
 
         {
-            BL_PROFILE("Amrex Two");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
  
                 const Box bx = mfi.validbox();
                 Array4<Real> a = x.array(mfi);
 
+                BL_PROFILE_VAR("Amrex Two",aoo);
+
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
+
+                BL_PROFILE_VAR_STOP(aoo);
             }
 
         }
@@ -267,8 +273,6 @@ int main (int argc, char* argv[])
         }
 
         {
-            BL_PROFILE("Kokkos Three");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
                 // ..................
@@ -278,11 +282,15 @@ int main (int argc, char* argv[])
                 const auto lo = amrex::lbound(bx);
                 const auto hi = amrex::ubound(bx);
 
+                BL_PROFILE_VAR("Kokkos Three", kooo);
+
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
+
+                BL_PROFILE_VAR_STOP(kooo);
 
                 // ..................
 
@@ -291,19 +299,21 @@ int main (int argc, char* argv[])
         }
 
         {
-            BL_PROFILE("Amrex Three");
-
             for (MFIter mfi(x); mfi.isValid(); ++mfi)
             {
  
                 const Box bx = mfi.validbox();
                 Array4<Real> a = x.array(mfi);
 
+                BL_PROFILE_VAR("Amrex Three", aooo);
+
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
                     a(i,j,k) += *val;
                 });
+
+                BL_PROFILE_VAR_STOP(aooo);
             }
 
         }
@@ -327,7 +337,6 @@ int main (int argc, char* argv[])
                 view1D(i) = *val;
             });
         }
-
 
 
 
