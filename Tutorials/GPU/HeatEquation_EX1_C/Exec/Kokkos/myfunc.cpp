@@ -47,19 +47,19 @@ void advance (MultiFab& phi_old,
         const auto zlo = lbound(zbx);
         const auto zhi = ubound(zbx);
 
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({xlo.x,xlo.y,xlo.z},{xhi.x+1,xhi.y+1,xhi.z+1}, {32,4,4}),
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({xlo.x,xlo.y,xlo.z},{xhi.x+1,xhi.y+1,xhi.z+1}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_x(i,j,k,fluxx,phi,dxinv);
         });
 
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({ylo.x,ylo.y,ylo.z},{yhi.x+1,yhi.y+1,yhi.z+1}, {32,4,4}),
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({ylo.x,ylo.y,ylo.z},{yhi.x+1,yhi.y+1,yhi.z+1}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_y(i,j,k,fluxy,phi,dyinv);
         });
 
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({zlo.x,zlo.y,zlo.z},{zhi.x+1,zhi.y+1,zhi.z+1}, {32,4,4}),
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({zlo.x,zlo.y,zlo.z},{zhi.x+1,zhi.y+1,zhi.z+1}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             compute_flux_z(i,j,k,fluxz,phi,dzinv);
@@ -80,7 +80,7 @@ void advance (MultiFab& phi_old,
         const auto lo = lbound(vbx);
         const auto hi = ubound(vbx);
 
-        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}, {32,4,4}),
+        Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
         [=] AMREX_GPU_DEVICE (int i, int j, int k)
         {
             update_phi(i,j,k,phiOld,phiNew,fluxx,fluxy,fluxz,dt,dxinv,dyinv,dzinv);
