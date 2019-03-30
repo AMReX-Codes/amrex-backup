@@ -1,4 +1,4 @@
-AMREX_HOME ?= ../../..
+AMREX_HOME ?= ../../../..
 KOKKOS_INSTALL ?= $(AMREX_HOME)/Tools/kokkoslib/install
 
 
