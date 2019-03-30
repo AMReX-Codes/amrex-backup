@@ -167,7 +167,7 @@ int main (int argc, char* argv[])
 */
 
         {
-            BL_PROFILE("Two");
+            BL_PROFILE("Kokkos One");
             *val = 0.76;
 
             x.setVal(*val);
@@ -196,12 +196,25 @@ int main (int argc, char* argv[])
 
             ParallelAllReduce::Sum(result, ParallelContext::CommunicatorSub());
 
-            amrex::Print() << "Two sum = " << result << ". Expected = " << points*(*val) << std::endl;
+            amrex::Print() << "One sum = " << result << ". Expected = " << points*(*val) << std::endl;
+        }
+
+        {
+            BL_PROFILE("amrex 1");
+            *val = 6.5;
+
+            x.setVal(*val);
+
+            double result = x.sum();
+//            amrex::Cuda::Device::synchronize();
+
+            amrex::Print() << "AMReX 1 sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
 
 
+
         {
-            BL_PROFILE("Three");
+            BL_PROFILE("Kokkos Two");
             *val = 1.4;
 
             x.setVal(*val);
@@ -235,19 +248,19 @@ int main (int argc, char* argv[])
 
 
         {
-            BL_PROFILE("amrex::Sum");
+            BL_PROFILE("amrex 2");
             *val = 6.5;
 
             x.setVal(*val);
 
             double result = x.sum();
-            amrex::Cuda::Device::synchronize();
+//            amrex::Cuda::Device::synchronize();
 
             amrex::Print() << "AMReX sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
 
         {
-            BL_PROFILE("Four");
+            BL_PROFILE("Kokkos Three");
             *val = 2.573;
 
             x.setVal(*val);
@@ -278,6 +291,19 @@ int main (int argc, char* argv[])
 
             amrex::Print() << "Four sum = " << result << ". Expected = " << points*(*val) << std::endl;
         }
+
+        {
+            BL_PROFILE("amrex 3");
+            *val = 3.53;
+
+            x.setVal(*val);
+
+            double result = x.sum();
+//            amrex::Cuda::Device::synchronize();
+
+            amrex::Print() << "AMReX sum = " << result << ". Expected = " << points*(*val) << std::endl;
+        }
+
 
 
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
