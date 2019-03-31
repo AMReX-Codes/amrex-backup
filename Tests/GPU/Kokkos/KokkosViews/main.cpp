@@ -157,7 +157,8 @@ int main (int argc, char* argv[])
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,k) += *val;
+                    a(i,j,k) += 1.;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -180,7 +181,8 @@ int main (int argc, char* argv[])
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,k) += *val;
+                   a(i,j,k) += 1.;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -196,7 +198,8 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0},{n_cell,n_cell,n_cell}),
             KOKKOS_LAMBDA (int i, int j, int k)
             {
-                view3D(i,j,k) = *val;
+//                view3D(i,j,k) += *val;
+                view3D(i,j,k) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
@@ -208,7 +211,8 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::RangePolicy<>(0,n_cell*n_cell*n_cell),
             KOKKOS_LAMBDA (int i)
             {
-                view1D(i) = *val;
+//                view1D(i,j,k) += *val;
+                view1D(i) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
@@ -229,7 +233,8 @@ int main (int argc, char* argv[])
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,k) += *val;
+                    a(i,j,k) += 1;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -254,7 +259,8 @@ int main (int argc, char* argv[])
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,k) += *val;
+                    a(i,j,k) += 1.;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -270,7 +276,8 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0},{n_cell,n_cell,n_cell}),
             KOKKOS_LAMBDA (int i, int j, int k)
             {
-                view3D(i,j,k) = *val;
+//                view3D(i,j,k) += *val;
+                view3D(i,j,k) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
@@ -282,7 +289,8 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::RangePolicy<>(0,n_cell*n_cell*n_cell),
             KOKKOS_LAMBDA (int i)
             {
-                view1D(i) = *val;
+//                view1D(i,j,k) += *val;
+                view1D(i) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
@@ -303,7 +311,8 @@ int main (int argc, char* argv[])
                 Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({lo.x,lo.y,lo.z},{hi.x+1,hi.y+1,hi.z+1}),
                 KOKKOS_LAMBDA (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,j) += *val;
+                    a(i,j,k) += 1.;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -328,7 +337,8 @@ int main (int argc, char* argv[])
                 amrex::ParallelFor(bx,
                 [=] AMREX_GPU_DEVICE (int i, int j, int k)
                 {
-                    a(i,j,k) += *val;
+//                    a(i,j,j) += *val;
+                    a(i,j,k) += 1.;
                 });
 
                 amrex::Cuda::Device::synchronize();
@@ -344,7 +354,8 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0},{n_cell,n_cell,n_cell}),
             KOKKOS_LAMBDA (int i, int j, int k)
             {
-                view3D(i,j,k) = *val;
+//                view3D(i,j,k) += *val;
+                view3D(i,j,k) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
@@ -356,12 +367,15 @@ int main (int argc, char* argv[])
             Kokkos::parallel_for(Kokkos::RangePolicy<>(0,n_cell*n_cell*n_cell),
             KOKKOS_LAMBDA (int i)
             {
-                view1D(i) = *val;
+//                view1D(i,j,k) += *val;
+                view1D(i) += 1.;
             });
 
             amrex::Cuda::Device::synchronize();
         }
 
+//          Turn on when desired to check the Kokkos result
+/*
         {
             BL_PROFILE("Check Kokkos Result");
 
@@ -384,7 +398,7 @@ int main (int argc, char* argv[])
             amrex::Print() << "1D Result = " << result1D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;
             amrex::Print() << "3D Result = " << result3D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;
         }
-
+*/
 
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
 
