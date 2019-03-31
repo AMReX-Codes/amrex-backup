@@ -1,6 +1,6 @@
 # This test is currently only set up for a single box.
 
-n_cell = 64 
+n_cell = 64
 max_grid_size = 64 
 
 #amrex.v = 1

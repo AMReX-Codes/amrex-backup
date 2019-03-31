@@ -160,6 +160,8 @@ int main (int argc, char* argv[])
                     a(i,j,k) += *val;
                 });
 
+                amrex::Cuda::Device::synchronize();
+
                 BL_PROFILE_VAR_STOP(ko);
 
                 // ..................
@@ -181,6 +183,8 @@ int main (int argc, char* argv[])
                     a(i,j,k) += *val;
                 });
 
+                amrex::Cuda::Device::synchronize();
+
                 BL_PROFILE_VAR_STOP(ao);
             }
 
@@ -194,6 +198,8 @@ int main (int argc, char* argv[])
             {
                 view3D(i,j,k) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -204,6 +210,8 @@ int main (int argc, char* argv[])
             {
                 view1D(i) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -223,6 +231,8 @@ int main (int argc, char* argv[])
                 {
                     a(i,j,k) += *val;
                 });
+
+                amrex::Cuda::Device::synchronize();
 
                 BL_PROFILE_VAR_STOP(koo);
 
@@ -247,6 +257,8 @@ int main (int argc, char* argv[])
                     a(i,j,k) += *val;
                 });
 
+                amrex::Cuda::Device::synchronize();
+
                 BL_PROFILE_VAR_STOP(aoo);
             }
 
@@ -260,6 +272,8 @@ int main (int argc, char* argv[])
             {
                 view3D(i,j,k) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -270,6 +284,8 @@ int main (int argc, char* argv[])
             {
                 view1D(i) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -289,6 +305,8 @@ int main (int argc, char* argv[])
                 {
                     a(i,j,k) += *val;
                 });
+
+                amrex::Cuda::Device::synchronize();
 
                 BL_PROFILE_VAR_STOP(kooo);
 
@@ -313,6 +331,8 @@ int main (int argc, char* argv[])
                     a(i,j,k) += *val;
                 });
 
+                amrex::Cuda::Device::synchronize();
+
                 BL_PROFILE_VAR_STOP(aooo);
             }
 
@@ -326,6 +346,8 @@ int main (int argc, char* argv[])
             {
                 view3D(i,j,k) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -336,6 +358,8 @@ int main (int argc, char* argv[])
             {
                 view1D(i) = *val;
             });
+
+            amrex::Cuda::Device::synchronize();
         }
 
         {
@@ -354,6 +378,8 @@ int main (int argc, char* argv[])
             {
                 sub_res += view3D(i,j,k);
             }, result3D);
+
+            Kokkos::fence();
 
             amrex::Print() << "1D Result = " << result1D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;
             amrex::Print() << "3D Result = " << result3D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;

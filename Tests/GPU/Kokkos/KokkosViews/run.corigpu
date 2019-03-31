@@ -42,5 +42,5 @@
 EXE=./main3d.gnu.TPROF.MPI.CUDA.ex
 INPUTS=inputs_3d
 
-srun ${EXE} ${INPUTS} 
-#srun nvprof --print-gpu-trace --profile-child-processes ${EXE} ${INPUTS} 
+#srun ${EXE} ${INPUTS} 
+srun nvprof --print-gpu-trace --profile-child-processes ${EXE} ${INPUTS} 
