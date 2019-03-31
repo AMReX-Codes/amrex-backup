@@ -338,6 +338,26 @@ int main (int argc, char* argv[])
             });
         }
 
+        {
+            BL_PROFILE("Check Kokkos Result");
+
+            double result1D, result3D;
+
+            Kokkos::parallel_reduce(Kokkos::RangePolicy<>(0,n_cell*n_cell*n_cell),
+            KOKKOS_LAMBDA (int i, double& sub_res)
+            {
+                sub_res += view1D(i);
+            }, result1D);
+
+            Kokkos::parallel_reduce(Kokkos::MDRangePolicy<Kokkos::Rank<3>>({0,0,0},{n_cell,n_cell,n_cell}),
+            KOKKOS_LAMBDA (int i, int j, int k, double& sub_res)
+            {
+                sub_res += view3D(i,j,k);
+            }, result3D);
+
+            amrex::Print() << "1D Result = " << result1D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;
+            amrex::Print() << "3D Result = " << result3D << " should be " << n_cell*n_cell*n_cell*(*val) << std::endl;
+        }
 
 
 // &&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&&
