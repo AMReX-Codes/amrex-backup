@@ -20,6 +20,13 @@ INCLUDE_LOCATIONS += $(CVODE_LIB_DIR)/../include
 
 ifeq ($(USE_CVODE_LIBS),TRUE)
 LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_cvode
+LIBRARIES += -llapack
+LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_sunmatrixsparse
+ifeq ($(USE_KLU), TRUE)
+    LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_sunlinsolklu
+    SUITESPARSE_LIB_DIR := /ccs/home/amfelden/SuiteSparse//SuiteSparse/lib
+    LIBRARIES += -L$(SUITESPARSE_LIB_DIR) -lklu -lamd -lcolamd -lbtf -lsuitesparseconfig
+endif
 endif
 
 ifeq ($(USE_ARKODE_LIBS),TRUE)
@@ -28,7 +35,7 @@ endif
 
 LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_nvecserial
 
-ifeq ($(USE_CUDA),TRUE)
+ifeq ($(USE_CUDA_CVODE),TRUE)
 LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_nveccuda
 endif
 
@@ -36,4 +43,5 @@ ifeq ($(USE_OMP),TRUE)
 LIBRARIES += -L$(CVODE_LIB_DIR) -lsundials_nvecopenmp
 endif
 
+##LIBRARIES += -Xlinker=-rpath,${CVODE_LIB_DIR}
 LIBRARIES += -Wl,-rpath,${CVODE_LIB_DIR}

@@ -164,16 +164,16 @@ else
   USE_CUDA_FAST_MATH := TRUE
 endif
 
-ifeq ($(USE_CUDA),TRUE)
-  # Set the default CUDA architecture version.
-  CUDA_ARCH ?= 60
-
-  # Maximum number of CUDA threads per block.
-  CUDA_MAX_THREADS ?= 256
-
-  # Limit the maximum number of registers available.
-  CUDA_MAXREGCOUNT ?= 255
-endif
+#ifeq ($(USE_CUDA),TRUE)
+#  # Set the default CUDA architecture version.
+#  CUDA_ARCH ?= 60
+#
+#  # Maximum number of CUDA threads per block.
+#  CUDA_MAX_THREADS ?= 256
+#
+#  # Limit the maximum number of registers available.
+#  CUDA_MAXREGCOUNT ?= 255
+#endif
 
 ifdef DIMENSION_AGNOSTIC
   DIMENSION_AGNOSTIC := $(strip $(DIMENSION_AGNOSTIC))
@@ -463,7 +463,7 @@ endif
 
 ifeq ($(USE_CUDA),TRUE)
 
-    USE_GPU := TRUE
+    #USE_GPU := TRUE
 
     # The CUDA implementation is not currently threadsafe.
     # Throw an error if the user tries to build with OpenMP and CUDA.
@@ -500,7 +500,7 @@ ifeq ($(USE_CUDA),TRUE)
       export MPICH_FC  := $(F90)
     endif
 
-    DEFINES += -DAMREX_USE_CUDA
+    #DEFINES += -DAMREX_USE_CUDA
 
     ifeq ($(USE_GPU_PRAGMA),TRUE)
         DEFINES += -DAMREX_USE_GPU_PRAGMA

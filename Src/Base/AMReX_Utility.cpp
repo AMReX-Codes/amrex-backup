@@ -411,17 +411,17 @@ amrex::RandomNormal (double mean, double stddev)
 
     double rand;
 
-#ifdef __CUDA_ARCH__
-
-    int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
-
-    int tid = blockId * (blockDim.x * blockDim.y * blockDim.z)
-              + (threadIdx.z * (blockDim.x * blockDim.y)) 
-              + (threadIdx.y * blockDim.x) + threadIdx.x ;
-
-    rand = stddev * curand_normal_double(&glo_RandStates[tid]) + mean; 
-
-#else
+//#ifdef __CUDA_ARCH__
+//
+//    int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
+//
+//    int tid = blockId * (blockDim.x * blockDim.y * blockDim.z)
+//              + (threadIdx.z * (blockDim.x * blockDim.y)) 
+//              + (threadIdx.y * blockDim.x) + threadIdx.x ;
+//
+//    rand = stddev * curand_normal_double(&glo_RandStates[tid]) + mean; 
+//
+//#else
 
 #ifdef _OPENMP
     int tid = omp_get_thread_num();
@@ -431,7 +431,7 @@ amrex::RandomNormal (double mean, double stddev)
     std::normal_distribution<double> distribution(mean, stddev);
     rand = distribution(generators[tid]);
 
-#endif
+//#endif
 
     return rand;
 }
@@ -441,18 +441,18 @@ amrex::Random ()
 {
     double rand;
 
-#ifdef __CUDA_ARCH__
-
-    int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
-
-    int tid = blockId * (blockDim.x * blockDim.y * blockDim.z)
-              + (threadIdx.z * (blockDim.x * blockDim.y)) 
-              + (threadIdx.y * blockDim.x) + threadIdx.x ;
-
-    rand = curand_uniform_double(&glo_RandStates[tid]); 
-
-
-#else
+//#ifdef __CUDA_ARCH__
+//
+//    int blockId = blockIdx.x + blockIdx.y * gridDim.x + gridDim.x * gridDim.y * blockIdx.z;
+//
+//    int tid = blockId * (blockDim.x * blockDim.y * blockDim.z)
+//              + (threadIdx.z * (blockDim.x * blockDim.y)) 
+//              + (threadIdx.y * blockDim.x) + threadIdx.x ;
+//
+//    rand = curand_uniform_double(&glo_RandStates[tid]); 
+//
+//
+//#else
 
 #ifdef _OPENMP
     int tid = omp_get_thread_num();
@@ -462,7 +462,7 @@ amrex::Random ()
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
     rand = distribution(generators[tid]);
 
-#endif
+//#endif
 
     return rand;
 }

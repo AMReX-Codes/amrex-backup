@@ -19,21 +19,21 @@ namespace Cuda {
     template <typename T>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     T LDG (Array4<T> const& a, int i, int j, int k) noexcept {
-#ifdef __CUDA_ARCH__
-        return __ldg(a.ptr(i,j,k,n));
-#else
+//#ifdef __CUDA_ARCH__
+//        return __ldg(a.ptr(i,j,k,n));
+//#else
         return a(i,j,k);
-#endif
+//#endif
     }
 
     template <typename T>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     T LDG (Array4<T> const& a, int i, int j, int k, int n) noexcept {
-#ifdef __CUDA_ARCH__
-        return __ldg(a.ptr(i,j,k,n));
-#else
+//#ifdef __CUDA_ARCH__
+//        return __ldg(a.ptr(i,j,k,n));
+//#else
         return a(i,j,k,n);
-#endif
+//#endif
     }
 
     inline bool isManaged (void const* p) noexcept {
@@ -153,143 +153,143 @@ namespace Cuda {
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Add (T* sum, T value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicAdd(sum, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicAdd(sum, value);
+//#else
             *sum += value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Add (long* sum, long value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicAdd((unsigned long long*)sum, static_cast<unsigned long long>(value));
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicAdd((unsigned long long*)sum, static_cast<unsigned long long>(value));
+//#else
             *sum += value;
-#endif
+//#endif
         }
         
         template<class T>
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Min (T* m, T value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            detail::atomicMin(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            detail::atomicMin(m, value);
+//#else
             *m = (*m) < value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Min (int* m, int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMin(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMin(m, value);
+//#else
             *m = (*m) < value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Min (unsigned int* m, unsigned int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMin(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMin(m, value);
+//#else
             *m = (*m) < value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Min (unsigned long long int* m, unsigned long long int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMin(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMin(m, value);
+//#else
             *m = (*m) < value ? (*m) : value;
-#endif
+//#endif
         }
         
         template<class T>
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Max (T* m, T value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            detail::atomicMax(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            detail::atomicMax(m, value);
+//#else
             *m = (*m) > value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Max (int* m, int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMax(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMax(m, value);
+//#else
             *m = (*m) > value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Max (unsigned int* m, unsigned int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMax(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMax(m, value);
+//#else
             *m = (*m) > value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Max (unsigned long long int* m, unsigned long long int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicMax(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicMax(m, value);
+//#else
             *m = (*m) > value ? (*m) : value;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void Or (int* m, int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicOr(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicOr(m, value);
+//#else
             *m = (*m) || value; 
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         void And (int* m, int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            atomicAnd(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            atomicAnd(m, value);
+//#else
             *m = (*m) && value; 
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         unsigned int Inc (unsigned int* m, unsigned int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            return atomicInc(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            return atomicInc(m, value);
+//#else
             return (*m)++;
-#endif
+//#endif
         }
 
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         unsigned int Dec (unsigned int* m, unsigned int value) noexcept
         {
-#if defined(__CUDA_ARCH__)
-            return atomicDec(m, value);
-#else
+//#if defined(__CUDA_ARCH__)
+//            return atomicDec(m, value);
+//#else
             return (*m)--;
-#endif
+//#endif
         }
 
     } // namespace Atomic
@@ -298,22 +298,22 @@ namespace Cuda {
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool isnan(T m) noexcept
     {
-#if defined(__CUDA_ARCH__)
-        return isnan(m);
-#else
+//#if defined(__CUDA_ARCH__)
+//        return isnan(m);
+//#else
         return std::isnan(m);
-#endif
+//#endif
     }
 
     template <class T>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     bool isinf(T m) noexcept
     {
-#ifdef __CUDA_ARCH__
-        return isinf(m);
-#else
+//#ifdef __CUDA_ARCH__
+//        return isinf(m);
+//#else
         return std::isinf(m);
-#endif
+//#endif
     }
 
     class StreamIter
