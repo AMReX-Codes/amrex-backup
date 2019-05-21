@@ -13,6 +13,7 @@ programs ?=
 ifeq ($(strip $(programs)),)
   programs += fboxinfo
   programs += fcompare
+  programs += fcomparetol
   programs += fextract
   programs += fextrema
   programs += fnan
