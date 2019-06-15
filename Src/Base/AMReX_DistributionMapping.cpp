@@ -236,7 +236,7 @@ DistributionMapping::LeastUsedCPUs (int         nprocs,
 void
 DistributionMapping::LeastUsedTeams (Vector<int>        & rteam,
 				     Vector<Vector<int> >& rworker,
-				     int                 nteams, 
+				     int                 nteams,
 				     int                 nworkers)
 {
 #ifdef BL_USE_MPI
@@ -284,7 +284,7 @@ DistributionMapping::LeastUsedTeams (Vector<int>        & rteam,
 	}
 
 	Sort(LIworker, false);
-	
+
 	for (int j = 0; j < nworkers; ++j)
 	{
 	    rworker[i][j] = LIworker[j].second;
@@ -368,22 +368,25 @@ void
 DistributionMapping::define (const BoxArray& boxes,
 			     int nprocs)
 {
+    m_ref->clear();
     m_ref->m_pmap.resize(boxes.size());
 
     BL_ASSERT(m_BuildMap != 0);
-	
+
     (this->*m_BuildMap)(boxes,nprocs);
 }
 
 void
 DistributionMapping::define (const Vector<int>& pmap)
 {
+    m_ref->clear();
     m_ref->m_pmap = pmap;
 }
 
 void
 DistributionMapping::define (Vector<int>&& pmap) noexcept
 {
+    m_ref->clear();
     m_ref->m_pmap = std::move(pmap);
 }
 
@@ -412,7 +415,7 @@ DistributionMapping::RoundRobinDoIt (int                  nboxes,
     if (nteams == nprocs)  {
 	LeastUsedCPUs(nprocs,ord);
 	wrkerord.resize(nprocs);
-	for (int i = 0; i < nprocs; ++i) { 
+	for (int i = 0; i < nprocs; ++i) {
 	    wrkerord[i].resize(1);
 	    wrkerord[i][0] = 0;
 	}
@@ -425,7 +428,7 @@ DistributionMapping::RoundRobinDoIt (int                  nboxes,
     if (LIpairV)
     {
 	BL_ASSERT(static_cast<int>(LIpairV->size()) == nboxes);
-	
+
 	for (int i = 0; i < nboxes; ++i)
 	{
 	    int tid = ord[i%nteams];
@@ -450,6 +453,7 @@ void
 DistributionMapping::RoundRobinProcessorMap (int nboxes, int nprocs)
 {
     BL_ASSERT(nboxes > 0);
+    m_ref->clear();
     m_ref->m_pmap.resize(nboxes);
 
     RoundRobinDoIt(nboxes, nprocs);
@@ -471,18 +475,18 @@ DistributionMapping::RoundRobinProcessorMap (const BoxArray& boxes, int nprocs)
     // the CPUs.
     //
     std::vector<LIpair> LIpairV;
- 
+
     const int N = boxes.size();
- 
+
     LIpairV.reserve(N);
- 
+
     for (int i = 0; i < N; ++i)
     {
         LIpairV.push_back(LIpair(boxes[i].numPts(),i));
     }
- 
+
     Sort(LIpairV, true);
- 
+
     RoundRobinDoIt(boxes.size(), nprocs, &LIpairV);
 }
 
@@ -493,6 +497,7 @@ DistributionMapping::RoundRobinProcessorMap (const std::vector<long>& wgts,
 {
     BL_ASSERT(wgts.size() > 0);
 
+    m_ref->clear();
     m_ref->m_pmap.resize(wgts.size());
 
     //
@@ -580,7 +585,7 @@ knapsack (const std::vector<long>&         wgts,
 	  int                              nmax)
 {
     BL_PROFILE("knapsack()");
-    
+
     //
     // Sort balls by size largest first.
     //
@@ -646,7 +651,7 @@ knapsack (const std::vector<long>&         wgts,
         && wblv.size() > 1 && wblv.begin()->size() > 1)
     {
         BL_PROFILE_VAR("knapsack()swap", swap);
-    
+
 top: ;
 
         if (efficiency < max_efficiency && wblv.begin()->size() > 1)
@@ -668,7 +673,7 @@ top: ;
                         std::swap(*ball_1, *ball_2);
                         bl_top->addWeight(-dw);
                         bl_bottom->addWeight(dw);
-                            
+
                         if (bl_top+1 == bl_bottom)  // they are next to each other
                         {
                             if (*bl_bottom < *bl_top) {
@@ -696,7 +701,7 @@ top: ;
 
         BL_ASSERT(std::is_sorted(wblv.begin(), wblv.end()));
     }
-    
+
     for (int i = 0, N = wblv.size(); i < N; ++i)
     {
         const WeightedBoxList& wbl = wblv[i];
@@ -758,11 +763,11 @@ DistributionMapping::KnapSackDoIt (const std::vector<long>& wgts,
 
     Vector<int> ord;
     Vector<Vector<int> > wrkerord;
-    
+
     if (nteams == nprocs) {
 	LeastUsedCPUs(nprocs,ord);
 	wrkerord.resize(nprocs);
-	for (int i = 0; i < nprocs; ++i) { 
+	for (int i = 0; i < nprocs; ++i) {
 	    wrkerord[i].resize(1);
 	    wrkerord[i][0] = 0;
 	}
@@ -774,10 +779,10 @@ DistributionMapping::KnapSackDoIt (const std::vector<long>& wgts,
     {
         const int idx = LIpairV[i].second;
         const int tid = ord[i];
-	
+
 	const std::vector<int>& vi = vec[idx];
 	const int N = vi.size();
-	
+
 	if (nteams == nprocs) {
 	    for (int j = 0; j < N; ++j)
 	    {
@@ -812,6 +817,7 @@ DistributionMapping::KnapSackProcessorMap (const std::vector<long>& wgts,
 {
     BL_ASSERT(wgts.size() > 0);
 
+    m_ref->clear();
     m_ref->m_pmap.resize(wgts.size());
 
     if (static_cast<int>(wgts.size()) <= nprocs || nprocs < 2)
@@ -1075,7 +1081,7 @@ DistributionMapping::SFCProcessorMapDoIt (const BoxArray&          boxes,
 
     for (int i = 0; i < nteams; ++i)
     {
-        const int tid  = ord[i];                  // tid is team id 
+        const int tid  = ord[i];                  // tid is team id
         const int ivec = LIpairV[i].second;       // index into vec
         const std::vector<int>& vi = vec[ivec];   // this vector contains boxes assigned to this team
 	const int Nbx = vi.size();                // # of boxes assigned to this team
@@ -1085,7 +1091,7 @@ DistributionMapping::SFCProcessorMapDoIt (const BoxArray&          boxes,
 	    {
 		m_ref->m_pmap[vi[j]] = ParallelContext::local_to_global_rank(tid);
 	    }
-	} 
+	}
 	else   // We would like to do knapsack within the team workers
 	{
 	    std::vector<long> local_wgts;
@@ -1097,7 +1103,7 @@ DistributionMapping::SFCProcessorMapDoIt (const BoxArray&          boxes,
 	    Real kpeff;
 	    knapsack(local_wgts, nworkers, kpres, kpeff, true, N);
 
-	    // kpres has a size of nworkers. kpres[] contains a vector of indices into vi. 
+	    // kpres has a size of nworkers. kpres[] contains a vector of indices into vi.
 
 	    // sort the knapsacked chunks
 	    std::vector<LIpair> ww;
@@ -1114,7 +1120,7 @@ DistributionMapping::SFCProcessorMapDoIt (const BoxArray&          boxes,
 
 	    // ww is a sorted vector of pair whose first is the weight and second is a index
 	    // into kpres.
-	    
+
 	    const Vector<int>& sorted_workers = wrkerord[i];
 
 	    const int leadrank = tid * nworkers;
@@ -1151,6 +1157,7 @@ DistributionMapping::SFCProcessorMap (const BoxArray& boxes,
 {
     BL_ASSERT(boxes.size() > 0);
 
+    m_ref->clear();
     m_ref->m_pmap.resize(boxes.size());
 
     if (boxes.size() < sfc_threshold*nprocs)
@@ -1181,6 +1188,7 @@ DistributionMapping::SFCProcessorMap (const BoxArray&          boxes,
     BL_ASSERT(boxes.size() > 0);
     BL_ASSERT(boxes.size() == static_cast<int>(wgts.size()));
 
+    m_ref->clear();
     m_ref->m_pmap.resize(wgts.size());
 
     if (boxes.size() < sfc_threshold*nprocs)
@@ -1250,7 +1258,8 @@ DistributionMapping::RRSFCProcessorMap (const BoxArray&          boxes,
                                         int                      nprocs)
 {
     BL_ASSERT(boxes.size() > 0);
- 
+
+    m_ref->clear();
     m_ref->m_pmap.resize(boxes.size());
 
     RRSFCDoIt(boxes,nprocs);
@@ -1266,7 +1275,7 @@ DistributionMapping::makeKnapSack (const Vector<Real>& rcost)
     Vector<long> cost(rcost.size());
 
     Real wmax = *std::max_element(rcost.begin(), rcost.end());
-    Real scale = 1.e9/wmax;
+    Real scale = (wmax == 0) ? 1.e9 : 1.e9/wmax;
 
     for (int i = 0; i < rcost.size(); ++i) {
         cost[i] = long(rcost[i]*scale) + 1L;
@@ -1302,8 +1311,8 @@ DistributionMapping::makeKnapSack (const MultiFab& weight, int nmax)
 	ParallelAllReduce::Sum(&rcost[0], rcost.size(), ParallelContext::CommunicatorSub());
 
 	Real wmax = *std::max_element(rcost.begin(), rcost.end());
-	Real scale = 1.e9/wmax;
-	
+	Real scale = (wmax == 0) ? 1.e9 : 1.e9/wmax;
+
 	for (int i = 0; i < rcost.size(); ++i) {
 	    cost[i] = long(rcost[i]*scale) + 1L;
 	}
@@ -1338,8 +1347,8 @@ DistributionMapping::makeRoundRobin (const MultiFab& weight)
 	ParallelAllReduce::Sum(&rcost[0], rcost.size(), ParallelContext::CommunicatorSub());
 
 	Real wmax = *std::max_element(rcost.begin(), rcost.end());
-	Real scale = 1.e9/wmax;
-	
+        Real scale = (wmax == 0) ? 1.e9 : 1.e9/wmax;
+
 	for (int i = 0; i < rcost.size(); ++i) {
 	    cost[i] = long(rcost[i]*scale) + 1L;
 	}
@@ -1373,8 +1382,8 @@ DistributionMapping::makeSFC (const MultiFab& weight, bool sort)
 	ParallelAllReduce::Sum(&rcost[0], rcost.size(), ParallelContext::CommunicatorSub());
 
 	Real wmax = *std::max_element(rcost.begin(), rcost.end());
-	Real scale = 1.e9/wmax;
-	
+        Real scale = (wmax == 0) ? 1.e9 : 1.e9/wmax;
+
 	for (int i = 0; i < rcost.size(); ++i) {
 	    cost[i] = long(rcost[i]*scale) + 1L;
 	}
@@ -1432,6 +1441,43 @@ DistributionMapping::makeSFC (const BoxArray& ba)
     return r;
 }
 
+const Vector<int>&
+DistributionMapping::getIndexArray ()
+{
+    if (m_ref->m_index_array.empty())
+    {
+        int myProc = ParallelDescriptor::MyProc();
+
+        for(int i = 0, N = m_ref->m_pmap.size(); i < N; ++i) {
+            int rank = m_ref->m_pmap[i];
+            if (ParallelDescriptor::sameTeam(rank)) {
+                // If Team is not used (i.e., team size == 1), distributionMap[i] == myProc
+                m_ref->m_index_array.push_back(i);
+                m_ref->m_ownership.push_back(myProc == rank);
+            }
+        }
+    }
+    return m_ref->m_index_array;
+}
+
+const std::vector<bool>&
+DistributionMapping::getOwnerShip ()
+{
+    if (m_ref->m_ownership.empty())
+    {
+        int myProc = ParallelDescriptor::MyProc();
+
+        for(int i = 0, N = m_ref->m_pmap.size(); i < N; ++i) {
+            int rank = m_ref->m_pmap[i];
+            if (ParallelDescriptor::sameTeam(rank)) {
+                // If Team is not used (i.e., team size == 1), distributionMap[i] == myProc
+                m_ref->m_index_array.push_back(i);
+                m_ref->m_ownership.push_back(myProc == rank);
+            }
+        }
+    }
+    return m_ref->m_ownership;
+}
 
 std::ostream&
 operator<< (std::ostream&              os,

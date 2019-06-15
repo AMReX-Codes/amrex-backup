@@ -49,16 +49,22 @@ if ( USE_XSDK_DEFAULTS )
    if ( ( "${CMAKE_BUILD_TYPE}" MATCHES "Debug" ) OR
 	( NOT CMAKE_BUILD_TYPE ) )
       set ( DEBUG ON )
+      set ( CMAKE_BUILD_TYPE "Debug" )
    endif ()
 else ()
-   option ( DEBUG "Build in debug mode" OFF )
+  option ( DEBUG "Build in debug mode" OFF )
+  if (DEBUG)
+    set (CMAKE_BUILD_TYPE "Debug")
+  else ()
+    set (CMAKE_BUILD_TYPE "Release")
+  endif ()
 endif ()
 
-if (DEBUG)
-   set (CMAKE_BUILD_TYPE "Debug")
-else ()
-   set (CMAKE_BUILD_TYPE "Release")
-endif ()
+# if (DEBUG)
+#    set (CMAKE_BUILD_TYPE "Debug")
+# else ()
+#    set (CMAKE_BUILD_TYPE "Release")
+# endif ()
 
 if ( USE_XSDK_DEFAULTS )
    print_option (CMAKE_BUILD_TYPE)
@@ -98,6 +104,10 @@ print_option ( ENABLE_MPI )
 
 option ( ENABLE_OMP  "Enable OpenMP" OFF)
 print_option ( ENABLE_OMP )
+
+option( ENABLE_CUDA  "Enable CUDA" OFF)
+print_option( ENABLE_CUDA )
+
 
 if ( USE_XSDK_DEFAULTS )
    set ( XSDK_PRECISION "DOUBLE" CACHE STRING "Precision:<SINGLE,DOUBLE>" )
@@ -158,6 +168,26 @@ if ( ENABLE_PARTICLES )
       option ( ENABLE_DP_PARTICLES "Enable double-precision particle data" ON )
       print_option ( ENABLE_DP_PARTICLES )
    endif ()
+endif ()
+
+option ( ENABLE_SENSEI_INSITU "Enable SENSEI in situ infrastructure" OFF )
+print_option ( ENABLE_SENSEI_INSITU )
+
+if (ENABLE_LINEAR_SOLVERS AND (DIM EQUAL 3) AND (NOT USE_XSDK_DEFAULTS) )
+   option(ENABLE_3D_NODAL_MLMG "Enable 3D nodal MLMG" OFF)
+   print_option(ENABLE_3D_NODAL_MLMG)
+else ()
+   set(ENABLE_3D_NODAL_MLMG OFF)
+endif ()
+
+#
+# This options are paths to external libraries installation directories
+#
+if (USE_XSDK_DEFAULTS)
+   set( ALGOIM_INSTALL_DIR "" CACHE PATH
+      "Path to Algoim installation directory")
+   set(  BLITZ_INSTALL_DIR "" CACHE PATH
+      "Path to Blitz installation directory")
 endif ()
 
 #

@@ -389,6 +389,24 @@ FluxRegister::FineAdd (const FArrayBox& flux,
                  &numcomp,&dir,ratio.getVect(),&mult);
 }
 
+void
+FluxRegister::FineSetVal (int              dir,
+                       int              boxno,
+                       int              destcomp,
+                       int              numcomp,
+                       Real             val)
+{
+    BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= ncomp);
+
+    FArrayBox& loreg = bndry[Orientation(dir,Orientation::low)][boxno];
+    BL_ASSERT(numcomp <= loreg.nComp());
+    loreg.setVal(val, loreg.box(), destcomp, numcomp);
+
+    FArrayBox& hireg = bndry[Orientation(dir,Orientation::high)][boxno];
+    BL_ASSERT(numcomp <= hireg.nComp());
+    hireg.setVal(val, hireg.box(), destcomp, numcomp);
+}
+
 void 
 FluxRegister::Reflux (MultiFab&       mf,
 		      const MultiFab& volume,
@@ -531,7 +549,6 @@ FluxRegister::OverwriteFlux (Array<MultiFab*,AMREX_SPACEDIM> const& crse_fluxes,
 
     // cell-centered mask: 0: coarse, 1: covered by fine, 2: phys bc
     const BoxArray& cba = amrex::convert(crse_fluxes[0]->boxArray(), IntVect::TheCellVector());
-    const BoxArray& cfba = amrex::coarsen(grids, ratio);
     iMultiFab cc_mask(cba, crse_fluxes[0]->DistributionMap(), 1, 1);
     {
         const std::vector<IntVect>& pshifts = cperiod.shiftIntVect();
@@ -551,7 +568,7 @@ FluxRegister::OverwriteFlux (Array<MultiFab*,AMREX_SPACEDIM> const& crse_fluxes,
                 const Box& bx = fab.box();
                 for (const auto& iv : pshifts)
                 {
-                    cfba.intersections(bx+iv, isects);
+                    grids.intersections(bx+iv, isects);
                     for (const auto& is : isects)
                     {
                         fab.setVal(1, is.second-iv, 0, 1);

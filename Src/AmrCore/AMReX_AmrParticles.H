@@ -11,12 +11,12 @@ namespace amrex {
 
 template <int NStructReal, int NStructInt, int NArrayReal, int NArrayInt>
 void
-ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::AssignDensityFort(int rho_index,
-                                                                                     Vector<std::unique_ptr<MultiFab> >& mf_to_be_filled, 
-                                                                                     int lev_min, int ncomp, int finest_level) const
+ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::AssignDensity(int rho_index,
+                                                                                 Vector<std::unique_ptr<MultiFab> >& mf_to_be_filled, 
+                                                                                 int lev_min, int ncomp, int finest_level, int ngrow) const
 {
     
-    BL_PROFILE("ParticleContainer<NSR, NSI, NAR, NAI>::AssignDensityFort()");
+    BL_PROFILE("ParticleContainer::AssignDensity()");
     
     if (rho_index != 0) amrex::Abort("AssignDensity only works if rho_index = 0");
     
@@ -30,22 +30,25 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::AssignDensity
     while (!this->m_gdb->LevelDefined(finest_level)) {
         finest_level--;
     }
+
+    ngrow = std::max(ngrow, 2);
     
     // Create the space for mf_to_be_filled, regardless of whether we'll need a temporary mf
     mf_to_be_filled.resize(finest_level+1);
     for (int lev = lev_min; lev <= finest_level; lev++)
-        { 
-            mf_to_be_filled[lev].reset(new MultiFab(this->m_gdb->boxArray(lev),
-                                                    this->m_gdb->DistributionMap(lev),
-                                                    ncomp, 2));
-            mf_to_be_filled[lev]->setVal(0.0);
-        }
+    {        
+        auto ng = lev == lev_min ? IntVect(AMREX_D_DECL(ngrow,ngrow,ngrow)) : this->m_gdb->refRatio(lev-1);
+        mf_to_be_filled[lev].reset(new MultiFab(this->m_gdb->boxArray(lev),
+                                                this->m_gdb->DistributionMap(lev), ncomp, ng));
+        mf_to_be_filled[lev]->setVal(0.0);
+    }
     
-    // Test whether the grid structure of the boxArray is the same
-    //       as the ParticleBoxArray at all levels 
+    // Test whether the grid structure of the boxArray is the same as the ParticleBoxArray at all levels 
     bool all_grids_the_same = true; 
-    for (int lev = lev_min; lev <= finest_level; lev++) {
-        if (!this->OnSameGrids(lev, *mf_to_be_filled[lev])) {
+    for (int lev = lev_min; lev <= finest_level; lev++)
+    {
+        if (!this->OnSameGrids(lev, *mf_to_be_filled[lev]))
+        {
             all_grids_the_same = false;
             break;
         }
@@ -53,36 +56,36 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::AssignDensity
     
     Vector<std::unique_ptr<MultiFab> > mf_part;
     if (!all_grids_the_same)
-        { 
-            // Create the space for the temporary, mf_part
-            mf_part.resize(finest_level+1);
-            for (int lev = lev_min; lev <= finest_level; lev++)
-                {
-                    mf_part[lev].reset(new MultiFab(this->ParticleBoxArray(lev), 
-                                                    this->ParticleDistributionMap(lev),
-                                                    ncomp, 2));
-                    mf_part[lev]->setVal(0.0);
-                }
+    { 
+        // Create the space for the temporary, mf_part
+        mf_part.resize(finest_level+1);
+        for (int lev = lev_min; lev <= finest_level; lev++)
+        {
+            auto ng = lev == lev_min ? IntVect(AMREX_D_DECL(ngrow,ngrow,ngrow)) : this->m_gdb->refRatio(lev-1);
+            mf_part[lev].reset(new MultiFab(this->ParticleBoxArray(lev), 
+                                            this->ParticleDistributionMap(lev), ncomp, ng));
+            mf_part[lev]->setVal(0.0);
         }
+    }
     
     auto & mf = (all_grids_the_same) ? mf_to_be_filled : mf_part;
     
     if (finest_level == 0)
-        {
-            //
-            // Just use the far simpler single-level version.
-            //
-            this->AssignCellDensitySingleLevelFort(rho_index, *mf[0], 0, ncomp);
-            //
-            // I believe that we don't need any information in ghost cells so we don't copy those.
-            //
-            if ( ! all_grids_the_same) {
-                mf_to_be_filled[0]->copy(*mf[0],0,0,ncomp);
-            }
-            return;
+    {
+        //
+        // Just use the far simpler single-level version.
+        //
+        this->AssignCellDensitySingleLevel(rho_index, *mf[0], 0, ncomp);
+        //
+        // I believe that we don't need any information in ghost cells so we don't copy those.
+        //
+        if ( ! all_grids_the_same) {
+            mf_to_be_filled[0]->copy(*mf[0],0,0,ncomp);
         }
+        return;
+    }
     
-    PhysBCFunct cphysbc, fphysbc;
+    PhysBCFunct<BndryFuncArray> cphysbc, fphysbc;
     int lo_bc[] = {BCType::int_dir, BCType::int_dir, BCType::int_dir}; // periodic boundaries
     int hi_bc[] = {BCType::int_dir, BCType::int_dir, BCType::int_dir};
     Vector<BCRec> bcs(1, BCRec(lo_bc, hi_bc));
@@ -98,15 +101,16 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::AssignDensity
     
     for (int lev = lev_min; lev <= finest_level; ++lev) {
         
-        this->AssignCellDensitySingleLevelFort(rho_index, *mf[lev], lev, 1, 0);
+        this->AssignCellDensitySingleLevel(rho_index, *mf[lev], lev, 1, 0);
         
         if (lev < finest_level) {
             amrex::InterpFromCoarseLevel(*tmp[lev+1], 0.0, *mf[lev],
                                          rho_index, rho_index, ncomp,
                                          this->m_gdb->Geom(lev),
                                          this->m_gdb->Geom(lev+1),
-                                         cphysbc, fphysbc,
-                                         this->m_gdb->refRatio(lev), &mapper, bcs);
+                                         cphysbc, 0, fphysbc, 0,
+                                         this->m_gdb->refRatio(lev), &mapper,
+                                         bcs, 0);
         }
         
         if (lev > lev_min) {

@@ -16,6 +16,12 @@ Mask::Mask (const Box& bx,
     :
     BaseFab<int>(bx,nc,alloc,shared) {}
 
+#ifdef AMREX_USE_GPU
+Mask::Mask (Mask const& rhs, MakeType make_type)
+    :
+    BaseFab<int>(rhs,make_type) {}
+#endif
+
 Mask::Mask (std::istream& is)
 {
     readFrom(is);
@@ -98,9 +104,7 @@ Mask::readFrom (std::istream& is)
 Mask&
 Mask::And (const Mask& src)
 {
-    ForEach(domain, 0, nComp(), src, 0,
-            [] (int& d, int const& s) { d = (d ? s : 0); });
-    return *this;
+    return this->And(src,domain,domain,0,0,nvar);
 }
 
 Mask&
@@ -109,9 +113,7 @@ Mask::And (const Mask& src,
            int         destcomp,
            int         numcomp)
 {
-    ForEach(box(), destcomp, numcomp, src, srccomp,
-            [] (int&d, int const& s) { d = (d ? s : 0); });
-    return *this;
+    return this->And(src,domain,domain,srccomp,destcomp,numcomp);
 }
 
 Mask&
@@ -121,9 +123,7 @@ Mask::And (const Mask& src,
            int         destcomp,
            int         numcomp)
 {
-    ForEach(subbox, destcomp, numcomp, src, srccomp,
-            [] (int& d, int const& s) { d = (d ? s : 0); });
-    return *this;
+    return this->And(src,subbox,subbox,srccomp,destcomp,numcomp);
 }
 
 Mask&
@@ -134,17 +134,30 @@ Mask::And (const Mask& src,
            int         destcomp,
            int         numcomp)
 {
-    ForEach(destbox, destcomp, numcomp, src, srcbox, srccomp,
-            [] (int& d, int const& s) { d = (d ? s : 0); });
+    const auto len = amrex::length(destbox);
+    const auto dlo = amrex::lbound(destbox);
+    const auto slo = amrex::lbound(srcbox);
+    const auto dp  =     view(dlo, destcomp);
+    const auto sp  = src.view(slo, srccomp);
+
+    for (int n = 0; n < numcomp; ++n) {
+        for         (int k = 0; k < len.z; ++k) {
+            for     (int j = 0; j < len.y; ++j) {
+                AMREX_PRAGMA_SIMD
+                for (int i = 0; i < len.x; ++i) {
+                    dp(i,j,k,n) = dp(i,j,k,n) ? sp(i,j,k,n) : 0;
+                }
+            }
+        }
+    }
+
     return *this;
 }
 
 Mask&
 Mask::Or (const Mask& src)
 {
-    ForEach(domain, 0, nComp(), src, 0,
-            [] (int& d, int const& s) { d = (d ? 1 : s); });
-    return *this;
+    return this->Or(src,domain,domain,0,0,nvar);
 }
 
 Mask&
@@ -153,9 +166,7 @@ Mask::Or (const Mask& src,
           int         destcomp,
           int         numcomp)
 {
-    ForEach(box(), destcomp, numcomp, src, srccomp,
-            [] (int& d, int const& s) { d = (d ? 1 : s); });
-    return *this;
+    return this->Or(src,domain,domain,srccomp,destcomp,numcomp);
 }
 
 Mask&
@@ -165,9 +176,7 @@ Mask::Or (const Mask& src,
           int         destcomp,
           int         numcomp)
 {
-    ForEach(subbox, destcomp, numcomp, src, srccomp,
-            [] (int& d, int const& s) { d = (d ? 1 : s); });
-    return *this;
+    return this->Or(src,subbox,subbox,srccomp,destcomp,numcomp);
 }
 
 Mask&
@@ -178,8 +187,23 @@ Mask::Or (const Mask& src,
           int         destcomp,
           int         numcomp)
 {
-    ForEach(destbox, destcomp, numcomp, src, srcbox, srccomp,
-            [] (int&d, int const& s) { d = (d ? 1 : s); });
+    const auto len = amrex::length(destbox);
+    const auto dlo = amrex::lbound(destbox);
+    const auto slo = amrex::lbound(srcbox);
+    const auto dp  =     view(dlo, destcomp);
+    const auto sp  = src.view(slo, srccomp);
+
+    for (int n = 0; n < numcomp; ++n) {
+        for         (int k = 0; k < len.z; ++k) {
+            for     (int j = 0; j < len.y; ++j) {
+                AMREX_PRAGMA_SIMD
+                for (int i = 0; i < len.x; ++i) {
+                    dp(i,j,k,n) = dp(i,j,k,n) ? 1: sp(i,j,k,n);
+                }
+            }
+        }
+    }
+
     return *this;
 }
 

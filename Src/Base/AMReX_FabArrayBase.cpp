@@ -5,6 +5,9 @@
 #include <AMReX_Geometry.H>
 #include <AMReX_FArrayBox.H>
 
+#include <AMReX_BArena.H>
+#include <AMReX_CArena.H>
+
 #ifdef BL_MEM_PROFILING
 #include <AMReX_MemProfiler.H>
 #endif
@@ -20,6 +23,20 @@ namespace amrex {
 //
 bool    FabArrayBase::do_async_sends;
 int     FabArrayBase::MaxComp;
+int     FabArrayBase::use_cuda_aware_mpi;
+
+#if defined(AMREX_USE_GPU) && defined(AMREX_USE_GPU_PRAGMA)
+
+#if AMREX_SPACEDIM == 1
+IntVect FabArrayBase::mfiter_tile_size(1024000);
+#elif AMREX_SPACEDIM == 2
+IntVect FabArrayBase::mfiter_tile_size(1024000,1024000);
+#else
+IntVect FabArrayBase::mfiter_tile_size(1024000,1024000,1024000);
+#endif
+
+#else
+
 #if AMREX_SPACEDIM == 1
 IntVect FabArrayBase::mfiter_tile_size(1024000);
 #elif AMREX_SPACEDIM == 2
@@ -27,8 +44,16 @@ IntVect FabArrayBase::mfiter_tile_size(1024000,1024000);
 #else
 IntVect FabArrayBase::mfiter_tile_size(1024000,8,8);
 #endif
+
+#endif
+
+#ifdef AMREX_USE_GPU
+IntVect FabArrayBase::comm_tile_size(AMREX_D_DECL(1024000, 1024000, 1024000));
+IntVect FabArrayBase::mfghostiter_tile_size(AMREX_D_DECL(1024000, 1024000, 1024000));
+#else
 IntVect FabArrayBase::comm_tile_size(AMREX_D_DECL(1024000, 8, 8));
 IntVect FabArrayBase::mfghostiter_tile_size(AMREX_D_DECL(1024000, 8, 8));
+#endif
 
 FabArrayBase::TACache              FabArrayBase::m_TheTileArrayCache;
 FabArrayBase::FBCache              FabArrayBase::m_TheFBCache;
@@ -48,20 +73,8 @@ FabArrayBase::FabArrayStats        FabArrayBase::m_FA_stats;
 
 namespace
 {
+    Arena* the_fa_arena = nullptr;
     bool initialized = false;
-}
-
-
-bool
-FabArrayBase::IsInitialized () const
-{
-  return initialized;
-}
-
-void
-FabArrayBase::SetInitialized (bool binit)
-{
-  initialized = binit;
 }
 
 void
@@ -101,6 +114,18 @@ FabArrayBase::Initialize ()
     if (MaxComp < 1)
         MaxComp = 1;
 
+#ifdef AMREX_USE_CUDA
+    FabArrayBase::use_cuda_aware_mpi = 1;
+    pp.query("use_cuda_aware_mpi", FabArrayBase::use_cuda_aware_mpi);
+#else
+    FabArrayBase::use_cuda_aware_mpi = 0;
+#endif
+    if (FabArrayBase::use_cuda_aware_mpi) {
+        the_fa_arena = The_Device_Arena();
+    } else {
+        the_fa_arena = new BArena;
+    }
+
     amrex::ExecOnFinalize(FabArrayBase::Finalize);
 
 #ifdef BL_MEM_PROFILING
@@ -125,6 +150,12 @@ FabArrayBase::Initialize ()
 			 return {m_CFinfo_stats.bytes, m_CFinfo_stats.bytes_hwm};
 		     }));
 #endif
+}
+
+Arena*
+The_FA_Arena ()
+{
+    return the_fa_arena;
 }
 
 FabArrayBase::FabArrayBase ()
@@ -159,16 +190,9 @@ FabArrayBase::define (const BoxArray&            bxs,
     
     BL_ASSERT(dm.ProcessorMap().size() == bxs.size());
     distributionMap = dm;
-    
-    int myProc = ParallelDescriptor::MyProc();
-    
-    for(int i = 0, N = boxarray.size(); i < N; ++i) {
-	if (ParallelDescriptor::sameTeam(distributionMap[i])) {
-            // If Team is not used (i.e., team size == 1), distributionMap[i] == myProc
-            indexArray.push_back(i);
-            ownership.push_back(myProc == distributionMap[i]);
-	}
-    }
+
+    indexArray = distributionMap.getIndexArray();
+    ownership = distributionMap.getOwnerShip();    
 }
 
 void
@@ -212,12 +236,6 @@ FabArrayBase::CPC::bytes () const
     if (m_RcvTags)
 	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_RcvTags);
 
-    if (m_SndVols)
-	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_SndVols);
-
-    if (m_RcvVols)
-	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_RcvVols);
-
     return cnt;
 }
 
@@ -234,12 +252,6 @@ FabArrayBase::FB::bytes () const
 
     if (m_RcvTags)
 	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_RcvTags);
-
-    if (m_SndVols)
-	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_SndVols);
-
-    if (m_RcvVols)
-	cnt += FabArrayBase::bytesOfMapOfCopyComTagContainers(*m_RcvVols);
 
     return cnt;
 }
@@ -270,7 +282,7 @@ FabArrayBase::CPC::CPC (const FabArrayBase& dstfa, const IntVect& dstng,
       m_srcba(srcfa.boxArray()), 
       m_dstba(dstfa.boxArray()),
       m_threadsafe_loc(false), m_threadsafe_rcv(false),
-      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_SndVols(0), m_RcvVols(0), m_nuse(0)
+      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_nuse(0)
 {
     this->define(m_dstba, dstfa.DistributionMap(), dstfa.IndexArray(), 
 		 m_srcba, srcfa.DistributionMap(), srcfa.IndexArray());
@@ -289,7 +301,7 @@ FabArrayBase::CPC::CPC (const BoxArray& dstba, const DistributionMapping& dstdm,
       m_srcba(srcba), 
       m_dstba(dstba),
       m_threadsafe_loc(false), m_threadsafe_rcv(false),
-      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_SndVols(0), m_RcvVols(0), m_nuse(0)
+      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_nuse(0)
 {
     this->define(dstba, dstdm, dstidx, srcba, srcdm, srcidx, myproc);
 }
@@ -299,8 +311,6 @@ FabArrayBase::CPC::~CPC ()
     delete m_LocTags;
     delete m_SndTags;
     delete m_RcvTags;
-    delete m_SndVols;
-    delete m_RcvVols;
 }
 
 void
@@ -318,8 +328,6 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
     m_LocTags = new CopyComTag::CopyComTagsContainer;
     m_SndTags = new CopyComTag::MapOfCopyComTagContainers;
     m_RcvTags = new CopyComTag::MapOfCopyComTagContainers;
-    m_SndVols = new CopyComTag::MapOfCopyComTagContainers;
-    m_RcvVols = new CopyComTag::MapOfCopyComTagContainers;
 
     if (!(imap_dst.empty() && imap_src.empty())) 
     {
@@ -332,7 +340,7 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 
 	const std::vector<IntVect>& pshifts = m_period.shiftIntVect();
 
-	auto& send_tags = *m_SndVols;
+	auto& send_tags = *m_SndTags;
 	
 	for (int i = 0; i < nlocal_src; ++i)
 	{
@@ -358,15 +366,18 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 	    }
 	}
 
-	auto& recv_tags = *m_RcvVols;
+	auto& recv_tags = *m_RcvTags;
 
 	BaseFab<int> localtouch, remotetouch;
 	bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#if defined(_OPENMP)
 	if (omp_get_max_threads() > 1) {
 	    check_local = true;
 	    check_remote = true;
 	}
+#elif defined(AMREX_USE_GPU)
+        check_local = true;
+        check_remote = true;
 #endif    
 	
 	if (ParallelDescriptor::TeamSize() > 1) {
@@ -432,33 +443,11 @@ FabArrayBase::CPC::define (const BoxArray& ba_dst, const DistributionMapping& dm
 	for (int ipass = 0; ipass < 2; ++ipass) // pass 0: send; pass 1: recv
 	{
 	    CopyComTag::MapOfCopyComTagContainers & Tags = (ipass == 0) ? *m_SndTags : *m_RcvTags;
-	    CopyComTag::MapOfCopyComTagContainers & Vols = (ipass == 0) ? *m_SndVols : *m_RcvVols;
-	    
-            for (auto& kv : Vols)
+            for (auto& kv : Tags)
 	    {
-		const int key = kv.first;
-		std::vector<CopyComTag>& cctv = kv.second;
-		
+		std::vector<CopyComTag>& cctv = kv.second;		
 		// We need to fix the order so that the send and recv processes match.
 		std::sort(cctv.begin(), cctv.end());
-		
-		std::vector<CopyComTag> cctv_tags;
-		cctv_tags.reserve(cctv.size());
-		
-                for (auto const& tag : cctv)
-		{
-		    const Box& bx = tag.dbox;
-		    const IntVect& d2s = tag.sbox.smallEnd() - tag.dbox.smallEnd();
-		    
-		    const BoxList tilelist(bx, FabArrayBase::comm_tile_size);
-                    for (auto const& tile : tilelist)
-		    {
-			cctv_tags.push_back(CopyComTag(tile, tile+d2s, 
-						      tag.dstIndex, tag.srcIndex));
-		    }
-		}
-		
-		Tags[key].swap(cctv_tags);
 	    }
 	}    
     }
@@ -474,15 +463,13 @@ FabArrayBase::CPC::CPC (const BoxArray& ba, const IntVect& ng,
       m_srcba(ba), 
       m_dstba(ba),
       m_threadsafe_loc(true), m_threadsafe_rcv(true),
-      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_SndVols(0), m_RcvVols(0), m_nuse(0)
+      m_LocTags(0), m_SndTags(0), m_RcvTags(0), m_nuse(0)
 {
     BL_ASSERT(ba.size() > 0);
 
     m_LocTags = new CopyComTag::CopyComTagsContainer;
     m_SndTags = new CopyComTag::MapOfCopyComTagContainers;
     m_RcvTags = new CopyComTag::MapOfCopyComTagContainers;
-    m_SndVols = new CopyComTag::MapOfCopyComTagContainers;
-    m_RcvVols = new CopyComTag::MapOfCopyComTagContainers;
 
     const int myproc = ParallelDescriptor::MyProc();
 
@@ -503,15 +490,8 @@ FabArrayBase::CPC::CPC (const BoxArray& ba, const IntVect& ng,
             }
             else
             {
-                auto& Vols = (src_owner == myproc) ? (*m_SndVols)[dst_owner] : (*m_RcvVols)[src_owner];
                 auto& Tags = (src_owner == myproc) ? (*m_SndTags)[dst_owner] : (*m_RcvTags)[src_owner];
-
-                Vols.push_back(CopyComTag(bx, bx, i, i));
-
-                for (const Box& tbx :tilelist)
-                {
-                    Tags.push_back(CopyComTag(tbx, tbx, i, i));
-                }
+                Tags.push_back(CopyComTag(bx, bx, i, i));
             }
         }
     }
@@ -640,8 +620,6 @@ FabArrayBase::FB::FB (const FabArrayBase& fa, const IntVect& nghost,
       m_LocTags(new CopyComTag::CopyComTagsContainer),
       m_SndTags(new CopyComTag::MapOfCopyComTagContainers),
       m_RcvTags(new CopyComTag::MapOfCopyComTagContainers),
-      m_SndVols(new CopyComTag::MapOfCopyComTagContainers),
-      m_RcvVols(new CopyComTag::MapOfCopyComTagContainers),
       m_nuse(0)
 {
     BL_PROFILE("FabArrayBase::FB::FB()");
@@ -673,7 +651,7 @@ FabArrayBase::FB::define_fb(const FabArrayBase& fa)
     
     const std::vector<IntVect>& pshifts = m_period.shiftIntVect();
     
-    auto& send_tags = *m_SndVols;
+    auto& send_tags = *m_SndTags;
     
     for (int i = 0; i < nlocal; ++i)
     {
@@ -701,15 +679,18 @@ FabArrayBase::FB::define_fb(const FabArrayBase& fa)
 	}
     }
 
-    auto& recv_tags = *m_RcvVols;
+    auto& recv_tags = *m_RcvTags;
 
     BaseFab<int> localtouch, remotetouch;
     bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#if defined(_OPENMP)
     if (omp_get_max_threads() > 1) {
 	check_local = true;
 	check_remote = true;
     }
+#elif defined(AMREX_USE_GPU)
+    check_local = true;
+    check_remote = true;
 #endif
 
     if (ParallelDescriptor::TeamSize() > 1) {
@@ -782,23 +763,18 @@ FabArrayBase::FB::define_fb(const FabArrayBase& fa)
     for (int ipass = 0; ipass < 2; ++ipass) // pass 0: send; pass 1: recv
     {
 	CopyComTag::MapOfCopyComTagContainers & Tags = (ipass == 0) ? *m_SndTags : *m_RcvTags;
-	CopyComTag::MapOfCopyComTagContainers & Vols = (ipass == 0) ? *m_SndVols : *m_RcvVols;
 
         Vector<int> to_be_deleted;
 	    
-        for (auto& kv : Vols)
+        for (auto& kv : Tags)
 	{
-            const int key = kv.first;
             std::vector<CopyComTag>& cctv = kv.second;
 		
 	    // We need to fix the order so that the send and recv processes match.
 	    std::sort(cctv.begin(), cctv.end());
 		
-	    std::vector<CopyComTag> cctv_tags;
-	    cctv_tags.reserve(cctv.size());
-
-            std::vector<CopyComTag> cctv_vols_cross;
-            cctv_vols_cross.reserve(cctv.size());
+            std::vector<CopyComTag> cctv_tags_cross;
+            cctv_tags_cross.reserve(cctv.size());
 
             for (auto const& tag : cctv)
             {
@@ -836,33 +812,20 @@ FabArrayBase::FB::define_fb(const FabArrayBase& fa)
                     {
                         if (m_cross)
                         {
-                            cctv_vols_cross.push_back(CopyComTag(cross_box, cross_box+d2s, 
+                            cctv_tags_cross.push_back(CopyComTag(cross_box, cross_box+d2s, 
                                                                  tag.dstIndex, tag.srcIndex));
                         }
-
-			const BoxList tilelist(cross_box, FabArrayBase::comm_tile_size);
-                        for (auto const& tile : tilelist)
-			{
-			    cctv_tags.push_back(CopyComTag(tile, tile+d2s, 
-							  tag.dstIndex, tag.srcIndex));
-			}
 		    }
 		}
 	    }
 		
-	    if (cctv_tags.empty()) {
-                to_be_deleted.push_back(key);
-            } else {
-		Tags[key].swap(cctv_tags);
-	    }
-
-            if (!cctv_vols_cross.empty()) {
-                cctv.swap(cctv_vols_cross);
+            if (!cctv_tags_cross.empty()) {
+                cctv.swap(cctv_tags_cross);
             }
 	}
 
         for (int key : to_be_deleted) {
-            Vols.erase(key);
+            Tags.erase(key);
         }
     }
 }
@@ -885,7 +848,7 @@ FabArrayBase::FB::define_epo (const FabArrayBase& fa)
     
     const std::vector<IntVect>& pshifts = m_period.shiftIntVect();
     
-    auto& send_tags = *m_SndVols;
+    auto& send_tags = *m_SndTags;
 
     Box pdomain = m_period.Domain();
     pdomain.convert(typ);
@@ -923,15 +886,18 @@ FabArrayBase::FB::define_epo (const FabArrayBase& fa)
 	}
     }
 
-    auto& recv_tags = *m_RcvVols;
+    auto& recv_tags = *m_RcvTags;
 
     BaseFab<int> localtouch, remotetouch;
     bool check_local = false, check_remote = false;
-#ifdef _OPENMP
+#if defined(_OPENMP)
     if (omp_get_max_threads() > 1) {
 	check_local = true;
 	check_remote = true;
     }
+#elif defined(AMREX_USE_GPU)
+    check_local = true;
+    check_remote = true;
 #endif
 
     if (ParallelDescriptor::TeamSize() > 1) {
@@ -1014,33 +980,11 @@ FabArrayBase::FB::define_epo (const FabArrayBase& fa)
     for (int ipass = 0; ipass < 2; ++ipass) // pass 0: send; pass 1: recv
     {
 	CopyComTag::MapOfCopyComTagContainers & Tags = (ipass == 0) ? *m_SndTags : *m_RcvTags;
-	CopyComTag::MapOfCopyComTagContainers & Vols = (ipass == 0) ? *m_SndVols : *m_RcvVols;
-
-        for (auto& kv : Vols)
+        for (auto& kv : Tags)
 	{
-            const int key = kv.first;
 	    std::vector<CopyComTag>& cctv = kv.second;
-		
 	    // We need to fix the order so that the send and recv processes match.
 	    std::sort(cctv.begin(), cctv.end());
-		
-	    std::vector<CopyComTag> cctv_tags;
-	    cctv_tags.reserve(cctv.size());
-
-            for (auto const& tag : cctv)
-            {
-		const Box& bx = tag.dbox;
-		const IntVect& d2s = tag.sbox.smallEnd() - tag.dbox.smallEnd();
-		
-		const BoxList tilelist(bx, FabArrayBase::comm_tile_size);
-                for (auto const& tile : tilelist)
-                {
-		    cctv_tags.push_back(CopyComTag(tile, tile+d2s, 
-                                                  tag.dstIndex, tag.srcIndex));
-		}
-	    }
-
-            Tags[key].swap(cctv_tags);
 	}
     }
 }
@@ -1050,8 +994,6 @@ FabArrayBase::FB::~FB ()
     delete m_LocTags;
     delete m_SndTags;
     delete m_RcvTags;
-    delete m_SndVols;
-    delete m_RcvVols;
 }
 
 void
@@ -1345,6 +1287,7 @@ Box
 FabArrayBase::CFinfo::Domain (const Geometry& geom, const IntVect& ng,
                               bool include_periodic, bool include_physbndry)
 {
+#if !defined(BL_NO_FORT)
     Box bx = geom.Domain();
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim) {
         if (Geometry::isPeriodic(idim)) {
@@ -1358,6 +1301,9 @@ FabArrayBase::CFinfo::Domain (const Geometry& geom, const IntVect& ng,
         }
     }
     return bx;
+#else
+    return Box();
+#endif
 }
 
 long
@@ -1434,7 +1380,7 @@ FabArrayBase::Finalize ()
     FabArrayBase::flushCPCache();
     FabArrayBase::flushTileArrayCache();
 
-    if (ParallelDescriptor::IOProcessor() && amrex::system::verbose) {
+    if (ParallelDescriptor::IOProcessor() && amrex::system::verbose > 1) {
 	m_FA_stats.print();
 	m_TAC_stats.print();
 	m_FBC_stats.print();
@@ -1452,6 +1398,11 @@ FabArrayBase::Finalize ()
     m_BD_count.clear();
     
     m_FA_stats = FabArrayStats();
+
+    if (!FabArrayBase::use_cuda_aware_mpi) {
+        delete the_fa_arena;
+    }
+    the_fa_arena = nullptr;
 
     initialized = false;
 }
@@ -1699,40 +1650,10 @@ FabArrayBase::WaitForAsyncSends (int                 N_snds,
     BL_ASSERT(send_reqs.size() == N_snds);
     BL_ASSERT(send_data.size() == N_snds);
 
-    Vector<int> indx;
-
     ParallelDescriptor::Waitall(send_reqs, stats);
-
-    for (int i = 0; i < N_snds; i++) {
-        if (send_data[i]) {
-            amrex::The_Arena()->free(send_data[i]);
-        }
-    }
 #endif /*BL_USE_MPI*/
 }
 
-#ifdef BL_USE_UPCXX
-void
-FabArrayBase::WaitForAsyncSends_PGAS (int                 N_snds,
-                                      Vector<char*>&       send_data,
-                                      upcxx::event*       send_event,
-                                      volatile int*       send_counter)
-{
-    BL_ASSERT(N_snds > 0);
-    BL_ASSERT(send_data.size() == N_snds);
-    int N_null = std::count(send_data.begin(), send_data.begin()+N_snds, nullptr);
-    // Need to make sure all sends have been started
-    while ((*send_counter) < N_snds-N_null) {
-        upcxx::advance();
-    }
-    send_event->wait(); // wait for the sends
-    for (int i = 0; i < N_snds; i++) {
-        if (send_data[i]) {
-            BLPgas::free(send_data[i]);
-        }
-    }
-}
-#endif
 
 #ifdef BL_USE_MPI
 bool

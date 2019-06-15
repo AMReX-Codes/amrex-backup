@@ -10,6 +10,7 @@
 #include <AMReX_MLCGSolver.H>
 #include <AMReX_VisMF.H>
 #include <AMReX_ParallelReduce.H>
+#include <AMReX_MLMG.H>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -47,8 +48,9 @@ sxay (MultiFab&       ss,
 
 }
 
-MLCGSolver::MLCGSolver (MLLinOp& _lp, Type _typ)
-    : Lp(_lp),
+MLCGSolver::MLCGSolver (MLMG* a_mlmg, MLLinOp& _lp, Type _typ)
+    : mlmg(a_mlmg),
+      Lp(_lp),
       solver_type(_typ),
       amrlev(0),
       mglev(_lp.NMGLevels(0)-1)
@@ -84,23 +86,29 @@ MLCGSolver::solve_bicgstab (MultiFab&       sol,
 
     const BoxArray& ba = sol.boxArray();
     const DistributionMapping& dm = sol.DistributionMap();
+    const auto& factory = sol.Factory();
 
-    MultiFab ph(ba, dm, ncomp, nghost, MFInfo(), FArrayBoxFactory());
-    MultiFab sh(ba, dm, ncomp, nghost, MFInfo(), FArrayBoxFactory());
+    MultiFab ph(ba, dm, ncomp, nghost, MFInfo(), factory);
+    MultiFab sh(ba, dm, ncomp, nghost, MFInfo(), factory);
     ph.setVal(0.0);
     sh.setVal(0.0);
 
-    MultiFab sorig(ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab p    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab r    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab s    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab rh   (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab v    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab t    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
+    MultiFab sorig(ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab p    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab r    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab s    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab rh   (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab v    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab t    (ba, dm, ncomp, 0, MFInfo(), factory);
 
     Lp.correctionResidual(amrlev, mglev, r, sol, rhs, MLLinOp::BCMode::Homogeneous);
-    Lp.normalize(amrlev, mglev, r);
 
+    // If singular remove mean from residual
+//    if (Lp.isBottomSingular()) mlmg->makeSolvable(amrlev, mglev, r);
+ 
+    // Then normalize
+    Lp.normalize(amrlev, mglev, r);
+ 
     MultiFab::Copy(sorig,sol,0,0,ncomp,0);
     MultiFab::Copy(rh,   r,  0,0,ncomp,0);
 
@@ -145,7 +153,7 @@ MLCGSolver::solve_bicgstab (MultiFab&       sol,
             sxay(p, r,   beta, p);
         }
         MultiFab::Copy(ph,p,0,0,ncomp,0);
-        Lp.apply(amrlev, mglev, v, ph, MLLinOp::BCMode::Homogeneous);
+        Lp.apply(amrlev, mglev, v, ph, MLLinOp::BCMode::Homogeneous, MLLinOp::StateMode::Correction);
         Lp.normalize(amrlev, mglev, v);
 
         if ( Real rhTv = dotxy(rh,v) )
@@ -159,6 +167,9 @@ MLCGSolver::solve_bicgstab (MultiFab&       sol,
         sxay(sol, sol,  alpha, ph);
         sxay(s,     r, -alpha,  v);
 
+        //Subtract mean from s 
+//        if (Lp.isBottomSingular()) mlmg->makeSolvable(amrlev, mglev, s);
+ 
         rnorm = norm_inf(s);
 
         if ( verbose > 2 && ParallelDescriptor::IOProcessor() )
@@ -172,7 +183,7 @@ MLCGSolver::solve_bicgstab (MultiFab&       sol,
         if ( rnorm < eps_rel*rnorm0 || rnorm < eps_abs ) break;
 
         MultiFab::Copy(sh,s,0,0,ncomp,0);
-        Lp.apply(amrlev, mglev, t, sh, MLLinOp::BCMode::Homogeneous);
+        Lp.apply(amrlev, mglev, t, sh, MLLinOp::BCMode::Homogeneous, MLLinOp::StateMode::Correction);
         Lp.normalize(amrlev, mglev, t);
         //
         // This is a little funky.  I want to elide one of the reductions
@@ -193,6 +204,8 @@ MLCGSolver::solve_bicgstab (MultiFab&       sol,
 	}
         sxay(sol, sol,  omega, sh);
         sxay(r,     s, -omega,  t);
+
+//        if (Lp.isBottomSingular()) mlmg->makeSolvable(amrlev, mglev, r);
 
         rnorm = norm_inf(r);
 
@@ -253,14 +266,15 @@ MLCGSolver::solve_cg (MultiFab&       sol,
 
     const BoxArray& ba = sol.boxArray();
     const DistributionMapping& dm = sol.DistributionMap();
+    const auto& factory = sol.Factory();
 
-    MultiFab p(ba, dm, ncomp, nghost, MFInfo(), FArrayBoxFactory());
+    MultiFab p(ba, dm, ncomp, nghost, MFInfo(), factory);
     p.setVal(0.0);
 
-    MultiFab sorig(ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab r    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab z    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
-    MultiFab q    (ba, dm, ncomp, 0, MFInfo(), FArrayBoxFactory());
+    MultiFab sorig(ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab r    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab z    (ba, dm, ncomp, 0, MFInfo(), factory);
+    MultiFab q    (ba, dm, ncomp, 0, MFInfo(), factory);
 
     MultiFab::Copy(sorig,sol,0,0,ncomp,0);
 
@@ -309,7 +323,7 @@ MLCGSolver::solve_cg (MultiFab&       sol,
             Real beta = rho/rho_1;
             sxay(p, z, beta, p);
         }
-        Lp.apply(amrlev, mglev, q, p, MLLinOp::BCMode::Homogeneous);
+        Lp.apply(amrlev, mglev, q, p, MLLinOp::BCMode::Homogeneous, MLLinOp::StateMode::Correction);
 
         Real alpha;
         if ( Real pw = dotxy(p,q) )
