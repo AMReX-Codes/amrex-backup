@@ -128,7 +128,7 @@ MLABecLaplacian::setBCoeffsFromBcc (int amrlev)
 	  }	      	
       }
     // call setBcoeffs which should kill ghost cells you didn't need in Box array anyways.
-    MLABecLaplacian::setBCoeffs(amrlev,face_bcoef);
+    setBCoeffs(amrlev, amrex::GetArrOfConstPtrs(face_bcoef));
   
     m_needs_update = true;
 }
