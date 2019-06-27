@@ -3,6 +3,8 @@
 #include <AMReX_MultiFabUtil.H>
 
 #include <AMReX_MLABecLap_K.H>
+#include <AMReX_MLABecLap_CCtoFace_F.H>
+
 
 namespace amrex {
 
@@ -85,6 +87,49 @@ MLABecLaplacian::setBCoeffs (int amrlev,
             MultiFab::Copy(m_b_coeffs[amrlev][0][idim], *beta[idim], 0, icomp, 1, 0);
         }
     }
+    m_needs_update = true;
+}
+
+void
+MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta)
+{
+  
+    MultiFab::Copy(m_bcc[amrlev][0], beta, 0, 0, 1, 0); // same format as A
+
+    // Create and fill ghost cells assuming periodic (for now)
+    
+    m_needs_update = true;
+}
+
+void
+MLABecLaplacian::setBCoeffsFromBcc (int amrlev)
+{
+    // If you are calling this function, bcc_coeffs should be defined and
+    // we initialize b_coeffs of the correct size from this.
+    //
+
+    std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+      { // Assumes .boxArray() doesn't include ghostCells (validBoxArray command?)
+        const BoxArray& bamg = amrex::convert(m_bcc[amrlev][0].boxArray(),
+  					  IntVect::TheDimensionVector(idim));
+        face_bcoef[idim].define(bamg, m_bcc[amrlev][0].DistributionMap(), 1, 0);
+
+	// Apply fortran routine to find face valued b_coeffs using cell centered bcc.
+
+	for ( MFIter mfi(m_bcc[amrlev][0]); mfi.isValid(); ++mfi )
+          {
+	    const Box& bx = mfi.validbox();
+	    cc_to_face(BL_TO_FORTRAN_BOX(bx),
+		       BL_TO_FORTRAN_ANYD(m_bcc[amrlev][0][mfi]),
+		       //  BL_TO_FORTRAN_BOX(bamg[mfi]),
+		       BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
+		       idim );
+	  }	      	
+      }
+    // call setBcoeffs which should kill ghost cells you didn't need in Box array anyways.
+    MLABecLaplacian::setBCoeffs(amrlev,face_bcoef);
+  
     m_needs_update = true;
 }
 

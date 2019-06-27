@@ -36,6 +36,8 @@ public:
     void setScalars (Real a, Real b) noexcept;
     void setACoeffs (int amrlev, const MultiFab& alpha);
     void setBCoeffs (int amrlev, const Array<MultiFab const*,AMREX_SPACEDIM>& beta);
+    void setBccCoeffs (int amrlev, const MultiFab& beta);
+    void setBCoeffsFromBcc (int amrlev);
 
     virtual bool needsUpdate () const override {
         return (m_needs_update || MLCellABecLap::needsUpdate());
@@ -86,6 +88,7 @@ protected:
     Real m_b_scalar = std::numeric_limits<Real>::quiet_NaN();
     Vector<Vector<MultiFab> > m_a_coeffs;
     Vector<Vector<Array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
+    Vector<Vector<MultiFab> > m_bcc; // cell centered b(eta) values
 
     Vector<int> m_is_singular;
 };
