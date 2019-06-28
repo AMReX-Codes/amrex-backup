@@ -32,6 +32,7 @@ MLABecLaplacian::define (const Vector<Geometry>& a_geom,
 
     m_a_coeffs.resize(m_num_amr_levels);
     m_b_coeffs.resize(m_num_amr_levels);
+    m_bcc.resize(m_num_amr_levels);
     for (int amrlev = 0; amrlev < m_num_amr_levels; ++amrlev)
     {
         m_a_coeffs[amrlev].resize(m_num_mg_levels[amrlev]);
@@ -41,6 +42,12 @@ MLABecLaplacian::define (const Vector<Geometry>& a_geom,
             m_a_coeffs[amrlev][mglev].define(m_grids[amrlev][mglev],
                                              m_dmap[amrlev][mglev],
                                              1, 0, MFInfo(), *m_factory[amrlev][mglev]);
+
+	    // Ghost cells are hardwired to 2
+	    m_bcc[amrlev][mglev].define(m_grids[amrlev][mglev],
+                                             m_dmap[amrlev][mglev],
+                                             1, 2, MFInfo(), *m_factory[amrlev][mglev]);
+   
             for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
             {
                 const BoxArray& ba = amrex::convert(m_grids[amrlev][mglev],
@@ -91,12 +98,13 @@ MLABecLaplacian::setBCoeffs (int amrlev,
 }
 
 void
-MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta)
+MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta,const Vector<Geometry>& a_geom)
 {
-  
+    // beta should be cell centered
     MultiFab::Copy(m_bcc[amrlev][0], beta, 0, 0, 1, 0); // same format as A
 
     // Create and fill ghost cells assuming periodic (for now)
+    m_bcc[amrlev][0].FillBoundary(a_geom[amrlev].periodicity());
     
     m_needs_update = true;
 }
@@ -127,7 +135,7 @@ MLABecLaplacian::setBCoeffsFromBcc (int amrlev)
 		       idim );
 	  }	      	
       }
-    // call setBcoeffs which should kill ghost cells you didn't need in Box array anyways.
+    // call setBcoeffs
     setBCoeffs(amrlev, amrex::GetArrOfConstPtrs(face_bcoef));
   
     m_needs_update = true;

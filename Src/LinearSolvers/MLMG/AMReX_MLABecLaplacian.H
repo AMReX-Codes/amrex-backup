@@ -36,7 +36,7 @@ public:
     void setScalars (Real a, Real b) noexcept;
     void setACoeffs (int amrlev, const MultiFab& alpha);
     void setBCoeffs (int amrlev, const Array<MultiFab const*,AMREX_SPACEDIM>& beta);
-    void setBccCoeffs (int amrlev, const MultiFab& beta);
+    void setBccCoeffs (int amrlev, const MultiFab& beta, const Vector<Geometry>& a_geom);
     void setBCoeffsFromBcc (int amrlev);
 
     virtual bool needsUpdate () const override {
