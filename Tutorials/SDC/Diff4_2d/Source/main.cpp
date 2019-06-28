@@ -235,7 +235,7 @@ void main_main ()
   // fill in the acoef MultiFab and load this into the solver
   acoef.setVal(1.0);
   mlabec.setACoeffs(0, acoef);
-  
+  /*
   // bcoef lives on faces so we make an array of face-centered MultiFabs
   //   then we will in face_bcoef MultiFabs and load them into the solver.
     std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
@@ -247,10 +247,20 @@ void main_main ()
 	face_bcoef[idim].setVal(1.0);	      	
       }
     mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
-  
-  // build an MLMG solver
-  MLMG mlmg(mlabec);
-  
+  */
+    
+    amrex::Print() << "Testing 1" << "\n";
+
+    // We replace the commented out block with a the cc system.
+    MultiFab BccCoef(ba, dm, 1, 0);
+    amrex::Print() << "Testing 2" << "\n";
+    BccCoef.setVal(1.0);
+    amrex::Print() << "Testing 3" << "\n";
+    mlabec.setBccCoeffs(0, BccCoef, geom);
+    amrex::Print() << "Testing 4" << "\n";
+    mlabec.setBCoeffsFromBcc(0);  // build an MLMG solver
+    amrex::Print() << "Testing 5" << "\n";
+    MLMG mlmg(mlabec);
   // set solver parameters
   int max_iter = 100;
   mlmg.setMaxIter(max_iter);

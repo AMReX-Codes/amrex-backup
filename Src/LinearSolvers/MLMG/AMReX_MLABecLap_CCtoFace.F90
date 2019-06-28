@@ -10,20 +10,29 @@ subroutine cc_to_face(lo, hi, cc_dat, cc_lo, cc_hi, face_dat, face_lo,face_hi, d
 
   integer          :: i,j, k
 
-! We condition based on direction
-if (dir .eq. 1) then
-  do i = lo(1),(hi(1) + 1)
-    do j = lo(2),hi(2)
-      do k = lo(3),hi(3)
 
+!print *,'lo, hi, cc_lo, cc_hi, face_lo, face_hi=',lo, hi, cc_lo, cc_hi, face_lo, face_hi
+
+print *,'cc_dat(0,0,0)=',cc_dat(0,0,0)
+
+
+! We condition based on direction
+if (dir .EQ. 0) then
+ print *,'in if'
+  do i = lo(1),(hi(1) + 1)
+    print *,'x=',i
+    do j = lo(2),hi(2)
+        print *,'y=',j
+      do k = lo(3),hi(3)
+        print *,'z=',k
 	face_dat(i,j,k) = (-1.d0*cc_dat(i-2,j,k) + 7.d0*cc_dat(i-1,j,k) & 
                              + 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i+1,j,k))/(12.d0)
 
       end do
     end do
   end do
-else if(dir .eq. 2) then
-
+elseif(dir .EQ. 1) then
+print *,'where in'
 
   do i = lo(1),hi(1)
     do j = lo(2),(hi(2) + 1)
@@ -38,7 +47,7 @@ else if(dir .eq. 2) then
 
 else
 
-
+print *,'here in'
   do i = lo(1),hi(1)
     do j = lo(2),hi(2)
       do k = lo(3),(hi(3) + 1)
@@ -51,7 +60,7 @@ else
   end do
 
 
-end if
+endif
 
 
 

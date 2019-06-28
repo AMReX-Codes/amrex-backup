@@ -37,6 +37,7 @@ MLABecLaplacian::define (const Vector<Geometry>& a_geom,
     {
         m_a_coeffs[amrlev].resize(m_num_mg_levels[amrlev]);
         m_b_coeffs[amrlev].resize(m_num_mg_levels[amrlev]);
+        m_bcc[amrlev].resize(m_num_mg_levels[amrlev]);
         for (int mglev = 0; mglev < m_num_mg_levels[amrlev]; ++mglev)
         {
             m_a_coeffs[amrlev][mglev].define(m_grids[amrlev][mglev],
@@ -98,14 +99,12 @@ MLABecLaplacian::setBCoeffs (int amrlev,
 }
 
 void
-MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta,const Vector<Geometry>& a_geom)
-{
+MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta,const Geometry& a_geom)
+{   // takes geometry at 1 level, as this was for single level sdc code.
     // beta should be cell centered
     MultiFab::Copy(m_bcc[amrlev][0], beta, 0, 0, 1, 0); // same format as A
-
     // Create and fill ghost cells assuming periodic (for now)
-    m_bcc[amrlev][0].FillBoundary(a_geom[amrlev].periodicity());
-    
+    m_bcc[amrlev][0].FillBoundary(a_geom.periodicity());
     m_needs_update = true;
 }
 
@@ -122,19 +121,22 @@ MLABecLaplacian::setBCoeffsFromBcc (int amrlev)
         const BoxArray& bamg = amrex::convert(m_bcc[amrlev][0].boxArray(),
   					  IntVect::TheDimensionVector(idim));
         face_bcoef[idim].define(bamg, m_bcc[amrlev][0].DistributionMap(), 1, 0);
-
+      
 	// Apply fortran routine to find face valued b_coeffs using cell centered bcc.
-
-	for ( MFIter mfi(m_bcc[amrlev][0]); mfi.isValid(); ++mfi )
+        
+        for ( MFIter mfi(m_bcc[amrlev][0]); mfi.isValid(); ++mfi )
           {
-	    const Box& bx = mfi.validbox();
-	    cc_to_face(BL_TO_FORTRAN_BOX(bx),
+              amrex::Print() << "Testing loop1" << "\n";
+          const Box& bx = mfi.validbox();
+	      cc_to_face(BL_TO_FORTRAN_BOX(bx),
 		       BL_TO_FORTRAN_ANYD(m_bcc[amrlev][0][mfi]),
 		       //  BL_TO_FORTRAN_BOX(bamg[mfi]),
 		       BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
 		       idim );
-	  }	      	
+              amrex::Print() << "Testing loop2" << "\n";
+          }
       }
+    
     // call setBcoeffs
     setBCoeffs(amrlev, amrex::GetArrOfConstPtrs(face_bcoef));
   
