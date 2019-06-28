@@ -51,7 +51,7 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
         do j = lo(2), hi(2)
            do i = lo(1), hi(1)+1
               fluxx(i,j) = ( phi(i,j) - phi(i-1,j) ) / dx(1)
-!              fluxx(i,j) = ( -phi(i+1,j)  +15.0d0*(phi(i,j) - phi(i-1,j)) + phi(i-2,j) ) /(12.0d0*dx(1))
+              fluxx(i,j) = ( -phi(i+1,j)  +15.0d0*(phi(i,j) - phi(i-1,j)) + phi(i-2,j) ) /(12.0d0*dx(1))
            end do
         end do
         
@@ -59,7 +59,7 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
         do j = lo(2), hi(2)+1
            do i = lo(1), hi(1)
               fluxy(i,j) = ( phi(i,j) - phi(i,j-1) ) / dx(2)
-!              fluxy(i,j) = ( -phi(i,j+1)  +15.0d0*(phi(i,j) - phi(i,j-1)) + phi(i,j-2) ) /(12.0d0*dx(2))
+              fluxy(i,j) = ( -phi(i,j+1)  +15.0d0*(phi(i,j) - phi(i,j-1)) + phi(i,j-2) ) /(12.0d0*dx(2))
            end do
         end do
 
@@ -117,6 +117,46 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
   end do
 
 end subroutine SDC_fcomp_reaction_F
+
+subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
+        rhs, rhslo, rhshi, &
+        res, reslo, reshi, &
+        corr, corrlo, corrhi, &        
+        dtq,dx) bind(C, name="SDC_Lresid_F")
+
+  !  Compute the residual for the diffusion operator
+  use amrex_fort_module, only : amrex_real
+  implicit none
+
+  integer lo(2), hi(2), domlo(2), domhi(2)
+  integer philo(2), phihi(2)
+  integer rhslo(2), rhshi(2)
+  integer reslo(2), reshi(2)
+  integer corrlo(2), corrhi(2)  
+  real(amrex_real), intent(inout) :: phi  (philo(1):phihi(1),philo(2):phihi(2))
+  real(amrex_real), intent(in)    :: rhs  (rhslo(1):rhshi(1),rhslo(2):rhshi(2))  
+  real(amrex_real), intent(inout)    :: res  (reslo(1):reshi(1),reslo(2):reshi(2))  
+  real(amrex_real), intent(inout)    :: corr  (corrlo(1):corrhi(1),corrlo(2):corrhi(2))  
+  real(amrex_real), intent(in)    :: dtq
+  real(amrex_real), intent(in)    :: dx(2)
+  
+  ! local variables
+  integer i,j
+  real(amrex_real) Lap
+
+  !  Function 
+  do j = lo(2), hi(2)
+     do i = lo(1), hi(1)
+!        Lap=(phi(i-1,j)-2.0d0*phi(i,j)+phi(i+1,j))/(dx(1)*dx(1)) + (phi(i,j-1)-2.0d0*phi(i,j)+phi(i,j+1))/(dx(2)*dx(2))
+
+        Lap=(-(phi(i-2,j)+phi(i+2,j))+1.6d1*(phi(i+1,j)+phi(i-1,j))- 3.0d1*phi(i,j))/(1.2d1*dx(1)*dx(1)) 
+        Lap=Lap+(-(phi(i,j-2)+phi(i,j+2))+1.6d1*(phi(i,j+1)+phi(i,j-1))- 3.0d1*phi(i,j))/(1.2d1*dx(2)*dx(2)) 
+        res(i,j)=rhs(i,j)- (phi(i,j) -dtq*Lap)
+        corr(i,j)=0.0d0
+     end do
+  end do
+
+end subroutine SDC_Lresid_F
 
 
 

@@ -172,16 +172,22 @@ void SDC_fcomp(MultiFab& rhs,
   const Real tol_rel = 1.e-10;
   const Real tol_abs = 0.0;
 
+  // Make some space for iteration stuff
+  MultiFab corr(ba, dm, 1, 2);
+  MultiFab resid(ba, dm, 1, 2);  
   if (npiece == 1)  
     {
       // Do diffusion solve
+
       
       // Fill the ghost cells of each grid from the other grids
       // includes periodic domain boundaries
       rhs.FillBoundary(geom.periodicity());
+      SDC.sol[sdc_m].FillBoundary(geom.periodicity());      
       
       // Fill non-periodic physical boundaries
       FillDomainBoundary(rhs, geom, bc);
+      FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
 
       //  Set diffusion scalar in solve
       qij = d*dt*SDC.Qimp[sdc_m-1][sdc_m];	      
@@ -190,9 +196,45 @@ void SDC_fcomp(MultiFab& rhs,
 
       // set the boundary conditions
       mlabec.setLevelBC(0, &rhs);
-      mlabec.setLevelBC(0, &SDC.sol[sdc_m]);  
+      mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
+      for (int kk=0; kk<10;++kk)
+	{
+      // Compute residual
+      for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
+	{
+	  const Box& bx = mfi.validbox();
+	  SDC_Lresid_F(BL_TO_FORTRAN_BOX(bx),
+		       BL_TO_FORTRAN_BOX(domain_bx),
+		       BL_TO_FORTRAN_ANYD(SDC.sol[sdc_m][mfi]),
+		       BL_TO_FORTRAN_ANYD(rhs[mfi]),		      
+		       BL_TO_FORTRAN_ANYD(resid[mfi]),
+		       BL_TO_FORTRAN_ANYD(corr[mfi]),		       
+		       &qij,dx); 
+	}
+      // includes periodic domain boundaries
+      resid.FillBoundary(geom.periodicity());
+      
+      // Fill non-periodic physical boundaries
+      FillDomainBoundary(resid, geom, bc);
+      
       //  Do the multigrid solve
-      mlmg.solve({&SDC.sol[sdc_m]}, {&rhs}, tol_rel, tol_abs);
+      //mlmg.solve({&SDC.sol[sdc_m]}, {&resid}, tol_rel, tol_abs);
+      //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);      
+      // set the boundary conditions
+      mlabec.setLevelBC(0, &corr);
+      mlabec.setLevelBC(0, &resid);
+      mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
+      for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
+	{
+	  SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);
+	}
+
+      // includes periodic domain boundaries
+      SDC.sol[sdc_m].FillBoundary(geom.periodicity());
+      
+      // Fill non-periodic physical boundaries
+      FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
+    }
       
     }
   else

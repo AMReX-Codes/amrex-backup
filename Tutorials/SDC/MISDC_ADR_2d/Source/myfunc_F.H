@@ -35,6 +35,14 @@ extern "C"
                       amrex_real* rhs, const int* rhslo, const int* rhshi,			    
                       amrex_real* f, const int* flo, const int* fhi,
    		    const amrex_real* dtq, int *n);
+  void SDC_Lresid_F(const int* lo, const int* hi,
+		    const int* domlo, const int* domhi,
+		    amrex_real* phi, const int* philo, const int* phihi,
+		    amrex_real* rhs, const int* rhslo, const int* rhshi,
+		    amrex_real* res, const int* reslo, const int* reshi,
+		    amrex_real* corr, const int* corrlo, const int* corrhi,
+		    const amrex_real* dtq,const amrex_real* dx );
+  
     
 #ifdef __cplusplus
 }

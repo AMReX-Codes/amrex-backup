@@ -46,8 +46,10 @@ subroutine err_phi(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,a,d,r,time) b
   tupi=3.14159265358979323846d0*2d0
 
   !  Form the diffusion coefficient for the 2nd order Laplacian produces
-  sym=d*(-2.0d0+2.0d0*cos(tupi*dx(1)))/(dx(1)*dx(1))
-  sym=sym+d*(-2.0d0+2.0d0*cos(tupi*dx(2)))/(dx(2)*dx(2))
+!  sym=d*(-2.0d0+2.0d0*cos(tupi*dx(1)))/(dx(1)*dx(1))
+!  sym=sym+d*(-2.0d0+2.0d0*cos(tupi*dx(2)))/(dx(2)*dx(2))
+  sym=    d*(-3.0d1+32.0d0*cos(tupi*dx(1))-2.0d0*cos(tupi*2.0d0*dx(1)))/(1.2d1*dx(1)*dx(1))
+  sym=sym+d*(-3.0d1+32.0d0*cos(tupi*dx(2))-2.0d0*cos(tupi*2.0d0*dx(2)) )/(1.2d1*dx(2)*dx(2))
   sym=sym-r    !  Add reaction
 
   maxphi=-1.0
