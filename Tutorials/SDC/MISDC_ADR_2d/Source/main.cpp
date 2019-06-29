@@ -179,6 +179,8 @@ void main_main ()
 			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
 	      }
 	  }
+
+	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
 	int n = 0;
 	const std::string& pltfile = amrex::Concatenate("plt",n,5);
 	WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, 0);
@@ -259,7 +261,7 @@ void main_main ()
   mlmg.setMaxIter(max_iter);
   int max_fmg_iter = 0;
   mlmg.setMaxFmgIter(max_fmg_iter);
-  int verbose = 1;
+  int verbose = 0;
   mlmg.setVerbose(verbose);
   int cg_verbose = 0;
   mlmg.setCGVerbose(cg_verbose);
@@ -288,7 +290,7 @@ void main_main ()
 
         // Tell the I/O Processor to write out which step we're doing
         amrex::Print() << "Advanced step " << n << "\n";
-
+	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
         // Write a plotfile of the current data (plot_int was defined in the inputs file)
         if (plot_int > 0 && n%plot_int == 0)
         {

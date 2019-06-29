@@ -169,8 +169,10 @@ void SDC_fcomp(MultiFab& rhs,
   Real qij;
 
     // relative and absolute tolerances for linear solve
-  const Real tol_rel = 1.e-10;
+  const Real tol_rel = 1.e-12;
   const Real tol_abs = 0.0;
+  const Real tol_res = 1.e-10;    // Tolerance on residual
+  Real resnorm = 1.e10;    // Tolerance on residual  
 
   // Make some space for iteration stuff
   MultiFab corr(ba, dm, 1, 2);
@@ -197,44 +199,49 @@ void SDC_fcomp(MultiFab& rhs,
       // set the boundary conditions
       mlabec.setLevelBC(0, &rhs);
       mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
-      for (int kk=0; kk<10;++kk)
+      int resk=0;
+      int maxresk=2;
+      while (resnorm > tol_res & resk <=maxresk)
 	{
-      // Compute residual
-      for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-	{
-	  const Box& bx = mfi.validbox();
-	  SDC_Lresid_F(BL_TO_FORTRAN_BOX(bx),
-		       BL_TO_FORTRAN_BOX(domain_bx),
-		       BL_TO_FORTRAN_ANYD(SDC.sol[sdc_m][mfi]),
-		       BL_TO_FORTRAN_ANYD(rhs[mfi]),		      
-		       BL_TO_FORTRAN_ANYD(resid[mfi]),
-		       BL_TO_FORTRAN_ANYD(corr[mfi]),		       
-		       &qij,dx); 
-	}
-      // includes periodic domain boundaries
-      resid.FillBoundary(geom.periodicity());
-      
-      // Fill non-periodic physical boundaries
-      FillDomainBoundary(resid, geom, bc);
-      
-      //  Do the multigrid solve
-      //mlmg.solve({&SDC.sol[sdc_m]}, {&resid}, tol_rel, tol_abs);
-      //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);      
-      // set the boundary conditions
-      mlabec.setLevelBC(0, &corr);
-      mlabec.setLevelBC(0, &resid);
-      mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
-      for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-	{
-	  SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);
-	}
+	  // Compute residual
+	  for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
+	    {
+	      const Box& bx = mfi.validbox();
+	      SDC_Lresid_F(BL_TO_FORTRAN_BOX(bx),
+			   BL_TO_FORTRAN_BOX(domain_bx),
+			   BL_TO_FORTRAN_ANYD(SDC.sol[sdc_m][mfi]),
+			   BL_TO_FORTRAN_ANYD(rhs[mfi]),		      
+			   BL_TO_FORTRAN_ANYD(resid[mfi]),
+			   BL_TO_FORTRAN_ANYD(corr[mfi]),		       
+			   &qij,dx); 
+	    }
+	  resnorm=resid.norm0();
+	  ++resk;
 
-      // includes periodic domain boundaries
-      SDC.sol[sdc_m].FillBoundary(geom.periodicity());
-      
-      // Fill non-periodic physical boundaries
-      FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
-    }
+	  amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";	  
+	  // includes periodic domain boundaries
+	  resid.FillBoundary(geom.periodicity());
+	  
+	  // Fill non-periodic physical boundaries
+	  FillDomainBoundary(resid, geom, bc);
+	  
+	  //  Do the multigrid solve
+	  //mlmg.solve({&SDC.sol[sdc_m]}, {&resid}, tol_rel, tol_abs);
+	  //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);      
+	  // set the boundary conditions
+	  mlabec.setLevelBC(0, &corr);
+	  mlabec.setLevelBC(0, &resid);
+	  mlmg.setFixedIter(3);	  
+	  mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
+	  for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
+	    SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);
+	  
+	  // includes periodic domain boundaries
+	  SDC.sol[sdc_m].FillBoundary(geom.periodicity());
+	  
+	  // Fill non-periodic physical boundaries
+	  FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
+	}
       
     }
   else
