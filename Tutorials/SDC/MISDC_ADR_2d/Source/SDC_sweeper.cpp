@@ -31,7 +31,7 @@ void SDC_advance(MultiFab& phi_old,
   const DistributionMapping &dm=phi_old.DistributionMap();
 
   // Copy old phi into first SDC node
-  MultiFab::Copy(SDC.sol[0],phi_old, 0, 0, 1, 0);
+  MultiFab::Copy(SDC.sol[0],phi_old, 0, 0, 1, 2);
 
   // Fill the ghost cells of each grid from the other grids
   // includes periodic domain boundaries
@@ -69,7 +69,7 @@ void SDC_advance(MultiFab& phi_old,
 	  SDC.SDC_rhs_k_plus_one(phi_new,dt,sdc_m);
 	  
 	  // get the best initial guess for implicit solve
-	  MultiFab::Copy(SDC.sol[sdc_m+1],phi_new, 0, 0, 1, 0);
+	  MultiFab::Copy(SDC.sol[sdc_m+1],phi_new, 0, 0, 1, 2);
 	  for ( MFIter mfi(SDC.sol[sdc_m+1]); mfi.isValid(); ++mfi )
 	    {
 	      //	      const Box& bx = mfi.validbox();
@@ -83,7 +83,7 @@ void SDC_advance(MultiFab& phi_old,
 	  if (SDC.Npieces==3)
 	    {
 	      // Build rhs for 2nd solve
-	      MultiFab::Copy(phi_new, SDC.sol[sdc_m+1],0, 0, 1, 0);
+	      MultiFab::Copy(phi_new, SDC.sol[sdc_m+1],0, 0, 1, 2);
 	      
 	      // Add in the part for the 2nd implicit term to rhs
 	      SDC.SDC_rhs_misdc(phi_new,dt,sdc_m);
@@ -98,7 +98,7 @@ void SDC_advance(MultiFab& phi_old,
     }  // end sweeps loop
     
   // Return the last node in phi_new
-  MultiFab::Copy(phi_new, SDC.sol[SDC.Nnodes-1], 0, 0, 1, 0);
+  MultiFab::Copy(phi_new, SDC.sol[SDC.Nnodes-1], 0, 0, 1, 2);
 
 }
 
@@ -200,8 +200,8 @@ void SDC_fcomp(MultiFab& rhs,
       mlabec.setLevelBC(0, &rhs);
       mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
       int resk=0;
-      int maxresk=2;
-      while (resnorm > tol_res & resk <=maxresk)
+      int maxresk=10;
+      while ((resnorm > tol_res) & (resk <=maxresk))
 	{
 	  // Compute residual
 	  for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
@@ -226,7 +226,7 @@ void SDC_fcomp(MultiFab& rhs,
 	  FillDomainBoundary(resid, geom, bc);
 	  
 	  //  Do the multigrid solve
-	  //mlmg.solve({&SDC.sol[sdc_m]}, {&resid}, tol_rel, tol_abs);
+	  //mlmg.solve({&SDC.sol[sdc_m]}, {&rhs}, tol_rel, tol_abs);
 	  //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);      
 	  // set the boundary conditions
 	  mlabec.setLevelBC(0, &corr);
@@ -234,7 +234,7 @@ void SDC_fcomp(MultiFab& rhs,
 	  mlmg.setFixedIter(3);	  
 	  mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
 	  for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-	    SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);
+	    SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
 	  
 	  // includes periodic domain boundaries
 	  SDC.sol[sdc_m].FillBoundary(geom.periodicity());

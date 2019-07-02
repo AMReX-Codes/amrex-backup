@@ -170,7 +170,7 @@ void main_main ()
       {
 	if (plot_err == 1)  // Turn the solution into the error
 	  {
-	    MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);
+	    MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
 	    for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
 	      {
 		const Box& bx = mfi.validbox();
@@ -185,7 +185,7 @@ void main_main ()
 	const std::string& pltfile = amrex::Concatenate("plt",n,5);
 	WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, 0);
 	if (plot_err == 1)  // Put the solution back
-	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 0);	
+	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 2);	
       }
 
   // Set an assorment of solver and parallization options and parameters
@@ -268,7 +268,7 @@ void main_main ()
   
 
   //  Do the time stepp[ing
-  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);
+  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
   for (int n = 1; n <= Nsteps; ++n)
     {
       
@@ -276,7 +276,7 @@ void main_main ()
       SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r); 
 
       time = time + dt;
-      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);    
+      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
       
       
       if (plot_err == 1)  // Turn the solution into the error

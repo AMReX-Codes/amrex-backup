@@ -1,11 +1,11 @@
 # Time step is set to Tfin/nsteps
-Nsteps = 8
-Tfin = 0.5
+Nsteps = 16
+Tfin = 0.1
 
 plot_int = 1
 #  Spatial size
 n_cell = 64
-max_grid_size = 32
+max_grid_size = 64
 
 #  Define SDC parameters
 Nnodes=5

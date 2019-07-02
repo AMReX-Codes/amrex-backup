@@ -148,7 +148,7 @@ subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
   do j = lo(2), hi(2)
      do i = lo(1), hi(1)
 !        Lap=(phi(i-1,j)-2.0d0*phi(i,j)+phi(i+1,j))/(dx(1)*dx(1)) + (phi(i,j-1)-2.0d0*phi(i,j)+phi(i,j+1))/(dx(2)*dx(2))
-
+        !  First compute Grad(phi) and then do multiplication
         Lap=(-(phi(i-2,j)+phi(i+2,j))+1.6d1*(phi(i+1,j)+phi(i-1,j))- 3.0d1*phi(i,j))/(1.2d1*dx(1)*dx(1)) 
         Lap=Lap+(-(phi(i,j-2)+phi(i,j+2))+1.6d1*(phi(i,j+1)+phi(i,j-1))- 3.0d1*phi(i,j))/(1.2d1*dx(2)*dx(2)) 
         res(i,j)=rhs(i,j)- (phi(i,j) -dtq*Lap)
