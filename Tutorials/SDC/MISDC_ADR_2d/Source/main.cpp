@@ -148,7 +148,7 @@ void main_main ()
         // flux(dir) has one component, zero ghost cells, and is nodal in direction dir
         BoxArray edge_ba = ba;
         edge_ba.surroundingNodes(dir);
-        flux[dir].define(edge_ba, dm, 1, 0);
+        flux[dir].define(edge_ba, dm, 1, 2); // Made it have 2 ghost cells
     }
 
     // Make an SDC structure
@@ -170,7 +170,7 @@ void main_main ()
       {
 	if (plot_err == 1)  // Turn the solution into the error
 	  {
-	    MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);
+	    MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
 	    for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
 	      {
 		const Box& bx = mfi.validbox();
@@ -179,11 +179,13 @@ void main_main ()
 			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
 	      }
 	  }
+
+	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
 	int n = 0;
 	const std::string& pltfile = amrex::Concatenate("plt",n,5);
 	WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, 0);
 	if (plot_err == 1)  // Put the solution back
-	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 0);	
+	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 2);	
       }
 
   // Set an assorment of solver and parallization options and parameters
@@ -239,42 +241,71 @@ void main_main ()
   acoef.setVal(1.0);
   mlabec.setACoeffs(0, acoef);
   
-  // bcoef lives on faces so we make an array of face-centered MultiFabs
-  //   then we will in face_bcoef MultiFabs and load them into the solver.
-    std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-      {
-        const BoxArray& bamg = amrex::convert(acoef.boxArray(),
-  					  IntVect::TheDimensionVector(idim));
-        face_bcoef[idim].define(bamg, acoef.DistributionMap(), 1, 0);
-	face_bcoef[idim].setVal(1.0);	      	
-      }
-    mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
-  
-  // build an MLMG solver
-  MLMG mlmg(mlabec);
+    /*
+     // bcoef lives on faces so we make an array of face-centered MultiFabs
+     //   then we will in face_bcoef MultiFabs and load them into the solver.
+     std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
+     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+     {
+     const BoxArray& bamg = amrex::convert(acoef.boxArray(),
+     IntVect::TheDimensionVector(idim));
+     face_bcoef[idim].define(bamg, acoef.DistributionMap(), 1, 0);
+     face_bcoef[idim].setVal(1.0);
+     }
+     mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
+     */
+    
+    // We replace the commented out block with a cc system.
+    // Currently this system assumes periodic.
+    MultiFab BccCoef(ba, dm, 1, 0);
+    BccCoef.setVal(1.0);
+    mlabec.setBccCoeffs(0, BccCoef, geom);
+    mlabec.setBCoeffsFromBcc(0);  // build an MLMG solver
+    // Could delete BccCoef as m_bcc is currently public.
+    // Given that we do actually need face_bcoef space out here, it's not clear that the above code seems like the right choice.
+    
+    // build an MLMG solver
+    MLMG mlmg(mlabec);
   
   // set solver parameters
   int max_iter = 100;
   mlmg.setMaxIter(max_iter);
   int max_fmg_iter = 0;
   mlmg.setMaxFmgIter(max_fmg_iter);
-  int verbose = 1;
+  int verbose = 0;
   mlmg.setVerbose(verbose);
   int cg_verbose = 0;
   mlmg.setCGVerbose(cg_verbose);
   
+    
+  // Need face values of bcc with ghost cells. Make variables public in mlabec, or simply have another structure. For now, the memory inefficient route. Also, only works now cause things are constant.
+    std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
+    // Product storage
+    std::array<MultiFab,AMREX_SPACEDIM> prod_stor;
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+    {
+       // MultiFab::Copy(face_bcoef[idim], mlabec.m_b_coeffs[0][0][idim], 0, 0, 1, 0);
+        const BoxArray& bamg = amrex::convert(acoef.boxArray(),
+                                              IntVect::TheDimensionVector(idim));
+        face_bcoef[idim].define(bamg, acoef.DistributionMap(), 1, 2); //Ghost cells here
+        face_bcoef[idim].setVal(1.0);
+        face_bcoef[idim].FillBoundary(geom.periodicity());
+        
+        prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
+    }
 
-  //  Do the time stepp[ing
-  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);
+    
+  //  Do the time stepping
+  // For now m_bcc assumed to just have spatial dependence. Time dependence should be easy to include.
+  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
   for (int n = 1; n <= Nsteps; ++n)
     {
       
       // Do an SDC step
-      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r); 
+      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor);
 
       time = time + dt;
-      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 0);    
+      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
       
       
       if (plot_err == 1)  // Turn the solution into the error
@@ -288,7 +319,7 @@ void main_main ()
 
         // Tell the I/O Processor to write out which step we're doing
         amrex::Print() << "Advanced step " << n << "\n";
-
+	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
         // Write a plotfile of the current data (plot_int was defined in the inputs file)
         if (plot_int > 0 && n%plot_int == 0)
         {

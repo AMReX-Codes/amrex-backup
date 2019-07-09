@@ -22,20 +22,28 @@ void SDC_advance (MultiFab& phi_old,
 		  const Vector<BCRec>& bc,
         	  MLMG&  mlmg,
 		  MLABecLaplacian& mlabec,
-		  SDCstruct &sdcmats,Real a,Real d,Real r);
+		  SDCstruct &sdcmats,Real a,Real d,Real r,
+          std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
+          std::array<MultiFab,AMREX_SPACEDIM>& prod_stor
+);
 void SDC_feval (std::array<MultiFab, AMREX_SPACEDIM>& flux,
 		const Geometry& geom, 
 		const Vector<BCRec>& bc,
 		SDCstruct &sdcmats,
-		Real a,Real d,Real r,		
+		Real a,Real d,Real r,
+        std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
+        std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
 		int sdc_m,int npiece);
 void SDC_fcomp(MultiFab& rhs,
+           std::array<MultiFab, AMREX_SPACEDIM>& flux,
 	       const Geometry& geom, 
 	       const Vector<BCRec>& bc,
 	       SDCstruct &sdcmats,
 	       MLMG &mlmg,
 	       MLABecLaplacian& mlabec,
-	       Real dt,Real d,Real r,
+	       Real dt,Real a, Real d,Real r,
+           std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
+           std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
 	       int sdc_m,int npiece);
 
 #endif
