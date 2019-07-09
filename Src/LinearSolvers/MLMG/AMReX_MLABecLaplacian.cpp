@@ -125,15 +125,12 @@ MLABecLaplacian::setBCoeffsFromBcc (int amrlev)
 	// Apply fortran routine to find face valued b_coeffs using cell centered bcc.
         
         for ( MFIter mfi(m_bcc[amrlev][0]); mfi.isValid(); ++mfi )
-          {
-              amrex::Print() << "Testing loop1" << "\n";
-          const Box& bx = mfi.validbox();
+          {          const Box& bx = mfi.validbox();
 	      cc_to_face(BL_TO_FORTRAN_BOX(bx),
 		       BL_TO_FORTRAN_ANYD(m_bcc[amrlev][0][mfi]),
 		       //  BL_TO_FORTRAN_BOX(bamg[mfi]),
 		       BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
-		       idim );
-              amrex::Print() << "Testing loop2" << "\n";
+		       &idim );
           }
       }
     

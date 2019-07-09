@@ -10,7 +10,7 @@ extern "C"
 
   void cc_to_face(const int* lo, const int* hi,
 		amrex_real* data, const int* dlo, const int* dhi, 
-                amrex_real* face_data, const int* face_dlo, const int* face_dhi, int dir);
+                amrex_real* face_data, const int* face_dlo, const int* face_dhi, const int* dir);
   
     
 #ifdef __cplusplus

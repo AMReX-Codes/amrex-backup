@@ -13,18 +13,14 @@ subroutine cc_to_face(lo, hi, cc_dat, cc_lo, cc_hi, face_dat, face_lo,face_hi, d
 
 !print *,'lo, hi, cc_lo, cc_hi, face_lo, face_hi=',lo, hi, cc_lo, cc_hi, face_lo, face_hi
 
-print *,'cc_dat(0,0,0)=',cc_dat(0,0,0)
+!print *,'cc_dat(0,0,0)=',cc_dat(0,0,0)
 
 
 ! We condition based on direction
 if (dir .EQ. 0) then
- print *,'in if'
-  do i = lo(1),(hi(1) + 1)
-    print *,'x=',i
+  do i = lo(1),hi(1) + 1
     do j = lo(2),hi(2)
-        print *,'y=',j
       do k = lo(3),hi(3)
-        print *,'z=',k
 	face_dat(i,j,k) = (-1.d0*cc_dat(i-2,j,k) + 7.d0*cc_dat(i-1,j,k) & 
                              + 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i+1,j,k))/(12.d0)
 
@@ -32,10 +28,9 @@ if (dir .EQ. 0) then
     end do
   end do
 elseif(dir .EQ. 1) then
-print *,'where in'
 
   do i = lo(1),hi(1)
-    do j = lo(2),(hi(2) + 1)
+    do j = lo(2),hi(2) + 1
       do k = lo(3),hi(3)
 
 	face_dat(i,j,k) = (-1.d0*cc_dat(i,j-2,k) + 7.d0*cc_dat(i,j-1,k) & 
@@ -46,11 +41,9 @@ print *,'where in'
   end do
 
 else
-
-print *,'here in'
   do i = lo(1),hi(1)
     do j = lo(2),hi(2)
-      do k = lo(3),(hi(3) + 1)
+      do k = lo(3),hi(3) + 1
 
 	face_dat(i,j,k) = (-1.d0*cc_dat(i,j,k-2) + 7.d0*cc_dat(i,j,k-1) & 
                              + 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i,j,k+1))/(12.d0)

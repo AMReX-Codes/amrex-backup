@@ -46,6 +46,7 @@ class SDCstruct
    // SDC storage
    Vector<MultiFab> sol;           //!< Solution at the nodes
    Vector<Vector<MultiFab> > f;    //!< Functions a nodes access by [npieces][node]
+   Vector<MultiFab> fhigh;    //!< 2nd order Diffusion evaluation. Functions a nodes access by [node].
    Vector<MultiFab> res;           //!< Temp storage
    Vector<MultiFab> Ithree;        //!< Integration piece for MISDC
 
@@ -61,6 +62,7 @@ class SDCstruct
 
    //  Sweeper routines
    void SDC_rhs_integrals(Real dt);
+   void SDC_rhs_integrals_high(Real dt);
 
    void SDC_rhs_k_plus_one(MultiFab& rhs, Real dt,int m);
 
