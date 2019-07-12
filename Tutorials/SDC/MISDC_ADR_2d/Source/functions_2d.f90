@@ -4,6 +4,8 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
                          dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n) bind(C, name="SDC_feval_F")
  ! facex, facexlo, facexhi,facey, faceylo, faceyhi
   !  Compute the rhs terms
+! Assumes you have 2 ghost cells for flux that way you can do product rule
+
   use amrex_fort_module, only : amrex_real
   implicit none
 
@@ -24,7 +26,9 @@ integer prodxlo(2), prodxhi(2)
 real(amrex_real), intent(inout) :: prodx( prodxlo(1): prodxhi(1), prodxlo(2): prodxhi(2))
 integer prodylo(2), prodyhi(2)
 real(amrex_real), intent(inout) :: prody( prodylo(1): prodyhi(1), prodylo(2): prodyhi(2))
-  
+
+
+
   ! local variables
   integer i,j
 real(amrex_real) :: phi_one, face_one

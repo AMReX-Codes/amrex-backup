@@ -347,7 +347,7 @@ MLCellLinOp::apply (int amrlev, int mglev, MultiFab& out, MultiFab& in, BCMode b
 #endif
     Fapply(amrlev, mglev, out, in);
 }
-
+/* Remove redblack
 void
 MLCellLinOp::smooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
                      bool skip_fillboundary) const
@@ -363,6 +363,31 @@ MLCellLinOp::smooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
         Fsmooth(amrlev, mglev, sol, rhs, redblack);
         skip_fillboundary = false;
     }
+}
+ */
+    void
+MLCellLinOp::smooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs,
+                     bool skip_fillboundary) const
+{
+    BL_PROFILE("MLCellLinOp::smooth()");
+    // Redblack doesn't make sense with 4th order scheme.
+    int redblack = 0;
+        applyBC(amrlev, mglev, sol, BCMode::Homogeneous, StateMode::Solution,
+                nullptr, skip_fillboundary);
+#ifdef AMREX_SOFT_PERF_COUNTERS
+        perf_counters.smooth(sol);
+#endif
+    Fsmooth(amrlev, mglev, sol, rhs, redblack);
+        // Make temp multifab so sol has 2 ghost cells.
+      /*  BoxArray ba = sol.boxArray();
+        DistributionMapping dm(ba);
+        MultiFab temp_sol(ba, dm, 1, 2);
+        MultiFab::Copy(temp_sol, sol, 0, 0, 1, 0);
+        temp_sol.FillBoundary(m_geom[amrlev][mglev].periodicity());
+        Fsmooth(amrlev, mglev, temp_sol, rhs, redblack);
+        MultiFab::Copy(sol, temp_sol, 0, 0, 1, 1);*/
+        skip_fillboundary = false;
+    
 }
 
 void

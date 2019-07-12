@@ -203,152 +203,13 @@ void SDC_fcomp(MultiFab& rhs,
   if (npiece == 1)  
     {
         
-    // OLD CODE COMMENTED OUT
-    
-        // Fill the ghost cells of each grid from the other grids
-        // includes periodic domain boundaries
-        rhs.FillBoundary(geom.periodicity());
-        SDC.sol[sdc_m].FillBoundary(geom.periodicity());
-        
-        // Fill non-periodic physical boundaries
-        FillDomainBoundary(rhs, geom, bc);
-        FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
-        
-        //  Set diffusion scalar in solve
-        qij = d*dt*SDC.Qimp[sdc_m-1][sdc_m];
-        Real ascalar = 1.0;
-        mlabec.setScalars(ascalar, qij);
-        
-        // set the boundary conditions
-        mlabec.setLevelBC(0, &rhs);
-        mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
-        int resk=0;
-        int maxresk=10;
-        while ((resnorm > tol_res) & (resk <=maxresk))
-        {
-            // Compute residual
-            for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-            {
-                const Box& bx = mfi.validbox();
-                SDC_Lresid_F(BL_TO_FORTRAN_BOX(bx),
-                             BL_TO_FORTRAN_BOX(domain_bx),
-                             BL_TO_FORTRAN_ANYD(SDC.sol[sdc_m][mfi]),
-                             BL_TO_FORTRAN_ANYD(rhs[mfi]),
-                             BL_TO_FORTRAN_ANYD(resid[mfi]),
-                             BL_TO_FORTRAN_ANYD(corr[mfi]),
-                             &qij,dx);
-            }
             
-//////////////////
-            
-            ///Code for residual the way I do it.
-            // Compute residual
-            for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-            {
-                const Box& bx = mfi.validbox();
-                SDC_feval_F(BL_TO_FORTRAN_BOX(bx),
-                            BL_TO_FORTRAN_BOX(domain_bx),
-                            BL_TO_FORTRAN_ANYD(SDC.sol[sdc_m][mfi]),
-                            BL_TO_FORTRAN_ANYD(flux[0][mfi]),
-                            BL_TO_FORTRAN_ANYD(flux[1][mfi]),
-#if (AMREX_SPACEDIM == 3)
-                            BL_TO_FORTRAN_ANYD(flux[2][mfi]),
-#endif
-                            BL_TO_FORTRAN_ANYD(eval_storage[mfi]),
-                            dx,&a,&d,&r,
-                            BL_TO_FORTRAN_ANYD(face_bcoef[0][mfi]),
-                            BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
-                            BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
-                            BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                            &npiece);
-                
-            }
-            //Rescale resid as it is currently just an evaluation
-            qijalt = dt*SDC.Qimp[sdc_m-1][sdc_m];
-            
-            temp_resid.setVal(0.0);
-            MultiFab::Saxpy(temp_resid,qijalt,eval_storage,0,0,1,0);
-            MultiFab::Saxpy(temp_resid,1.0,rhs,0,0,1,0);
-            MultiFab::Saxpy(temp_resid,-1.0,SDC.sol[sdc_m],0,0,1,0);
-            
-            
-            MultiFab::Copy(temp_fab,temp_resid,0,0,1,0);
-        //    MultiFab::Saxpy(temp_fab,-1.0,resid,0,0,1,0);
-            
-        //    corrnorm=temp_fab.norm0();
-        //    amrex::Print() << "iter " << resk << ",  resid-resid norm " << corrnorm << "\n";
-            
-            
-            temp_corr.setVal(0.0);
-            temp_resid.FillBoundary(geom.periodicity());
-            
-            // Fill non-periodic physical boundaries
-            FillDomainBoundary(temp_resid, geom, bc);
-            
-            
-////////////////
-            resnorm=resid.norm0();
-            corrnorm=corr.norm0();
-            ++resk;
-            //amrex::Print() << "iter " << resk << ",  lap norm " << corrnorm << "\n";
-            //amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
-            // includes periodic domain boundaries
-            resid.FillBoundary(geom.periodicity());
-            
-            // Fill non-periodic physical boundaries
-            FillDomainBoundary(resid, geom, bc);
-            corr.setVal(0.0);
-            
-            //  Do the multigrid solve
-            //mlmg.solve({&SDC.sol[sdc_m]}, {&rhs}, tol_rel, tol_abs);
-            //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);
-            // set the boundary conditions
-            mlabec.setLevelBC(0, &corr);
-            mlabec.setLevelBC(0, &resid);
-            mlmg.setFixedIter(3);
-            mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
-         //   for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-         //       SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
-     
-////////////////////
-            mlabec.setLevelBC(0, &temp_corr);
-            mlabec.setLevelBC(0, &temp_resid);
-            mlmg.setFixedIter(3);
-            mlmg.solve({&temp_corr}, {&temp_resid}, tol_rel, tol_abs);
-            
-            for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
-                SDC.sol[sdc_m][mfi].saxpy(1.0,temp_corr[mfi]);
-            
-            MultiFab::Saxpy(temp_corr,-1.0,corr,0,0,1,0);
-        
-            //corrnorm=temp_corr.norm0();
-            // amrex::Print() << "iter " << resk << ",  corr-corr norm " << corrnorm << "\n";
-            amrex::Print() << "iter " << resk << "\n";
-////////////////////
-            
-            
-            
-          //corrnorm=corr.norm0();
-          //amrex::Print() << "iter " << resk << ",  Correction norm " << corrnorm << "\n";
-     
-            // includes periodic domain boundaries
-            SDC.sol[sdc_m].FillBoundary(geom.periodicity());
-            
-            // Fill non-periodic physical boundaries
-            FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
-     
-            //corrnorm=SDC.sol[sdc_m].norm0();
-            //amrex::Print() << "iter " << resk << ",  solution norm " << corrnorm << "\n";
-        }
-        
-     
-        
         
         
         
         //////////////////////////////////////////////////////////////////////////
         /////////////////////////////////////////////////////////////////////////
-        /*
+        
         // Do diffusion solve
     
         // Fill the ghost cells of each grid from the other grids
@@ -363,7 +224,7 @@ void SDC_fcomp(MultiFab& rhs,
         //  Set diffusion scalar in solve
         qij = dt*SDC.Qimp[sdc_m-1][sdc_m];
         Real ascalar = 1.0;
-        mlabec.setScalars(ascalar, qij);
+        mlabec.setScalars(ascalar, d*qij);
         
         // set the boundary conditions
         mlabec.setLevelBC(0, &rhs);
@@ -401,7 +262,7 @@ void SDC_fcomp(MultiFab& rhs,
             MultiFab::Saxpy(resid,1.0,rhs,0,0,1,0);
             MultiFab::Saxpy(resid,-1.0,SDC.sol[sdc_m],0,0,1,0);
             
-            corrnorm=eval_storage.norm0();
+            //corrnorm=eval_storage.norm0();
            // amrex::Print() << "iter " << resk << ",  Diffusion operator norm " << corrnorm << "\n";
             
             resnorm=resid.norm0();
@@ -426,8 +287,8 @@ void SDC_fcomp(MultiFab& rhs,
                 SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
             }
             
-            corrnorm=corr.norm0();
-            amrex::Print() << "iter " << resk << ",  Correction norm " << corrnorm << "\n";
+           // corrnorm=corr.norm0();
+           // amrex::Print() << "iter " << resk << ",  Correction norm " << corrnorm << "\n";
             
             
             // includes periodic domain boundaries
@@ -435,10 +296,10 @@ void SDC_fcomp(MultiFab& rhs,
             // Fill non-periodic physical boundaries
             FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
             
-            corrnorm=SDC.sol[sdc_m].norm0();
-            amrex::Print() << "iter " << resk << ",  solution norm " << corrnorm << "\n";
+           // corrnorm=SDC.sol[sdc_m].norm0();
+           // amrex::Print() << "iter " << resk << ",  solution norm " << corrnorm << "\n";
         }
-        */
+        
         
   //////////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////////

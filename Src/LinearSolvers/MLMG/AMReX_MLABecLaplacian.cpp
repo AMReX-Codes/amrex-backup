@@ -333,7 +333,7 @@ MLABecLaplacian::normalize (int amrlev, int mglev, MultiFab& mf) const
         });
     }
 }
-
+/*
 void
 MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs, int redblack) const
 {
@@ -457,7 +457,89 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
 #endif
     }
 }
+*/
+    
+/////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////
+    
+// HIGH ORDER SMOOTHER
+    void
+    MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& rhs, int redblack) const
+    {
+        BL_PROFILE("MLABecLaplacian::Fsmooth()");
+        // We do this a not great way. We make new multifabs with ghost cells and use periodic to fill ghost cells.
+    // Shouldn't need these, as flux has already been calculated
+    //    BoxArray ba = sol.boxArray();
+    //    DistributionMapping dm(ba);
+    //    MultiFab temp_b_x(ba, dm, 1, 2);
+    //    MultiFab temp_b_y(ba, dm, 1, 2);
+    //    MultiFab::Copy(temp_b_x, m_b_coeffs[amrlev][mglev][0], 0, 0, 1, 0);
+    //    MultiFab::Copy(temp_b_y, m_b_coeffs[amrlev][mglev][1], 0, 0, 1, 0);
+    //    temp_b_x.FillBoundary(m_geom[amrlev][mglev].periodicity());
+    //    temp_b_y.FillBoundary(m_geom[amrlev][mglev].periodicity());
+        
+        
+        
+        const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
+        AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
+                     const MultiFab& bycoef = m_b_coeffs[amrlev][mglev][1];,
+                     const MultiFab& bzcoef = m_b_coeffs[amrlev][mglev][2];);
+        
 
+        
+        const int nc = getNComp();
+        const Real* h = m_geom[amrlev][mglev].CellSize();
+        AMREX_D_TERM(const Real dhx = m_b_scalar/(h[0]*h[0]);,
+                     const Real dhy = m_b_scalar/(h[1]*h[1]);,
+                     const Real dhz = m_b_scalar/(h[2]*h[2]));
+        const Real alpha = m_a_scalar;
+        
+        MFItInfo mfi_info;
+        // if (Gpu::notInLaunchRegion()) mfi_info.EnableTiling().SetDynamic(true);
+        
+#ifdef _OPENMP
+#pragma omp parallel if (Gpu::notInLaunchRegion())
+#endif
+        for (MFIter mfi(sol,mfi_info); mfi.isValid(); ++mfi)
+        {
+
+            
+            const Box& tbx = mfi.tilebox();
+            const Box& vbx = mfi.validbox();
+            const auto& solnfab = sol.array(mfi);
+            const auto& rhsfab  = rhs.array(mfi);
+            const auto& afab    = acoef.array(mfi);
+            
+            AMREX_D_TERM(const auto& bxfab = bxcoef.array(mfi);,
+                         const auto& byfab = bycoef.array(mfi);,
+                         const auto& bzfab = bzcoef.array(mfi););
+            
+
+            
+   
+#if (AMREX_SPACEDIM == 2)
+            AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( tbx, thread_box,
+             {
+                 abec_gsrb_high(thread_box, solnfab, rhsfab, alpha, dhx, dhy,
+                           afab, bxfab, byfab,
+                           vbx, nc);
+             });
+#endif
+            
+
+        }
+    }
+    
+    
+    
+    
+    
+    
+//////////////////////////////////////////////////////////////////////////////////////////
+    ////////////////////////////////////////////////////////////////////////////////////////
+    
+    
+    
 void
 MLABecLaplacian::FFlux (int amrlev, const MFIter& mfi,
                         const Array<FArrayBox*,AMREX_SPACEDIM>& flux,
