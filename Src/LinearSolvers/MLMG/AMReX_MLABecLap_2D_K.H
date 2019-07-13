@@ -17,16 +17,44 @@ void mlabeclap_adotx (Box const& box, Array4<Real> const& y,
 
     const auto lo = amrex::lbound(box);
     const auto hi = amrex::ubound(box);
-
+    
+    //amrex::Print() << "Entered"<< "\n";
+    
+    
+    Real gamma;
+    Real rho;
     for (int n = 0; n < ncomp; ++n) {
     for     (int j = lo.y; j <= hi.y; ++j) {
         AMREX_PRAGMA_SIMD
         for (int i = lo.x; i <= hi.x; ++i) {
+            /*
             y(i,j,0,n) = alpha*a(i,j,0)*x(i,j,0,n)
                 - dhx * (bX(i+1,j,0,n)*(x(i+1,j,0,n) - x(i  ,j,0,n))
                        - bX(i  ,j,0,n)*(x(i  ,j,0,n) - x(i-1,j,0,n)))
                 - dhy * (bY(i,j+1,0,n)*(x(i,j+1,0,n) - x(i,j  ,0,n))
                        - bY(i,j  ,0,n)*(x(i,j  ,0,n) - x(i,j-1,0,n)));
+            */
+            
+            
+             gamma = alpha*a(i,j,0)
+             + (15.0/12.0)*dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
+             + (15.0/12.0)*dhy*( bY(i,j,0,n) + bY(i,j+1,0,n) );
+             
+             // Remaining piece of stencil
+             rho = (1/12.0)*dhx*((-bX(i,j,0,n))*x(i-2,j,0,n)
+             + (15.0*bX(i,j,0,n) + bX(i+1,j,0,n))*x(i-1,j,0,n)
+             + (bX(i,j,0,n) + 15.0*bX(i+1,j,0,n))*x(i+1,j,0,n)
+             - bX(i+1,j,0,n)*x(i+2,j,0,n) );
+             
+             rho = rho    + (1/12.0)*dhy*((-bY(i,j,0,n))*x(i,j-2,0,n)
+             + (15.0*bY(i,j,0,n) + bY(i,j+1,0,n))*x(i,j-1,0,n)
+             + (bY(i,j,0,n) + 15.0*bY(i,j+1,0,n))*x(i,j+1,0,n)
+             - bY(i,j+1,0,n)*x(i,j+2,0,n) );
+             
+             y(i,j,0,n) = gamma*x(i,j,0,n)-rho;
+             
+            
+            
         }
     }
     }
@@ -201,7 +229,7 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
             for (int i = lo.x; i <= hi.x; ++i) {
                 
                // 2nd order periodic code.
-               /*     //amrex::Print() << "Entered"<< "\n";
+                /*    //amrex::Print() << "Entered"<< "\n";
                     Real gamma = alpha*a(i,j,0)
                                     + dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
                                     + dhy*( bY(i,j,0,n) + bY(i,j+1,0,n) );

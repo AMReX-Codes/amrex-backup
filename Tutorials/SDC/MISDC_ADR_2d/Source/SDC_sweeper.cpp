@@ -268,7 +268,13 @@ void SDC_fcomp(MultiFab& rhs,
             resnorm=resid.norm0();
             ++resk;
             
-          //  amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
+            if(resnorm <= tol_res){
+                amrex::Print() << "Reached tolerance" << "\n";
+                break;
+            }
+            
+        
+            amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
             // includes periodic domain boundaries
             resid.FillBoundary(geom.periodicity());
             
@@ -281,7 +287,7 @@ void SDC_fcomp(MultiFab& rhs,
             // set the boundary conditions
             mlabec.setLevelBC(0, &corr);
             mlabec.setLevelBC(0, &resid);
-            mlmg.setFixedIter(3);
+            //mlmg.setFixedIter(3);
             mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
             for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi ){
                 SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
