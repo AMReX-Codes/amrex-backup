@@ -20,7 +20,7 @@ void main_main ()
     Real a;  // advection coef.
     Real d;  // diffusion coef.
     Real r;  // reaction coef. 
-
+    Real test_norm;
     // AMREX_SPACEDIM: number of dimensions
     int n_cell, max_grid_size, Nsteps, plot_int;
     Vector<int> bc_lo(AMREX_SPACEDIM,0);
@@ -61,6 +61,9 @@ void main_main ()
     pp.query("a",a);
     pp.query("d",d);
     pp.query("r",r);
+    
+    Real epsilon = 0.25;
+    
     
     // determine whether boundary conditions are periodic
     Vector<int> is_periodic(AMREX_SPACEDIM,0);
@@ -116,7 +119,7 @@ void main_main ()
                  BL_TO_FORTRAN_ANYD(phi_new[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi());
     }
-    
+    //amrex::Print() << "intial norm " << phi_new.norm0() << "\n";
     // Set up BCRec; see Src/Base/AMReX_BC_TYPES.H for supported types
     Vector<BCRec> bc(phi_old.nComp());
     for (int n = 0; n < phi_old.nComp(); ++n)
@@ -166,6 +169,7 @@ void main_main ()
     const Real* dx = geom.CellSize();
     
     // Write a plotfile of the initial data if plot_int > 0 (plot_int was defined in the inputs file)
+
     if (plot_int > 0)
       {
 	if (plot_err == 1)  // Turn the solution into the error
@@ -179,8 +183,7 @@ void main_main ()
 			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
 	      }
 	  }
-
-	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
+	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";
 	int n = 0;
 	const std::string& pltfile = amrex::Concatenate("plt",n,5);
 	WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, 0);
@@ -258,9 +261,18 @@ void main_main ()
     // We replace the commented out block with a cc system.
     // Currently this system assumes periodic.
     MultiFab BccCoef(ba, dm, 1, 0);
-    BccCoef.setVal(1.0);
+    //BccCoef.setVal(1.0);
+    for ( MFIter mfi(BccCoef); mfi.isValid(); ++mfi )
+    {
+        const Box& bx = mfi.validbox();
+        init_beta(BL_TO_FORTRAN_BOX(bx),
+                 BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon);
+    }
+    //test_norm = BccCoef.norm0();
+    //amrex::Print() << "Check 1: " << test_norm << "\n";
     mlabec.setBccCoeffs(0, BccCoef, geom);
-    mlabec.setBCoeffsFromBcc(0);  // build an MLMG solver
+    mlabec.setBCoeffsFromBcc(0);
     // Could delete BccCoef as m_bcc is currently public.
     // Given that we do actually need face_bcoef space out here, it's not clear that the above code seems like the right choice.
     
@@ -278,35 +290,40 @@ void main_main ()
   mlmg.setCGVerbose(cg_verbose);
   
     
-  // Need face values of bcc with ghost cells. Make variables public in mlabec, or simply have another structure. For now, the memory inefficient route. Also, only works now cause things are constant.
+  // Need face values of bcc with ghost cells. Make variables public in mlabec, or simply have another structure. For now, the memory inefficient route. Also, only works now cause things are constant. Makes most sense to move computations into the MLABec structure.
     std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
     // Product storage
     std::array<MultiFab,AMREX_SPACEDIM> prod_stor;
+    
     for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
     {
-       // MultiFab::Copy(face_bcoef[idim], mlabec.m_b_coeffs[0][0][idim], 0, 0, 1, 0);
         const BoxArray& bamg = amrex::convert(acoef.boxArray(),
                                               IntVect::TheDimensionVector(idim));
         face_bcoef[idim].define(bamg, acoef.DistributionMap(), 1, 2); //Ghost cells here
-        face_bcoef[idim].setVal(1.0);
+        MultiFab::Copy(face_bcoef[idim], mlabec.m_b_coeffs[0][0][idim], 0, 0, 1, 0);
+        //face_bcoef[idim].setVal(1.0);
         face_bcoef[idim].FillBoundary(geom.periodicity());
         
         prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
     }
-
+    
+// Need to create getBcoeff function in MLABecLap. Eventually, move computations to
+    
+    
+    
     
   //  Do the time stepping
   // For now m_bcc assumed to just have spatial dependence. Time dependence should be easy to include.
   MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
   for (int n = 1; n <= Nsteps; ++n)
     {
-      
+      //amrex::Print() << "time" << time << "\n";
       // Do an SDC step
-      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor);
-
-      time = time + dt;
-      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
+      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time);
+       
       
+      MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
+      time = time + dt;
       
       if (plot_err == 1)  // Turn the solution into the error
 	for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
@@ -316,9 +333,9 @@ void main_main ()
 		    BL_TO_FORTRAN_ANYD(phi_new[mfi]),
 		    geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
 	  }
-
+    
         // Tell the I/O Processor to write out which step we're doing
-        amrex::Print() << "Advanced step " << n << "\n";
+      //  amrex::Print() << "Advanced step " << n << "\n";
 	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
         // Write a plotfile of the current data (plot_int was defined in the inputs file)
         if (plot_int > 0 && n%plot_int == 0)

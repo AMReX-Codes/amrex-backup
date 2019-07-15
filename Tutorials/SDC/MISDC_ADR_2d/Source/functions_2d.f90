@@ -1,7 +1,7 @@
 
 subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
                          fluxx, fxlo, fxhi, fluxy, fylo, fyhi,f, flo,fhi, &
-                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n) bind(C, name="SDC_feval_F")
+                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n,time) bind(C, name="SDC_feval_F")
  ! facex, facexlo, facexhi,facey, faceylo, faceyhi
   !  Compute the rhs terms
 ! Assumes you have 2 ghost cells for flux that way you can do product rule
@@ -16,7 +16,7 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
   real(amrex_real), intent(inout) :: fluxy( fylo(1): fyhi(1), fylo(2): fyhi(2))
   real(amrex_real), intent(inout) :: f   (flo(1):fhi(1),flo(2):fhi(2))
   real(amrex_real), intent(in)    :: dx(2)
-  real(amrex_real), intent(in)    :: a,d,r
+  real(amrex_real), intent(in)    :: a,d,r,time
   integer, intent(in) :: n
  integer facexlo(2), facexhi(2)
 real(amrex_real), intent(in) :: facex( facexlo(1): facexhi(1), facexlo(2): facexhi(2))
@@ -27,11 +27,11 @@ real(amrex_real), intent(inout) :: prodx( prodxlo(1): prodxhi(1), prodxlo(2): pr
 integer prodylo(2), prodyhi(2)
 real(amrex_real), intent(inout) :: prody( prodylo(1): prodyhi(1), prodylo(2): prodyhi(2))
 
-
-
-  ! local variables
-  integer i,j
+integer          :: i,j
+double precision :: x,y,pi
 real(amrex_real) :: phi_one, face_one
+pi=3.14159265358979323846d0
+
   select case(n)
      case (0)  !  Explicit term (here it is advection)
         ! x-fluxes
@@ -47,13 +47,18 @@ real(amrex_real) :: phi_one, face_one
               fluxy(i,j) =(-phi(i,j+1)+7.0d0*( phi(i,j) + phi(i,j-1) )-phi(i,j-2)) / 12.0d0
            end do
         end do
-
+        !print*, lo, hi, domlo, domhi
         !  Function value is divergence of flux
         do j = lo(2), hi(2)
+            y = -1.d0 + (dble(j)+1.d0/2.d0) * dx(2)
+        ! print*, y
            do i = lo(1), hi(1)
+                x = -1.d0 + (dble(i)+1.d0/2.d0) * dx(1)
+              !f(i,j) =  a*((fluxx(i+1,j  ) - fluxx(i,j))/dx(1) &
+               !    + (fluxy(i  ,j+1) - fluxy(i,j))/dx(2))
+                f(i,j) = d*(pi**2)*exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))*sin(pi*(x+y))
+                f(i,j) = time
 
-              f(i,j) =  a*((fluxx(i+1,j  ) - fluxx(i,j))/dx(1) &
-                   + (fluxy(i  ,j+1) - fluxy(i,j))/dx(2))
            end do
            
         end do
@@ -120,9 +125,12 @@ real(amrex_real) :: phi_one, face_one
 
      case (2)  !  Second implicit piece (here it is reaction)
         do j = lo(2), hi(2)
+            y = -1.d0 + dble(j) * dx(2)
            do i = lo(1), hi(1)
+                x = -1.d0 + (dble(i)) * dx(1)
 !              f(i,j) =  r*phi(i,j)*(1.0d0-phi(i,j))*(0.5d0-phi(i,j))
               f(i,j) =  -r*phi(i,j)
+               ! f(i,j) = r*phi(i,j)*sin(pi*(x+y))
              end do
           end do
      case default

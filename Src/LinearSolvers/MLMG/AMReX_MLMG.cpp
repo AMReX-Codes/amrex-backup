@@ -73,9 +73,7 @@ MLMG::solve (const Vector<MultiFab*>& a_sol, const Vector<MultiFab const*>& a_rh
     Real solve_start_time = amrex::second();
 
     Real composite_norminf;
-
     prepareForSolve(a_sol, a_rhs);
-
     computeMLResidual(finest_amr_lev);
 
     int ncomp = linop.getNComp();
@@ -272,7 +270,9 @@ MLMG::computeMLResidual (int amrlevmax)
     const int mglev = 0;
     for (int alev = amrlevmax; alev >= 0; --alev) {
         const MultiFab* crse_bcdata = (alev > 0) ? sol[alev-1] : nullptr;
+        
         linop.solutionResidual(alev, res[alev][mglev], *sol[alev], rhs[alev], crse_bcdata);
+        
         if (alev < finest_amr_lev) {
             linop.reflux(alev, res[alev][mglev], *sol[alev], rhs[alev],
                          res[alev+1][mglev], *sol[alev+1], rhs[alev+1]);
@@ -1113,7 +1113,7 @@ MLMG::prepareForSolve (const Vector<MultiFab*>& a_sol, const Vector<MultiFab con
     sol_raii.resize(namrlevs);
     for (int alev = 0; alev < namrlevs; ++alev)
     {
-        if (a_sol[alev]->nGrow() == 1)
+        if (a_sol[alev]->nGrow() == 2)//1 What is this doing?
         {
             sol[alev] = a_sol[alev];
             sol[alev]->setBndry(0.0);
@@ -1122,7 +1122,7 @@ MLMG::prepareForSolve (const Vector<MultiFab*>& a_sol, const Vector<MultiFab con
         {
             if (!solve_called) {
                 sol_raii[alev].reset(new MultiFab(a_sol[alev]->boxArray(),
-                                                  a_sol[alev]->DistributionMap(), ncomp, 1,
+                                                  a_sol[alev]->DistributionMap(), ncomp, 1,//1
                                                   MFInfo(), *linop.Factory(alev)));
             }
             sol_raii[alev]->setVal(0.0);

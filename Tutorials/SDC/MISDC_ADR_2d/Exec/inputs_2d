@@ -1,8 +1,9 @@
 # Time step is set to Tfin/nsteps 16
-Nsteps = 16 
+Nsteps = 48 
 Tfin = 0.1
 
-plot_int = 1
+# plot_int to 1 to make plot files
+plot_int = 0
 #  Spatial size 64
 n_cell = 64 
 max_grid_size = 64

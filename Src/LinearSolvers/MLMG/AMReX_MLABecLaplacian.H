@@ -79,16 +79,15 @@ public:
                        Array<FArrayBox const*, AMREX_SPACEDIM> const& bcoef,
                        Array<FArrayBox*,AMREX_SPACEDIM> const& flux,
                        FArrayBox const& sol, int face_only, int ncomp);
-    
-
+    // Made public
+   
+    Vector<Vector<Array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
 protected:
 
     bool m_needs_update = true;
-
     Real m_a_scalar = std::numeric_limits<Real>::quiet_NaN();
     Real m_b_scalar = std::numeric_limits<Real>::quiet_NaN();
     Vector<Vector<MultiFab> > m_a_coeffs;
-    Vector<Vector<Array<MultiFab,AMREX_SPACEDIM> > > m_b_coeffs;
     Vector<Vector<MultiFab> > m_bcc; // cell centered b(eta) values
 
     Vector<int> m_is_singular;

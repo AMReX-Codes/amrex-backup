@@ -15,7 +15,7 @@ void SDC_advance(MultiFab& phi_old,
 		 MLABecLaplacian& mlabec,
 		 SDCstruct &SDC, Real a, Real d, Real r,
          std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
-         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor)
+         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor, Real time)
 {
 
   /*  This is a multi-implicit SDC example time step for an 
@@ -45,7 +45,7 @@ void SDC_advance(MultiFab& phi_old,
   
   //  Compute the first function value
   int sdc_m=0;
-  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_m,-1);
+  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_m,-1,time);
 
   // Copy first function value to all nodes
   for (int sdc_n = 1; sdc_n < SDC.Nnodes; sdc_n++)
@@ -60,7 +60,7 @@ void SDC_advance(MultiFab& phi_old,
   //  Now do the actual sweeps
   for (int k=1; k <= SDC.Nsweeps; ++k)
     {
-      amrex::Print() << "sweep " << k << "\n";
+      // amrex::Print() << "sweep " << k << "\n";
 
       //  Compute RHS integrals
       SDC.SDC_rhs_integrals(dt);
@@ -97,7 +97,7 @@ void SDC_advance(MultiFab& phi_old,
 	    }
 	  // Compute the function values at node sdc_m+1
 	  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,
-                sdc_m+1,-1);
+                sdc_m+1,-1,time);
 
 	} // end SDC substep loop
     }  // end sweeps loop
@@ -114,7 +114,7 @@ void SDC_feval(std::array<MultiFab, AMREX_SPACEDIM>& flux,
 	       Real a,Real d,Real r,
            std::array<MultiFab, AMREX_SPACEDIM>& face_bcoef,
            std::array<MultiFab, AMREX_SPACEDIM>& prod_stor,
-	       int sdc_m,int npiece)
+	       int sdc_m,int npiece, Real time)
 {
   /*  Evaluate explicitly the rhs terms of the equation at the SDC node "sdc_m".
       The input parameter "npiece" describes which term to do.  
@@ -156,7 +156,7 @@ void SDC_feval(std::array<MultiFab, AMREX_SPACEDIM>& flux,
               BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
               BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
               BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-              &n);
+              &n, &time);
 	}
       
     }
@@ -188,7 +188,8 @@ void SDC_fcomp(MultiFab& rhs,
   const Real tol_rel = 1.e-12;
   const Real tol_abs = 0.0;
   const Real tol_res = 1.e-10;    // Tolerance on residual
-  Real resnorm = 1.e10;    // Tolerance on residual  
+  Real resnorm = 1.e10;    // Tolerance on residual
+    Real zeroReal = 0.0;
     Real corrnorm;
   // Make some space for iteration stuff
   MultiFab corr(ba, dm, 1, 2);
@@ -251,7 +252,7 @@ void SDC_fcomp(MultiFab& rhs,
                             BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
                             BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
                             BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                            &npiece);
+                            &npiece, &zeroReal);
                 
             }
             //Rescale resid as it is currently just an evaluation
@@ -269,12 +270,14 @@ void SDC_fcomp(MultiFab& rhs,
             ++resk;
             
             if(resnorm <= tol_res){
-                amrex::Print() << "Reached tolerance" << "\n";
+                
+                 //   amrex::Print() << "Reached tolerance" << "\n";
+                
                 break;
             }
             
         
-            amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
+            //  amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
             // includes periodic domain boundaries
             resid.FillBoundary(geom.periodicity());
             
@@ -287,10 +290,15 @@ void SDC_fcomp(MultiFab& rhs,
             // set the boundary conditions
             mlabec.setLevelBC(0, &corr);
             mlabec.setLevelBC(0, &resid);
+            
+            
             //mlmg.setFixedIter(3);
             mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
+            
             for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi ){
+                
                 SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
+                
             }
             
            // corrnorm=corr.norm0();

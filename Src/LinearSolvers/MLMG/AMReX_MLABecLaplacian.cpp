@@ -96,7 +96,10 @@ MLABecLaplacian::setBCoeffs (int amrlev,
         }
     }
     m_needs_update = true;
+    
 }
+    
+    
 
 void
 MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta,const Geometry& a_geom)
@@ -106,6 +109,7 @@ MLABecLaplacian::setBccCoeffs (int amrlev, const MultiFab& beta,const Geometry& 
     // Create and fill ghost cells assuming periodic (for now)
     m_bcc[amrlev][0].FillBoundary(a_geom.periodicity());
     m_needs_update = true;
+    
 }
 
 void
