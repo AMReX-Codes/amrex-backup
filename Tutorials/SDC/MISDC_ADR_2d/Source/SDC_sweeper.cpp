@@ -28,8 +28,12 @@ void SDC_advance(MultiFab& phi_old,
 
       the constants a,d, and r control the strength of each term
   */
+    
+    // Need to advance time in here as we have a forcing term: So we make nodal fraction which you use as you step through the array.
+    
+    std::array<Real,5> nodeFrac = {0.0,(1.0-sqrt(3.0/7.0))/2.0,0.0,(1.0+sqrt(3.0/7.0))/2.0,1.0};
   Real qij;
-
+    Real current_time = time;
   const BoxArray &ba=phi_old.boxArray();
   const DistributionMapping &dm=phi_old.DistributionMap();
 
@@ -50,7 +54,9 @@ void SDC_advance(MultiFab& phi_old,
   // Copy first function value to all nodes
   for (int sdc_n = 1; sdc_n < SDC.Nnodes; sdc_n++)
     {
-      MultiFab::Copy(SDC.f[0][sdc_n],SDC.f[0][0], 0, 0, 1, 0);
+        current_time = time+dt*nodeFrac[sdc_n];
+      //MultiFab::Copy(SDC.f[0][sdc_n],SDC.f[0][0], 0, 0, 1, 0);
+     SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_n,0,current_time);
       MultiFab::Copy(SDC.f[1][sdc_n],SDC.f[1][0], 0, 0, 1, 0);
       if (SDC.Npieces==3)
 	MultiFab::Copy(SDC.f[2][sdc_n],SDC.f[2][0], 0, 0, 1, 0);      
@@ -64,10 +70,11 @@ void SDC_advance(MultiFab& phi_old,
 
       //  Compute RHS integrals
       SDC.SDC_rhs_integrals(dt);
-      
+        
       //  Substep over SDC nodes
       for (int sdc_m = 0; sdc_m < SDC.Nnodes-1; sdc_m++)
 	{
+        
 	  // use phi_new as rhs and fill it with terms at this iteration
 	  SDC.SDC_rhs_k_plus_one(phi_new,dt,sdc_m);
 	  
@@ -96,8 +103,10 @@ void SDC_advance(MultiFab& phi_old,
 	      SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt, a,d,r,face_bcoef,prod_stor,sdc_m+1,2);
 	    }
 	  // Compute the function values at node sdc_m+1
+        current_time = time+dt*nodeFrac[sdc_m+1];
+      //  amrex::Print() << "current time" << current_time <<"\n";
 	  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,
-                sdc_m+1,-1,time);
+                sdc_m+1,-1,current_time);
 
 	} // end SDC substep loop
     }  // end sweeps loop
@@ -119,6 +128,10 @@ void SDC_feval(std::array<MultiFab, AMREX_SPACEDIM>& flux,
   /*  Evaluate explicitly the rhs terms of the equation at the SDC node "sdc_m".
       The input parameter "npiece" describes which term to do.  
       If npiece = -1, do all the pieces */
+    
+    
+   
+    
   const BoxArray &ba=SDC.sol[0].boxArray();
   const DistributionMapping &dm=SDC.sol[0].DistributionMap();
 
