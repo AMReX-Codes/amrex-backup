@@ -105,9 +105,9 @@ subroutine err_phi(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,a,d,r,time) b
 !print*, phi(i,j), (time**2)/2.d0
          ! phi(i,j) = phi(i,j) - t0/(t0+time)*exp(-xx*xx/(4.0d0*d*(t0+time)))*exp(-yy*yy/(4.0d0*d*(t0+time)))
            ! print*, 'phi', phi(i,j)
-            ! phi(i,j) = phi(i,j) - exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))
+           !  phi(i,j) = phi(i,j) - exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))
            ! print*, phi(i,j)
-           print*, phi(i,j),(time**2)/2.d0
+           !print*, phi(i,j),(time**2)/2.d0
             phi(i,j) = phi(i,j) - (time**2)/2.d0
       ! end do
       ! end do

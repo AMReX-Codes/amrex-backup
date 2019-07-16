@@ -56,7 +56,7 @@ pi=3.14159265358979323846d0
                 x = -1.d0 + (dble(i)+1.d0/2.d0) * dx(1)
               !f(i,j) =  a*((fluxx(i+1,j  ) - fluxx(i,j))/dx(1) &
                !    + (fluxy(i  ,j+1) - fluxy(i,j))/dx(2))
-                f(i,j) = d*(pi**2)*exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))*sin(pi*(x+y))
+               ! f(i,j) = d*(pi**2)*exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))*sin(pi*(x+y))
                 f(i,j) = time
 
            end do
