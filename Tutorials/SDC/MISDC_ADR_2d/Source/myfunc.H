@@ -25,7 +25,10 @@ void SDC_advance (MultiFab& phi_old,
 		  SDCstruct &sdcmats,Real a,Real d,Real r,
           std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
           std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
-                  Real time
+                  Real time,
+                  Real epsilon,
+                  Real k_freq,
+                  Real kappa
 );
 void SDC_feval (std::array<MultiFab, AMREX_SPACEDIM>& flux,
 		const Geometry& geom, 
@@ -34,7 +37,11 @@ void SDC_feval (std::array<MultiFab, AMREX_SPACEDIM>& flux,
 		Real a,Real d,Real r,
         std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
-		int sdc_m,int npiece, Real time);
+		int sdc_m,int npiece, Real time,
+                Real epsilon,
+                Real k_freq,
+                Real kappa
+);
 void SDC_fcomp(MultiFab& rhs,
            std::array<MultiFab, AMREX_SPACEDIM>& flux,
 	       const Geometry& geom, 

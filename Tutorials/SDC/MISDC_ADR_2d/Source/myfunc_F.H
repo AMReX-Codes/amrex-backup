@@ -11,16 +11,17 @@ extern "C"
   void init_phi(const int* lo, const int* hi,
 		amrex_real* data, const int* dlo, const int* dhi,
 		const amrex_real* dx, const amrex_real* prob_lo,
-		const amrex_real* prob_hi);
+		const amrex_real* prob_hi, amrex_real* k_freq);
 void init_beta(const int* lo, const int* hi,
           amrex_real* data, const int* dlo, const int* dhi,
           const amrex_real* dx, const amrex_real* prob_lo,
-          const amrex_real* prob_hi, amrex_real* epsilon);
+          const amrex_real* prob_hi, amrex_real* epsilon, amrex_real* k_freq);
   
   void err_phi(const int* lo, const int* hi,
 	       amrex_real* data, const int* dlo, const int* dhi,
 	       const amrex_real* dx, const amrex_real* prob_lo, const amrex_real* prob_hi,
-	       amrex_real* a,amrex_real* d,amrex_real* r,amrex_real* time);
+	       amrex_real* a,amrex_real* d,amrex_real* r,amrex_real* time,
+           amrex_real* epsilon,amrex_real* k_freq, amrex_real* kappa );
 
   void SDC_feval_F(const int* lo, const int* hi,
 		   const int* domlo, const int* domhi,
@@ -37,7 +38,7 @@ void init_beta(const int* lo, const int* hi,
            amrex_real* facey, const int* faceylo, const int* faceyhi,
            amrex_real* prodx, const int* prodxlo, const int* prodxhi,
            amrex_real* prody, const int* prodylo, const int* prodyhi,
-           int *n, const amrex_real* time);
+           int *n, const amrex_real* time, amrex_real* epsilon,amrex_real* k_freq, amrex_real* kappa);
   void SDC_fcomp_reaction_F(const int* lo, const int* hi,
                       const int* domlo, const int* domhi,
                       amrex_real* phi, const int* philo, const int* phihi,

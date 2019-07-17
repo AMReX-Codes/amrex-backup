@@ -62,7 +62,10 @@ void main_main ()
     pp.query("d",d);
     pp.query("r",r);
     
+    // Manufactured solution parameters
+    Real k_freq =3.14159265358979323846;
     Real epsilon = 0.25;
+    Real kappa = 2*d*pow(k_freq,2.0); // This choice leads to cancellation analytically. Doesn't matter now.
     
     
     // determine whether boundary conditions are periodic
@@ -117,7 +120,7 @@ void main_main ()
         const Box& bx = mfi.validbox();
         init_phi(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi());
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
     }
     //amrex::Print() << "intial norm " << phi_new.norm0() << "\n";
     // Set up BCRec; see Src/Base/AMReX_BC_TYPES.H for supported types
@@ -180,7 +183,7 @@ void main_main ()
 		const Box& bx = mfi.validbox();
 		err_phi(BL_TO_FORTRAN_BOX(bx),
 			BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
+			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
 	      }
 	  }
 	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";
@@ -267,7 +270,7 @@ void main_main ()
         const Box& bx = mfi.validbox();
         init_beta(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon);
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq);
     }
     //test_norm = BccCoef.norm0();
     //amrex::Print() << "Check 1: " << test_norm << "\n";
@@ -319,7 +322,7 @@ void main_main ()
     {
       //amrex::Print() << "time" << time << "\n";
       // Do an SDC step
-      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time);
+      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time, epsilon, k_freq, kappa);
        
       
       MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
@@ -331,7 +334,7 @@ void main_main ()
 	    const Box& bx = mfi.validbox();
 	    err_phi(BL_TO_FORTRAN_BOX(bx),
 		    BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-		    geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time);
+		    geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
 	  }
     
         // Tell the I/O Processor to write out which step we're doing

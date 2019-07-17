@@ -1,7 +1,7 @@
 
 subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
                          fluxx, fxlo, fxhi, fluxy, fylo, fyhi,f, flo,fhi, &
-                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n,time) bind(C, name="SDC_feval_F")
+                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n,time, epsilon, k_freq, kappa) bind(C, name="SDC_feval_F")
  ! facex, facexlo, facexhi,facey, faceylo, faceyhi
   !  Compute the rhs terms
 ! Assumes you have 2 ghost cells for flux that way you can do product rule
@@ -16,7 +16,7 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
   real(amrex_real), intent(inout) :: fluxy( fylo(1): fyhi(1), fylo(2): fyhi(2))
   real(amrex_real), intent(inout) :: f   (flo(1):fhi(1),flo(2):fhi(2))
   real(amrex_real), intent(in)    :: dx(2)
-  real(amrex_real), intent(in)    :: a,d,r,time
+  real(amrex_real), intent(in)    :: a,d,r,time, epsilon, k_freq, kappa
   integer, intent(in) :: n
  integer facexlo(2), facexhi(2)
 real(amrex_real), intent(in) :: facex( facexlo(1): facexhi(1), facexlo(2): facexhi(2))
@@ -27,9 +27,15 @@ real(amrex_real), intent(inout) :: prodx( prodxlo(1): prodxhi(1), prodxlo(2): pr
 integer prodylo(2), prodyhi(2)
 real(amrex_real), intent(inout) :: prody( prodylo(1): prodyhi(1), prodylo(2): prodyhi(2))
 
-integer          :: i,j
-double precision :: x,y,pi
+integer          :: i,j, i_quad, j_quad
+double precision :: x,y,pi, x_quad, y_quad
 real(amrex_real) :: phi_one, face_one
+
+double precision :: gauss_nodeFrac(0:2)
+double precision :: gauss_weights(0:2)
+gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0.5d0))/2.d0 /)
+gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
+
 pi=3.14159265358979323846d0
 
   select case(n)
@@ -50,14 +56,32 @@ pi=3.14159265358979323846d0
         !print*, lo, hi, domlo, domhi
         !  Function value is divergence of flux
         do j = lo(2), hi(2)
-            y = -1.d0 + (dble(j)+1.d0/2.d0) * dx(2)
+            y = -1.d0 + dble(j) * dx(2)
         ! print*, y
            do i = lo(1), hi(1)
-                x = -1.d0 + (dble(i)+1.d0/2.d0) * dx(1)
+                x = -1.d0 + dble(i) * dx(1)
               !f(i,j) =  a*((fluxx(i+1,j  ) - fluxx(i,j))/dx(1) &
                !    + (fluxy(i  ,j+1) - fluxy(i,j))/dx(2))
-               ! f(i,j) = d*(pi**2)*exp(-2.d0*d*(pi**2)*time)*cos(pi*(x+y))*sin(pi*(x+y))
-                f(i,j) = time
+                ! 5th order quadrature loop
+                f(i,j) = 0
+                do j_quad = 0,2
+                    y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
+                    !print*, y_quad
+                do i_quad = 0,2
+                    x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
+                    f(i,j) = f(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
+                            (&
+                            epsilon*4.d0*d*(k_freq**2)*exp(-kappa*time)* &
+                            cos(k_freq*(x_quad+y_quad))*sin(k_freq*(x_quad+y_quad)) + &
+                            (-kappa)*exp(-kappa*time)*cos(k_freq*(x_quad+y_quad)) + &
+                            2*d*(k_freq**2.d0)*exp(-kappa*time)*cos(k_freq*(x_quad+y_quad)) &
+                            )
+
+
+                end do
+                end do
+                !f(i,j) = 0
+
 
            end do
            
@@ -65,8 +89,12 @@ pi=3.14159265358979323846d0
      case (1)  !  First implicit piece (here it is diffusion)
      ! We let beta vary in space via cell centered data bcc.
 
-
-
+      !  do j = philo(2), phihi(2)
+      !  do i = philo(1), phihi(1)
+      !  ! fluxx(i,j) = ( phi(i,j) - phi(i-1,j) ) / dx(1)
+      !  print*, i, " x index ", j, " y index ", phi(i,j)
+      !  end do
+      !  end do
 
 
         ! x-fluxes
@@ -90,9 +118,10 @@ pi=3.14159265358979323846d0
         do j = lo(2), hi(2)
             do i = lo(1), hi(1)+1
                ! no dx in one variables!
-               phi_one = (-5.d0*fluxx(i,j+2)+34.d0*(fluxx(i,j+1)-fluxx(i,j-1))+5*fluxx(i,j-2))/48.d0
-               face_one = (-5.d0*facex(i,j+2)+34.d0*(facex(i,j+1)-facex(i,j-1))+5*facex(i,j-2))/48.d0
-               prodx(i,j) = fluxx(i,j)*facex(i,j) + dx(1)*phi_one*face_one/12.d0
+               phi_one = (-5.d0*fluxx(i,j+2)+34.d0*(fluxx(i,j+1)-fluxx(i,j-1))+5.d0*fluxx(i,j-2))/48.d0
+               face_one =(-5.d0*facex(i,j+2)+34.d0*(facex(i,j+1)-facex(i,j-1))+5.d0*facex(i,j-2))/48.d0
+               !print*, dx(1)*phi_one*face_one/12.d0 THIS IS FORMULA FROM KKM
+               prodx(i,j) = fluxx(i,j)*facex(i,j) + phi_one*face_one/12.d0
             end do
         end do
 
@@ -100,9 +129,9 @@ pi=3.14159265358979323846d0
         do j = lo(2), hi(2)+1
             do i = lo(1), hi(1)
                 ! no dx in one variables!
-                phi_one = (-5.d0*fluxy(i+2,j)+34.d0*(fluxy(i+1,j)-fluxy(i-1,j))+5*fluxy(i-2,j))/48.d0
-                face_one = (-5.d0*facey(i+2,j)+34.d0*(facey(i+1,j)-facey(i-1,j))+5*facey(i-2,j))/48.d0
-                prody(i,j) = fluxy(i,j)*facey(i,j) + dx(2)*phi_one*face_one/12.d0
+                phi_one = (-5.d0*fluxy(i+2,j)+34.d0*(fluxy(i+1,j)-fluxy(i-1,j))+5.d0*fluxy(i-2,j))/48.d0
+                face_one =(-5.d0*facey(i+2,j)+34.d0*(facey(i+1,j)-facey(i-1,j))+5.d0*facey(i-2,j))/48.d0
+                prody(i,j) = fluxy(i,j)*facey(i,j) + phi_one*face_one/12.d0
             end do
         end do
 

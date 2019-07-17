@@ -15,7 +15,7 @@ void SDC_advance(MultiFab& phi_old,
 		 MLABecLaplacian& mlabec,
 		 SDCstruct &SDC, Real a, Real d, Real r,
          std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
-         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor, Real time)
+         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor, Real time, Real epsilon, Real k_freq, Real kappa)
 {
 
   /*  This is a multi-implicit SDC example time step for an 
@@ -31,7 +31,7 @@ void SDC_advance(MultiFab& phi_old,
     
     // Need to advance time in here as we have a forcing term: So we make nodal fraction which you use as you step through the array.
     
-    std::array<Real,5> nodeFrac = {0.0,(1.0-sqrt(3.0/7.0))/2.0,0.0,(1.0+sqrt(3.0/7.0))/2.0,1.0};
+    std::array<Real,5> nodeFrac = {0.0,(1.0-sqrt(3.0/7.0))/2.0,0.5,(1.0+sqrt(3.0/7.0))/2.0,1.0};
   Real qij;
     Real current_time = time;
   const BoxArray &ba=phi_old.boxArray();
@@ -49,14 +49,14 @@ void SDC_advance(MultiFab& phi_old,
   
   //  Compute the first function value
   int sdc_m=0;
-  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_m,-1,time);
+  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_m,-1,time, epsilon, k_freq, kappa);
 
   // Copy first function value to all nodes
   for (int sdc_n = 1; sdc_n < SDC.Nnodes; sdc_n++)
     {
         current_time = time+dt*nodeFrac[sdc_n];
       //MultiFab::Copy(SDC.f[0][sdc_n],SDC.f[0][0], 0, 0, 1, 0);
-     SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_n,0,current_time);
+     SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_n,0,current_time, epsilon, k_freq, kappa);
       MultiFab::Copy(SDC.f[1][sdc_n],SDC.f[1][0], 0, 0, 1, 0);
       if (SDC.Npieces==3)
 	MultiFab::Copy(SDC.f[2][sdc_n],SDC.f[2][0], 0, 0, 1, 0);      
@@ -66,7 +66,7 @@ void SDC_advance(MultiFab& phi_old,
   //  Now do the actual sweeps
   for (int k=1; k <= SDC.Nsweeps; ++k)
     {
-      // amrex::Print() << "sweep " << k << "\n";
+       amrex::Print() << "sweep " << k << "\n";
 
       //  Compute RHS integrals
       SDC.SDC_rhs_integrals(dt);
@@ -86,7 +86,7 @@ void SDC_advance(MultiFab& phi_old,
 	      qij = dt*SDC.Qimp[sdc_m][sdc_m+1];
 	      SDC.sol[sdc_m+1][mfi].saxpy(qij,SDC.f[1][sdc_m+1][mfi]);
 	    }
-      
+      SDC.sol[sdc_m+1].FillBoundary(geom.periodicity());
 	  // Solve for the first implicit part
 	  SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt,a,d,r,face_bcoef,prod_stor,sdc_m+1,1);
      
@@ -106,7 +106,7 @@ void SDC_advance(MultiFab& phi_old,
         current_time = time+dt*nodeFrac[sdc_m+1];
       //  amrex::Print() << "current time" << current_time <<"\n";
 	  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,
-                sdc_m+1,-1,current_time);
+                sdc_m+1,-1,current_time,epsilon, k_freq, kappa);
 
 	} // end SDC substep loop
     }  // end sweeps loop
@@ -123,7 +123,7 @@ void SDC_feval(std::array<MultiFab, AMREX_SPACEDIM>& flux,
 	       Real a,Real d,Real r,
            std::array<MultiFab, AMREX_SPACEDIM>& face_bcoef,
            std::array<MultiFab, AMREX_SPACEDIM>& prod_stor,
-	       int sdc_m,int npiece, Real time)
+	       int sdc_m,int npiece, Real time, Real epsilon, Real k_freq, Real kappa)
 {
   /*  Evaluate explicitly the rhs terms of the equation at the SDC node "sdc_m".
       The input parameter "npiece" describes which term to do.  
@@ -169,7 +169,7 @@ void SDC_feval(std::array<MultiFab, AMREX_SPACEDIM>& flux,
               BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
               BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
               BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-              &n, &time);
+              &n, &time, &epsilon, &k_freq, &kappa);
 	}
       
     }
@@ -265,7 +265,7 @@ void SDC_fcomp(MultiFab& rhs,
                             BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
                             BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
                             BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                            &npiece, &zeroReal);
+                            &npiece, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
                 
             }
             //Rescale resid as it is currently just an evaluation
@@ -282,15 +282,15 @@ void SDC_fcomp(MultiFab& rhs,
             resnorm=resid.norm0();
             ++resk;
             
-            if(resnorm <= tol_res){
+           if(resnorm <= tol_res){
                 
-                 //   amrex::Print() << "Reached tolerance" << "\n";
+                    amrex::Print() << "Reached tolerance" << "\n";
                 
                 break;
             }
             
         
-            //  amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
+              amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
             // includes periodic domain boundaries
             resid.FillBoundary(geom.periodicity());
             
