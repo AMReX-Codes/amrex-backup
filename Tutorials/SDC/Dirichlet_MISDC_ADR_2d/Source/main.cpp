@@ -2,6 +2,9 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_Print.H>
 
+// Extra for BCMODE
+
+
 #include "myfunc.H"
 #include "myfunc_F.H"  // includes advance.cpp
 #include "AMReX_SDCstruct.H"
@@ -64,7 +67,7 @@ void main_main ()
     
     // Manufactured solution parameters
     Real k_freq =3.14159265358979323846;
-    Real epsilon = 0.25;
+    Real epsilon =  0.25;
     Real kappa = 2*d*pow(k_freq,2.0); // This choice leads to cancellation analytically. Doesn't matter now.
     
     
@@ -74,7 +77,18 @@ void main_main ()
         if (bc_lo[idim] == INT_DIR && bc_hi[idim] == INT_DIR) {
             is_periodic[idim] = 1;
         }
+        else {
+            is_periodic[idim] = 0;  // Need this?
+        }
     }
+    // Check that we have external dirichlet conditions in place.
+    for (int idim=0; idim < AMREX_SPACEDIM; ++idim) {
+        if (!(bc_lo[idim] == EXT_DIR && bc_hi[idim] == EXT_DIR)) {
+            amrex::Abort("Not Dirichlet BC");
+        }
+    }
+    
+    
 
     // make BoxArray and Geometry
     BoxArray ba;
@@ -122,7 +136,7 @@ void main_main ()
                  BL_TO_FORTRAN_ANYD(phi_new[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
     }
-    //amrex::Print() << "intial norm " << phi_new.norm0() << "\n";
+    amrex::Print() << "intial norm " << phi_new.norm0() << "\n";
     // Set up BCRec; see Src/Base/AMReX_BC_TYPES.H for supported types
     Vector<BCRec> bc(phi_old.nComp());
     for (int n = 0; n < phi_old.nComp(); ++n)
@@ -130,16 +144,16 @@ void main_main ()
 	for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
 	  {
 	    // lo-side BCs
-	    if (bc_lo[idim] == INT_DIR) {
-	      bc[n].setLo(idim, BCType::int_dir);  // periodic uses "internal Dirichlet"
+	    if (bc_lo[idim] == EXT_DIR) {
+	      bc[n].setLo(idim, BCType::ext_dir);  // Dirichlet uses "external Dirichlet"
 	    }
 	    else {
 	      amrex::Abort("Invalid bc_lo");
 	    }
 	    
 	    // hi-side BCs
-	    if (bc_hi[idim] == INT_DIR) {
-	      bc[n].setHi(idim, BCType::int_dir);  // periodic uses "internal Dirichlet"
+	    if (bc_hi[idim] == EXT_DIR) {
+	      bc[n].setHi(idim, BCType::ext_dir);  // Dirichlet uses "external Dirichlet"
 	    }
 	    else {
 	      amrex::Abort("Invalid bc_hi");
@@ -173,6 +187,9 @@ void main_main ()
     
     // Write a plotfile of the initial data if plot_int > 0 (plot_int was defined in the inputs file)
 
+    MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
+    
+    
     if (plot_int > 0)
       {
 	if (plot_err == 1)  // Turn the solution into the error
@@ -200,10 +217,11 @@ void main_main ()
   
   // Implicit solve using MLABecLaplacian class
   MLABecLaplacian mlabec({geom}, {ba}, {dm}, info);
-  
+  MLABecLaplacian mlabec_BCfill({geom}, {ba}, {dm}, info);
   // order of stencil
   int linop_maxorder = 2;
   mlabec.setMaxOrder(linop_maxorder);
+  mlabec_BCfill.setMaxOrder(linop_maxorder);
   
   // build array of boundary conditions needed by MLABecLaplacian
   // see Src/Boundary/AMReX_LO_BCTYPES.H for supported types
@@ -215,16 +233,16 @@ void main_main ()
       for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
 	{
 	  // lo-side BCs
-	  if (bc[n].lo(idim) == BCType::int_dir) {
-	    mgbc_lo[idim] = LinOpBCType::Periodic;
+	  if (bc[n].lo(idim) == BCType::ext_dir) {
+	    mgbc_lo[idim] = LinOpBCType::Dirichlet;
 	  }
 	  else {
 	    amrex::Abort("Invalid bc_lo");
 	  }
 	  
 	  // hi-side BCs
-	  if (bc[n].hi(idim) == BCType::int_dir) {
-	    mgbc_hi[idim] = LinOpBCType::Periodic;
+	  if (bc[n].hi(idim) == BCType::ext_dir) {
+	    mgbc_hi[idim] = LinOpBCType::Dirichlet;
 	  }
 	  else {
 	    amrex::Abort("Invalid bc_hi");
@@ -234,19 +252,20 @@ void main_main ()
   
   // tell the solver what the domain boundary conditions are
   mlabec.setDomainBC(mgbc_lo, mgbc_hi);
-  
+  mlabec_BCfill.setDomainBC(mgbc_lo, mgbc_hi);
+    
   // scaling factors
   Real ascalar = 1.0;
   Real bscalar = 1.0;
   mlabec.setScalars(ascalar, bscalar);
-  
+  mlabec_BCfill.setScalars(ascalar, bscalar);
   // Set up coefficient matrices
   MultiFab acoef(ba, dm, 1, 0);
   
   // fill in the acoef MultiFab and load this into the solver
   acoef.setVal(1.0);
   mlabec.setACoeffs(0, acoef);
-  
+  mlabec_BCfill.setACoeffs(0, acoef);
     /*
      // bcoef lives on faces so we make an array of face-centered MultiFabs
      //   then we will in face_bcoef MultiFabs and load them into the solver.
@@ -261,10 +280,10 @@ void main_main ()
      mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
      */
     
-    // We replace the commented out block with a cc system.
-    // Currently this system assumes periodic.
-    MultiFab BccCoef(ba, dm, 1, 0);
-    //BccCoef.setVal(1.0);
+    // Cell centered Beta values
+    MultiFab BccCoef(ba, dm, 1, 2);
+    
+    // Need to implement 4th order extrapolation; for now, we simply use that the use that this function is periodic.
     for ( MFIter mfi(BccCoef); mfi.isValid(); ++mfi )
     {
         const Box& bx = mfi.validbox();
@@ -272,12 +291,42 @@ void main_main ()
                  BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq);
     }
-    //test_norm = BccCoef.norm0();
-    //amrex::Print() << "Check 1: " << test_norm << "\n";
-    mlabec.setBccCoeffs(0, BccCoef, geom);
-    mlabec.setBCoeffsFromBcc(0);
-    // Could delete BccCoef as m_bcc is currently public.
-    // Given that we do actually need face_bcoef space out here, it's not clear that the above code seems like the right choice.
+    
+    std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
+   // Product Storage
+    std::array<MultiFab,AMREX_SPACEDIM> prod_stor;
+    
+    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
+    { // Assumes .boxArray() doesn't include ghostCells (validBoxArray command?)
+        const BoxArray& bamg = amrex::convert(BccCoef.boxArray(),
+                                              IntVect::TheDimensionVector(idim));
+        face_bcoef[idim].define(bamg, BccCoef.DistributionMap(), 1, 2);
+        prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
+        // Apply fortran routine to find face valued b_coeffs using cell centered bcc.
+        
+        for ( MFIter mfi(BccCoef); mfi.isValid(); ++mfi )
+        {          const Box& bx = mfi.validbox();
+            cc_to_face_loc(BL_TO_FORTRAN_BOX(bx),
+                       BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
+                       //  BL_TO_FORTRAN_BOX(bamg[mfi]),
+                       BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
+                       &idim );
+        }
+    }
+
+mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
+mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
+    // Need to be able to find the boundary conditions at a given time. We do this intialization a quick and dirty way. Would be better to utilize maskvals and oitr.
+    // Boundary values are stored in ghost cells in cross.
+    MultiFab bdry_values(ba, dm, 1, 1);
+    
+/*    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                         BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
+                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+    }
+    mlabec.setLevelBC(0,&bdry_values);*/
     
     // build an MLMG solver
     MLMG mlmg(mlabec);
@@ -287,68 +336,49 @@ void main_main ()
   mlmg.setMaxIter(max_iter);
   int max_fmg_iter = 0;
   mlmg.setMaxFmgIter(max_fmg_iter);
-  int verbose = 0;
+  int verbose = 1;
   mlmg.setVerbose(verbose);
   int cg_verbose = 0;
   mlmg.setCGVerbose(cg_verbose);
   
-    
-  // Need face values of bcc with ghost cells. Make variables public in mlabec, or simply have another structure. For now, the memory inefficient route. Also, only works now cause things are constant. Makes most sense to move computations into the MLABec structure.
-    std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
-    // Product storage
-    std::array<MultiFab,AMREX_SPACEDIM> prod_stor;
-    
-    for (int idim = 0; idim < AMREX_SPACEDIM; ++idim)
-    {
-        const BoxArray& bamg = amrex::convert(acoef.boxArray(),
-                                              IntVect::TheDimensionVector(idim));
-        face_bcoef[idim].define(bamg, acoef.DistributionMap(), 1, 2); //Ghost cells here
-        MultiFab::Copy(face_bcoef[idim], mlabec.m_b_coeffs[0][0][idim], 0, 0, 1, 0);
-        //face_bcoef[idim].setVal(1.0);
-        face_bcoef[idim].FillBoundary(geom.periodicity());
-        
-        prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
-    }
-    
-// Need to create getBcoeff function in MLABecLap. Eventually, move computations to
-    
-    
-    
+
+
+
     
   //  Do the time stepping
   // For now m_bcc assumed to just have spatial dependence. Time dependence should be easy to include.
-  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
+ // MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
   for (int n = 1; n <= Nsteps; ++n)
     {
       //amrex::Print() << "time" << time << "\n";
       // Do an SDC step
-      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time, epsilon, k_freq, kappa);
+      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time, epsilon, k_freq, kappa, bdry_values, mlabec_BCfill);
        
       
       MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
       time = time + dt;
       
       if (plot_err == 1)  // Turn the solution into the error
-        if(time >0.0999){
-	for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
-	  {
-	    const Box& bx = mfi.validbox();
-	    err_phi(BL_TO_FORTRAN_BOX(bx),
-		    BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-		    geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
-	  }
-        
-        // Tell the I/O Processor to write out which step we're doing
-      //  amrex::Print() << "Advanced step " << n << "\n";
-	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";	  
-        // Write a plotfile of the current data (plot_int was defined in the inputs file)
-        if (plot_int > 0 && n%plot_int == 0)
-        {
-            const std::string& pltfile = amrex::Concatenate("plt",n,5);
-            WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, n);
-        }
+       // if(time >0.0999){
+                for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
+                  {
+                    const Box& bx = mfi.validbox();
+                    err_phi(BL_TO_FORTRAN_BOX(bx),
+                        BL_TO_FORTRAN_ANYD(phi_new[mfi]),
+                        geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
+                  }
             
-        }
+                    // Tell the I/O Processor to write out which step we're doing
+                  //  amrex::Print() << "Advanced step " << n << "\n";
+                amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";
+                    // Write a plotfile of the current data (plot_int was defined in the inputs file)
+                    if (plot_int > 0 && n%plot_int == 0)
+                    {
+                        const std::string& pltfile = amrex::Concatenate("plt",n,5);
+                        WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, n);
+                    }
+            
+       // }
     }
 
     // Call the timer again and compute the maximum difference between the start time and stop time

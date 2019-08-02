@@ -26,8 +26,11 @@ public:
                  const Vector<DistributionMapping>& a_dmap,
                  const LPInfo& a_info = LPInfo(),
                  const Vector<FabFactory<FArrayBox> const*>& a_factory = {});
+    
+    virtual void fourthOrderBCFill (MultiFab& in, MultiFab& bdry_values);
 
     virtual void setLevelBC (int amrlev, const MultiFab* levelbcdata) final override;
+    
 
     virtual bool needsUpdate () const override {
         return MLLinOp::needsUpdate();
@@ -98,6 +101,7 @@ public:
 
     virtual void applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, StateMode s_mode,
                           const MLMGBndry* bndry=nullptr, bool skip_fillboundary=false) const;
+    
 
     BoxArray makeNGrids (int grid_size) const;
 

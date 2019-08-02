@@ -190,7 +190,7 @@ void abec_gsrb (Box const& box, Array4<Real> const& phi,
                         ? f3(i,vhi.y,0,n) : 0.0;
 
                     Real delta = dhx*(bX(i,j,0,n)*cf0 + bX(i+1,j,0,n)*cf2)
-                              +  dhy*(bY(i,j,0,n)*cf1 + bY(i,j+1,0,n)*cf3);
+                             + dhy*(bY(i,j,0,n)*cf1 + bY(i,j+1,0,n)*cf3);
 
                     Real gamma = alpha*a(i,j,0)
                         +   dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
@@ -216,6 +216,10 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                 Real dhx, Real dhy, Array4<Real const> const& a,
                 Array4<Real const> const& bX,
                 Array4<Real const> const& bY,
+                Array4<int const> const& m0,
+                Array4<int const> const& m1,
+                Array4<int const> const& m2,
+                Array4<int const> const& m3,
                 Box const& vbox, int nc) noexcept
 {
     const auto lo = amrex::lbound(box);
@@ -223,12 +227,51 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
     const auto vlo = amrex::lbound(vbox);
     const auto vhi = amrex::ubound(vbox);
     
+    // We create a variety of variables for finding the diagonal value near the boundary
+    
+    // ______________________________________
+    // |      |       | <-Bdry  |       |
+    // |  I2  |   I1  |  Close  |  Far  |
+    // ______________________________________
+    //
+    // delta will store cumalative effect of the boundary
+    Real delta;
+    
+    Real feval_coef_xhi_i1_close;
+    Real feval_coef_xhi_i1_far;
+    Real feval_coef_xhi_i2_far;
+    
+    Real feval_coef_xlo_i1_close;
+    Real feval_coef_xlo_i1_far;
+    Real feval_coef_xlo_i2_far;
+    
+    Real feval_coef_yhi_i1_close;
+    Real feval_coef_yhi_i1_far;
+    Real feval_coef_yhi_i2_far;
+    
+    Real feval_coef_ylo_i1_close;
+    Real feval_coef_ylo_i1_far;
+    Real feval_coef_ylo_i2_far;
+    
+    Real stencil_coef_i1_close = -13.0/3.0;
+    Real stencil_coef_i1_far = 4.0*(stencil_coef_i1_close)-6;
+    Real stencil_coef_i2_far = 5.0/3.0;
+    
+   /* for (int i = lo.x-2; i<=hi.x; ++i){
+        for (int j = lo.y; j<=hi.y; ++j){
+            amrex::Print() << "index " << i << "," << j << " with value " << m0(i,j,0) << "\n";
+        }
+    }*/
+    
+  
+ 
+    
     for (int n = 0; n < nc; ++n) {
         for     (int j = lo.y; j <= hi.y; ++j) {
             AMREX_PRAGMA_SIMD
             for (int i = lo.x; i <= hi.x; ++i) {
                 
-               // 2nd order periodic code.
+                // 2nd order periodic code.
                 /*    //amrex::Print() << "Entered"<< "\n";
                     Real gamma = alpha*a(i,j,0)
                                     + dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
@@ -242,7 +285,57 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                     phi(i,j,0,n) = (rhs(i,j,0,n) + rho )
                                     / (gamma );
                 */
+               /* Real cf0 = (i == vlo.x and m0(vlo.x-1,j,0) > 0)
+                ? f0(vlo.x,j,0,n) : 0.0;
+                Real cf1 = (j == vlo.y and m1(i,vlo.y-1,0) > 0)
+                ? f1(i,vlo.y,0,n) : 0.0;
+                Real cf2 = (i == vhi.x and m2(vhi.x+1,j,0) > 0)
+                ? f2(vhi.x,j,0,n) : 0.0;
+                Real cf3 = (j == vhi.y and m3(i,vhi.y+1,0) > 0)
+                ? f3(i,vhi.y,0,n) : 0.0;
                 
+                Real delta = dhx*(bX(i,j,0,n)*cf0 + bX(i+1,j,0,n)*cf2)
+                + dhy*(bY(i,j,0,n)*cf1 + bY(i,j+1,0,n)*cf3);*/
+                
+                // Lo coefficients
+                feval_coef_xlo_i1_close = (i == vlo.x and m0(vlo.x-1,j,0) > 0) ? stencil_coef_i1_close*
+                                                                                    (1.0/12.0)*dhx*(bX(i+1,j,0,n) + 15.0*bX(i,j,0,n)) : 0.0;
+                feval_coef_xlo_i1_far   = (i == vlo.x and m0(vlo.x-2,j,0) > 0) ? stencil_coef_i1_far*
+                                                                                    (1.0/12.0)*dhx*(-1.0*bX(i,j,0,n)) : 0.0;
+                feval_coef_xlo_i2_far   = (i == vlo.x+1 and m0(vlo.x-1,j,0) > 0) ? stencil_coef_i2_far*
+                                                                                    (1.0/12.0)*dhx*(-1.0*bX(i,j,0,n)) : 0.0;
+                
+                feval_coef_ylo_i1_close = (j == vlo.y and m1(i,vlo.y-1,0) > 0) ? stencil_coef_i1_close*
+                                                                                    (1.0/12.0)*dhy*(bY(i,j+1,0,n) + 15.0*bY(i,j,0,n)) : 0.0;
+                feval_coef_ylo_i1_far   = (j == vlo.y and m1(i,vlo.y-2,0) > 0) ? stencil_coef_i1_far*
+                                                                                    (1.0/12.0)*dhy*(-1.0*bY(i,j,0,n)) : 0.0;
+                feval_coef_ylo_i2_far   = (j == vlo.y+1 and m1(i,vlo.y-1,0) > 0) ? stencil_coef_i2_far*
+                                                                                    (1.0/12.0)*dhy*(-1.0*bY(i,j,0,n)) : 0.0;
+                
+                
+                // Hi coefficients
+                feval_coef_xhi_i1_close = (i == vhi.x and m2(vhi.x+1,j,0) > 0) ? stencil_coef_i1_close*
+                                                                                    (1.0/12.0)*dhx*(bX(i,j,0,n) + 15.0*bX(i+1,j,0,n)) : 0.0;
+                feval_coef_xhi_i1_far   = (i == vhi.x and m2(vhi.x+2,j,0) > 0) ? stencil_coef_i1_far*
+                                                                                    (1.0/12.0)*dhx*(-1.0*bX(i+1,j,0,n)) : 0.0;
+                feval_coef_xhi_i2_far   = (i == vhi.x-1 and m2(vhi.x+1,j,0) > 0) ? stencil_coef_i2_far*
+                                                                                    (1.0/12.0)*dhx*(-1.0*bX(i+1,j,0,n)) : 0.0;
+                
+                feval_coef_yhi_i1_close = (j == vhi.y and m3(i,vhi.y+1,0) > 0) ? stencil_coef_i1_close*
+                                                                                    (1.0/12.0)*dhy*(bY(i,j,0,n) + 15.0*bY(i,j+1,0,n)) : 0.0;
+                feval_coef_yhi_i1_far   = (j == vhi.y and m3(i,vhi.y+2,0) > 0) ? stencil_coef_i1_far*
+                                                                                    (1.0/12.0)*dhy*(-1.0*bY(i,j+1,0,n)) : 0.0;
+                feval_coef_yhi_i2_far   = (j == vhi.y-1 and m3(i,vhi.y+1,0) > 0) ? stencil_coef_i2_far*
+                                                                                    (1.0/12.0)*dhy*(-1.0*bY(i,j+1,0,n)) : 0.0;
+                
+                // Just sums up all boundary terms
+                delta = feval_coef_xlo_i1_close + feval_coef_xlo_i1_far + feval_coef_xlo_i2_far +
+                        feval_coef_ylo_i1_close + feval_coef_ylo_i1_far + feval_coef_ylo_i2_far +
+                        feval_coef_xhi_i1_close + feval_coef_xhi_i1_far + feval_coef_xhi_i2_far +
+                        feval_coef_yhi_i1_close + feval_coef_yhi_i1_far + feval_coef_yhi_i2_far ;
+                
+                
+                //delta = 0 for periodic
                 // Diagonal coefficient
                 Real gamma = alpha*a(i,j,0)
                                 + (15.0/12.0)*dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
@@ -258,9 +351,9 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                                              + (15.0*bY(i,j,0,n) + bY(i,j+1,0,n))*phi(i,j-1,0,n)
                                              + (bY(i,j,0,n) + 15.0*bY(i,j+1,0,n))*phi(i,j+1,0,n)
                                              - bY(i,j+1,0,n)*phi(i,j+2,0,n) );
-                
-                phi(i,j,0,n) = (rhs(i,j,0,n) + rho )
-                                / (gamma );
+                // Correct sign on delta?
+                phi(i,j,0,n) = (rhs(i,j,0,n) + rho - delta*phi(i,j,0,n) )
+                                / (gamma - delta);
                
                 
             }

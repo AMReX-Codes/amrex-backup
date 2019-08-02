@@ -1,0 +1,24 @@
+# Time step is set to Tfin/nsteps 16
+Nsteps = 16
+Tfin = 0.1
+
+# plot_int to 1 to make plot files
+plot_int = 0
+#  Spatial size 64
+n_cell =64
+max_grid_size = 128
+
+#  Define SDC parameters
+Nnodes=5
+Npieces=3
+Nsweeps=8
+
+#  Define the advection, diffusion, and reaction parameters
+a=0.0
+d=0.1
+r=0.0
+
+#  We have to use periodic b.c. for exact solution
+# 0 = periodic
+bc_lo = 3 3
+bc_hi = 3 3

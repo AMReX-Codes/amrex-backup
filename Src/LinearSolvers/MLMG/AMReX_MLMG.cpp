@@ -170,7 +170,7 @@ MLMG::solve (const Vector<MultiFab*>& a_sol, const Vector<MultiFab const*>& a_rh
         timer[iter_time] = amrex::second() - iter_start_time;
     }
 
-    int ng_back = final_fill_bc ? 1 : 0;
+    int ng_back = final_fill_bc ? 2 : 0; //was 1
     for (int alev = 0; alev < namrlevs; ++alev)
     {
         if (a_sol[alev] != sol[alev])
@@ -552,8 +552,8 @@ MLMG::interpCorrection (int alev)
     ba.coarsen(refratio);
 
     const Geometry& crse_geom = linop.Geom(alev-1,0);
-
-    const int ng = linop.isCellCentered() ? 1 : 0;
+    
+    const int ng = linop.isCellCentered() ? 1 : 0; // shouldn't need this
     MultiFab cfine(ba, fine_cor.DistributionMap(), ncomp, ng);
     cfine.setVal(0.0);
     cfine.ParallelCopy(crse_cor, 0, 0, ncomp, 0, ng, crse_geom.periodicity());

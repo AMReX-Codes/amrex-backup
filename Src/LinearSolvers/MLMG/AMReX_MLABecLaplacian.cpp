@@ -483,6 +483,18 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
     //    temp_b_y.FillBoundary(m_geom[amrlev][mglev].periodicity());
         
         
+        const auto& maskvals  = m_maskvals [amrlev][mglev];
+        
+        const MultiMask& mm0 = maskvals[0];
+        const MultiMask& mm1 = maskvals[1];
+#if (AMREX_SPACEDIM > 1)
+        const MultiMask& mm2 = maskvals[2];
+        const MultiMask& mm3 = maskvals[3];
+#if (AMREX_SPACEDIM > 2)
+        const MultiMask& mm4 = maskvals[4];
+        const MultiMask& mm5 = maskvals[5];
+#endif
+#endif
         
         const MultiFab& acoef = m_a_coeffs[amrlev][mglev];
         AMREX_D_TERM(const MultiFab& bxcoef = m_b_coeffs[amrlev][mglev][0];,
@@ -508,11 +520,23 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         {
 
             
+            const auto& m0 = mm0.array(mfi);
+            const auto& m1 = mm1.array(mfi);
+#if (AMREX_SPACEDIM > 1)
+            const auto& m2 = mm2.array(mfi);
+            const auto& m3 = mm3.array(mfi);
+#if (AMREX_SPACEDIM > 2)
+            const auto& m4 = mm4.array(mfi);
+            const auto& m5 = mm5.array(mfi);
+#endif
+#endif
+            
             const Box& tbx = mfi.tilebox();
             const Box& vbx = mfi.validbox();
             const auto& solnfab = sol.array(mfi);
             const auto& rhsfab  = rhs.array(mfi);
             const auto& afab    = acoef.array(mfi);
+            
             
             AMREX_D_TERM(const auto& bxfab = bxcoef.array(mfi);,
                          const auto& byfab = bycoef.array(mfi);,
@@ -526,6 +550,7 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
              {
                  abec_gsrb_high(thread_box, solnfab, rhsfab, alpha, dhx, dhy,
                            afab, bxfab, byfab,
+                           m0, m1, m2, m3,
                            vbx, nc);
              });
 #endif

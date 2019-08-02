@@ -59,8 +59,8 @@ MLCellLinOp::defineAuxData ()
             for (OrientationIter oitr; oitr; ++oitr)
             {
                 const Orientation face = oitr();
-                const int ngrow = 1;
-                const int extent = isCrossStencil() ? 0 : 1; // extend to corners
+                const int ngrow = 2; //Changed from 1
+                const int extent = 0; // isCrossStencil() ? 0 : 1; // extend to corners
                 m_maskvals[amrlev][mglev][face].define(m_grids[amrlev][mglev],
                                                        m_dmap[amrlev][mglev],
                                                        m_geom[amrlev][mglev],
@@ -429,7 +429,7 @@ MLCellLinOp::solutionResidual (int amrlev, MultiFab& resid, MultiFab& x, const M
 }
 
 void
-MLCellLinOp::fillSolutionBC (int amrlev, MultiFab& sol, const MultiFab* crse_bcdata)
+    MLCellLinOp::fillSolutionBC (int amrlev, MultiFab& sol, const MultiFab* crse_bcdata)
 {
     BL_PROFILE("MLCellLinOp::fillSolutionBC()");
     if (crse_bcdata != nullptr) {
@@ -476,7 +476,7 @@ MLCellLinOp::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
     BL_ASSERT(bndry != nullptr || bc_mode == BCMode::Homogeneous);
 
     const int ncomp = getNComp();
-    const int cross = isCrossStencil();
+    const int cross = 0; //isCrossStencil();
     const int tensorop = isTensorOp();
     if (!skip_fillboundary) {
         in.FillBoundary(0, ncomp, m_geom[amrlev][mglev].periodicity(),cross);
@@ -484,7 +484,10 @@ MLCellLinOp::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
 
     int flagbc = bc_mode == BCMode::Inhomogeneous;
     const int imaxorder = maxorder;
-
+ /*   if (bc_mode == BCMode::Inhomogeneous){
+        // Need to make sure it fills corners with 0's for homogeneous too at some point.
+        cross = 0;
+    }*/
     const Real* dxinv = m_geom[amrlev][mglev].InvCellSize();
     const Real dxi = m_geom[amrlev][mglev].InvCellSize(0);
     const Real dyi = (AMREX_SPACEDIM >= 2) ? m_geom[amrlev][mglev].InvCellSize(1) : 1.0;
@@ -600,6 +603,17 @@ MLCellLinOp::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
     }
 }
 
+void
+MLCellLinOp::fourthOrderBCFill (MultiFab& in, MultiFab& bdry_values)
+{
+    BL_PROFILE("MLCellLinOp::fourthOrderBCFill()");
+    MLCellLinOp::setLevelBC(0, &bdry_values);
+    MLCellLinOp::applyBC (0,0, in, BCMode::Inhomogeneous, StateMode::Solution,
+             m_bndry_sol[0].get(), 1);
+    
+    
+}
+    
 void
 MLCellLinOp::reflux (int crse_amrlev,
                      MultiFab& res, const MultiFab& crse_sol, const MultiFab&,

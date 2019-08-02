@@ -242,5 +242,159 @@ subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
 
 end subroutine SDC_Lresid_F
 
+subroutine cc_to_face_loc(lo, hi, cc_dat, cc_lo, cc_hi, face_dat, face_lo,face_hi, dir) bind(C, name="cc_to_face_loc")
+!  move cell centered data to be face centered
+use amrex_fort_module, only : amrex_real
+
+implicit none
+
+integer, intent(in) :: lo(3), hi(3), cc_lo(3), cc_hi(3), face_lo(3), face_hi(3), dir
+real(amrex_real), intent(inout) :: cc_dat(cc_lo(1):cc_hi(1),cc_lo(2):cc_hi(2),cc_lo(3):cc_hi(3))
+real(amrex_real), intent(inout) :: face_dat(face_lo(1):face_hi(1),face_lo(2):face_hi(2),face_lo(3):face_hi(3))
+
+integer          :: i,j, k
 
 
+!print *,'lo, hi, cc_lo, cc_hi, face_lo, face_hi=',lo, hi, cc_lo, cc_hi, face_lo, face_hi
+
+!print *,'cc_dat(0,0,0)=',cc_dat(0,0,0)
+
+
+! We condition based on direction
+if (dir .EQ. 0) then
+do i = lo(1),hi(1) + 1
+do j = cc_lo(2),cc_hi(2)
+do k = cc_lo(3),cc_hi(3)
+face_dat(i,j,k) = (-1.d0*cc_dat(i-2,j,k) + 7.d0*cc_dat(i-1,j,k) &
++ 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i+1,j,k))/(12.d0)
+
+end do
+end do
+end do
+elseif(dir .EQ. 1) then
+
+do i = cc_lo(1),cc_hi(1)
+do j = lo(2),hi(2) + 1
+do k = cc_lo(3),cc_hi(3)
+
+face_dat(i,j,k) = (-1.d0*cc_dat(i,j-2,k) + 7.d0*cc_dat(i,j-1,k) &
++ 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i,j+1,k))/(12.d0)
+
+end do
+end do
+end do
+
+else
+do i = cc_lo(1),cc_hi(1)
+do j = cc_lo(2),cc_hi(2)
+do k = lo(3),hi(3) + 1
+
+face_dat(i,j,k) = (-1.d0*cc_dat(i,j,k-2) + 7.d0*cc_dat(i,j,k-1) &
++ 7.d0*cc_dat(i,j,k) - 1.d0*cc_dat(i,j,k+1))/(12.d0)
+
+end do
+end do
+end do
+
+
+endif
+
+
+
+
+
+
+end subroutine cc_to_face_loc
+
+
+
+
+
+subroutine fill_bdry_values(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,time, epsilon, k_freq, kappa)bind(C, name="fill_bdry_values")
+!  Initialize the scalar field phi
+use amrex_fort_module, only : amrex_real
+
+implicit none
+
+integer, intent(in) :: lo(2), hi(2), philo(2), phihi(2)
+real(amrex_real), intent(inout) :: phi(philo(1):phihi(1),philo(2):phihi(2))
+real(amrex_real), intent(in   ) :: dx(2)
+real(amrex_real), intent(in   ) :: prob_lo(2)
+real(amrex_real), intent(in   ) :: prob_hi(2)
+real(amrex_real), intent(in   ) :: k_freq, time, kappa, epsilon
+integer          :: i,j, i_quad, j_quad, face_index
+double precision :: x,y,tupi,t0,d, pi, x_quad, y_quad
+double precision :: gauss_nodeFrac(0:2)
+double precision :: gauss_weights(0:2)
+gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0.5d0))/2.d0 /)
+gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
+tupi=3.14159265358979323846d0*2d0
+pi=3.14159265358979323846d0
+d=0.1
+t0=0.0025d0/d
+ ! We fill ghost cells with Dir values
+
+! x faces
+
+do i = 0,1
+if (i==0) then
+    face_index = philo(1)
+    x = prob_lo(1)
+else
+    face_index = phihi(1)
+    x = prob_hi(1)
+end if
+    do j = lo(2), hi(2)
+    !y = prob_lo(2) + (dble(j)+1.d0/2.d0 )* dx(2)
+    y = prob_lo(2) + dble(j)* dx(2)
+
+        phi(face_index,j) = 0
+            do j_quad = 0,2
+            y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
+            !print*, y_quad
+
+                phi(face_index,j) = phi(face_index,j)+ gauss_weights(j_quad)* &
+                exp(-kappa*time)*cos(k_freq*(x+y_quad))
+
+            end do
+
+
+    end do
+end do
+
+
+! y faces
+do j = 0, 1
+!y = prob_lo(2) + (dble(j)+1.d0/2.d0 )* dx(2)
+if (j==0) then
+face_index = philo(2)
+y = prob_lo(2)
+else
+face_index = phihi(2)
+y = prob_hi(2)
+end if
+    do i = lo(1), hi(1)
+    !x = prob_lo(1) + (dble(i)+1.d0/2.d0) * dx(1)
+    x = prob_lo(1) + dble(i) * dx(1)
+
+    ! phi(i,j) =sin(x*tupi)*sin(y*tupi)
+    ! phi(i,j)=exp(-x*x/(4.0d0*d*t0))*exp(-y*y/(4.0d0*d*t0))
+    phi(i,face_index) = 0
+
+            do i_quad = 0,2
+            x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
+            phi(i,face_index) = phi(i,face_index)+ gauss_weights(i_quad)* &
+            exp(-kappa*time)*cos(k_freq*(x_quad+y))
+
+            end do
+
+
+
+    !phi(i,j)=cos(pi*(x+y))
+    ! phi(i,j) = 0;
+    end do
+end do
+
+
+
+end subroutine fill_bdry_values

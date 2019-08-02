@@ -15,7 +15,7 @@ void SDC_advance(MultiFab& phi_old,
 		 MLABecLaplacian& mlabec,
 		 SDCstruct &SDC, Real a, Real d, Real r,
          std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
-         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor, Real time, Real epsilon, Real k_freq, Real kappa)
+         std::array<MultiFab,AMREX_SPACEDIM>& prod_stor, Real time, Real epsilon, Real k_freq, Real kappa, MultiFab& bdry_values, MLABecLaplacian& mlabec_BCfill)
 {
 
   /*  This is a multi-implicit SDC example time step for an 
@@ -36,18 +36,37 @@ void SDC_advance(MultiFab& phi_old,
     Real current_time = time;
   const BoxArray &ba=phi_old.boxArray();
   const DistributionMapping &dm=phi_old.DistributionMap();
-
   // Copy old phi into first SDC node
   MultiFab::Copy(SDC.sol[0],phi_old, 0, 0, 1, 2);
 
   // Fill the ghost cells of each grid from the other grids
   // includes periodic domain boundaries
   SDC.sol[0].FillBoundary(geom.periodicity());
+// Fill Dirichlet
+    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                         BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
+                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+    }
+   
+    
+ /*   for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        
+                         print_multifab(BL_TO_FORTRAN_ANYD(SDC.sol[0][mfi]));
+                        print_multifab(BL_TO_FORTRAN_ANYD(bdry_values[mfi]));
+    }*/
+    mlabec_BCfill.fourthOrderBCFill(SDC.sol[0],bdry_values);
+   /* for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        
+        print_multifab(BL_TO_FORTRAN_ANYD(SDC.sol[0][mfi]));
+    }*/
+    // Fill non-periodic physical boundaries (doesn't do Dirichlet; probably only one ghost cell).
+  // FillDomainBoundary(SDC.sol[0], geom, bc);
   
-  // Fill non-periodic physical boundaries
-  FillDomainBoundary(SDC.sol[0], geom, bc);
-  
-  //  Compute the first function value
+  //  Compute the first function value (Need boundary filled here at current time explicit).
   int sdc_m=0;
   SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_m,-1,time, epsilon, k_freq, kappa);
 
@@ -56,6 +75,7 @@ void SDC_advance(MultiFab& phi_old,
     {
         current_time = time+dt*nodeFrac[sdc_n];
       //MultiFab::Copy(SDC.f[0][sdc_n],SDC.f[0][0], 0, 0, 1, 0);
+        // Subsequent Calculation doesn't need dirichlet conditions
      SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,sdc_n,0,current_time, epsilon, k_freq, kappa);
       MultiFab::Copy(SDC.f[1][sdc_n],SDC.f[1][0], 0, 0, 1, 0);
       if (SDC.Npieces==3)
@@ -66,7 +86,7 @@ void SDC_advance(MultiFab& phi_old,
   //  Now do the actual sweeps
   for (int k=1; k <= SDC.Nsweeps; ++k)
     {
- //      amrex::Print() << "sweep " << k << "\n";
+      amrex::Print() << "sweep " << k << "\n";
 
       //  Compute RHS integrals
       SDC.SDC_rhs_integrals(dt);
@@ -87,8 +107,20 @@ void SDC_advance(MultiFab& phi_old,
 	      SDC.sol[sdc_m+1][mfi].saxpy(qij,SDC.f[1][sdc_m+1][mfi]);
 	    }
       SDC.sol[sdc_m+1].FillBoundary(geom.periodicity());
+        // Get Implicit time value
+        current_time = time+dt*nodeFrac[sdc_m+1];
+        // Fill Dirichlet Values
+        for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+        {          const Box& bx = mfi.validbox();
+            fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                             BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
+                             geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+        }
+        mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m+1],bdry_values);
+        
+        
 	  // Solve for the first implicit part
-	  SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt,a,d,r,face_bcoef,prod_stor,sdc_m+1,1);
+	  SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt,a,d,r,face_bcoef,prod_stor,sdc_m+1,1, time, epsilon, k_freq, kappa, mlabec_BCfill);
      
 
 	  if (SDC.Npieces==3)
@@ -100,10 +132,19 @@ void SDC_advance(MultiFab& phi_old,
 	      SDC.SDC_rhs_misdc(phi_new,dt,sdc_m);
 	      
 	      // Solve for the second implicit part
-	      SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt, a,d,r,face_bcoef,prod_stor,sdc_m+1,2);
+	      SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt, a,d,r,face_bcoef,prod_stor,sdc_m+1,2, time, epsilon, k_freq, kappa, mlabec_BCfill);
 	    }
 	  // Compute the function values at node sdc_m+1
-        current_time = time+dt*nodeFrac[sdc_m+1];
+        
+        // Shouldn't need the following BC code as the solve should linearly maintain it.
+        for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+        {          const Box& bx = mfi.validbox();
+            fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                             BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
+                             geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+        }
+        mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m+1],bdry_values);
+        //       mlabec.fillSolutionBC(0, SDC.sol[sdc_m+1], &bdry_values);
       //  amrex::Print() << "current time" << current_time <<"\n";
 	  SDC_feval(flux,geom,bc,SDC,a,d,r,face_bcoef,prod_stor,
                 sdc_m+1,-1,current_time,epsilon, k_freq, kappa);
@@ -184,7 +225,7 @@ void SDC_fcomp(MultiFab& rhs,
 	       Real dt,Real a,Real d,Real r,
            std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
            std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
-	       int sdc_m,int npiece)
+	       int sdc_m,int npiece, Real time, Real epsilon, Real k_freq, Real kappa, MLABecLaplacian& mlabec_BCfill)
 {
   /*  Solve implicitly for the implicit terms of the equation at the SDC node "sdc_m".
       The input parameter "npiece" describes which term to do.  */
@@ -198,9 +239,9 @@ void SDC_fcomp(MultiFab& rhs,
     Real qijalt;
     
     // relative and absolute tolerances for linear solve
-  const Real tol_rel = 1.e-13;
+  const Real tol_rel = 1.e-10;
   const Real tol_abs = 0.0;
-  const Real tol_res = 1.e-13;    // Tolerance on residual
+  const Real tol_res = 1.e-10;    // Tolerance on residual
   Real resnorm = 1.e10;    // Tolerance on residual
     Real zeroReal = 0.0;
     Real corrnorm;
@@ -213,6 +254,8 @@ void SDC_fcomp(MultiFab& rhs,
     MultiFab temp_resid(ba, dm, 1, 2);
     MultiFab temp_corr(ba, dm, 1, 2);
     MultiFab temp_fab(ba, dm, 1, 2);
+    
+    MultiFab bdry_values(ba, dm, 1, 1);
     
   if (npiece == 1)  
     {
@@ -228,12 +271,12 @@ void SDC_fcomp(MultiFab& rhs,
     
         // Fill the ghost cells of each grid from the other grids
         // includes periodic domain boundaries
-        rhs.FillBoundary(geom.periodicity());
-        SDC.sol[sdc_m].FillBoundary(geom.periodicity());
+    //    rhs.FillBoundary(geom.periodicity());
+    //    SDC.sol[sdc_m].FillBoundary(geom.periodicity());
         
         // Fill non-periodic physical boundaries
-        FillDomainBoundary(rhs, geom, bc);
-        FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
+       // FillDomainBoundary(rhs, geom, bc);
+       // FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
         
         //  Set diffusion scalar in solve
         qij = dt*SDC.Qimp[sdc_m-1][sdc_m];
@@ -241,13 +284,15 @@ void SDC_fcomp(MultiFab& rhs,
         mlabec.setScalars(ascalar, d*qij);
         
         // set the boundary conditions
-        mlabec.setLevelBC(0, &rhs);
-        mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
+      //  mlabec.setLevelBC(0, &rhs);
+      //  mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
+        // set level BC to 0
         int resk=0;
         int maxresk=10;
         while ((resnorm > tol_res) & (resk <=maxresk))
         {
             // Compute residual
+            // Need to fill out boundary conditions at given time Can do initially outside loop.
             for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi )
             {
                 const Box& bx = mfi.validbox();
@@ -282,46 +327,51 @@ void SDC_fcomp(MultiFab& rhs,
             resnorm=resid.norm0();
             ++resk;
             
-           if(resnorm <= tol_res){
+     /*      if(resnorm <= tol_res){
                 
     //                amrex::Print() << "Reached tolerance" << "\n";
                 
                 break;
-            }
+            }*/
             
         
-  //            amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
+            amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
             // includes periodic domain boundaries
-            resid.FillBoundary(geom.periodicity());
+           // resid.FillBoundary(geom.periodicity());
             
             // Fill non-periodic physical boundaries
-            FillDomainBoundary(resid, geom, bc);
+           // FillDomainBoundary(resid, geom, bc);
             corr.setVal(0.0);
             //  Do the multigrid solve
             //mlmg.solve({&SDC.sol[sdc_m]}, {&rhs}, tol_rel, tol_abs);
             //MultiFab::Copy(corr,SDC.sol[sdc_m], 0, 0, 1, 0);
-            // set the boundary conditions
+            // set the boundary conditions, which are homogeneous
             mlabec.setLevelBC(0, &corr);
-            mlabec.setLevelBC(0, &resid);
+           // mlabec.setLevelBC(0, &resid);
             
             
             //mlmg.setFixedIter(3);
             mlmg.solve({&corr}, {&resid}, tol_rel, tol_abs);
             
-            for ( MFIter mfi(SDC.sol[sdc_m]); mfi.isValid(); ++mfi ){
-                
-                SDC.sol[sdc_m][mfi].saxpy(1.0,corr[mfi]);  //  make this add
-                
+            MultiFab::Saxpy(SDC.sol[sdc_m],1.0,corr,0,0,1,2);
+            
+            for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+            {          const Box& bx = mfi.validbox();
+                fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                                 BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
+                                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
             }
+            mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m],bdry_values);
             
            // corrnorm=corr.norm0();
            // amrex::Print() << "iter " << resk << ",  Correction norm " << corrnorm << "\n";
             
-            
+           
             // includes periodic domain boundaries
-            SDC.sol[sdc_m].FillBoundary(geom.periodicity());
-            // Fill non-periodic physical boundaries
-            FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
+           // SDC.sol[sdc_m].FillBoundary(geom.periodicity());
+            // Fill non-periodic physical boundaries (BECAREFUL OF THIS)
+            // Shouldn't need this. Might overwrite good things?
+            // FillDomainBoundary(SDC.sol[sdc_m], geom, bc);
             
            // corrnorm=SDC.sol[sdc_m].norm0();
            // amrex::Print() << "iter " << resk << ",  solution norm " << corrnorm << "\n";
