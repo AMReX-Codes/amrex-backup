@@ -112,6 +112,36 @@ struct BlockStatus<T, false>
     }
 };
 
+template <int N, typename T>
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+void StripedToBlocked (T* items, T* temp)
+{
+    #pragma unroll
+    for (int i = 0; i < N; ++i) {
+        temp[i*blockDim.x + threadIdx.x] = items[i];
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int i = 0; i < N; ++i) {
+        items[i] = temp[threadIdx.x*N + i];
+    }
+}
+
+template <int N, typename T>
+AMREX_GPU_DEVICE AMREX_FORCE_INLINE
+void BlockedToStriped (T* items, T* temp)
+{
+    #pragma unroll
+    for (int i = 0; i < N; ++i) {
+        temp[threadIdx.x*N + i] = items[i];
+    }
+    __syncthreads();
+    #pragma unroll
+    for (int i = 0; i < N; ++i) {
+        items[i] = temp[i*blockDim.x+threadIdx.x];
+    }
+}
+
 }
 
 enum class Type { inclusive, exclusive };
@@ -120,26 +150,18 @@ template <typename T, typename FIN, typename FOUT>
 T PrefixSum (int n, FIN && fin, FOUT && fout, Type type)
 {
     if (n <= 0) return 0;
-    constexpr int nwarps_per_block = 4;
-    constexpr int nthreads = nwarps_per_block*Gpu::Device::warp_size;
-    constexpr int nchunks = 12;
-    constexpr int nelms_per_block = nthreads * nchunks;
+    constexpr int nwarps = 4;
+    constexpr int nthreads = nwarps*Gpu::Device::warp_size;
+    constexpr int nitems = 12;
+    constexpr int nelms_per_block = nthreads * nitems;
     int nblocks = (n + nelms_per_block - 1) / nelms_per_block;
-    std::size_t sm = sizeof(T) * (Gpu::Device::warp_size + nwarps_per_block) + sizeof(int);
+    std::size_t sm = sizeof(T) * (nthreads*nitems + nwarps+1) + sizeof(int);
     auto stream = Gpu::gpuStream();
 
     typedef typename std::conditional<sizeof(detail::STVA<T>) <= 8,
         detail::BlockStatus<T,true>, detail::BlockStatus<T,false> >::type BlockStatusT;
 
     // temporary memory
-#if 0
-    amrex::AsyncArray<BlockStatusT > block_status_aa(nblocks);
-    BlockStatusT* block_status_p = block_status_aa.data();
-
-    Gpu::DeviceScalar<unsigned int> virtual_block_id_ds;
-    unsigned int* virtual_block_id_p = virtual_block_id_ds.dataPtr();
-#endif
-
     std::size_t nbytes_blockstatus = Arena::align(sizeof(BlockStatusT)*nblocks);
     std::size_t nbytes_blockid = Arena::align(sizeof(unsigned int));
     std::size_t nbytes_totalsum = Arena::align(sizeof(T));
@@ -164,18 +186,17 @@ T PrefixSum (int n, FIN && fin, FOUT && fout, Type type)
     {
         int lane = threadIdx.x % Gpu::Device::warp_size;
         int warp = threadIdx.x / Gpu::Device::warp_size;
-        int nwarps = blockDim.x / Gpu::Device::warp_size;
 
         amrex::Gpu::SharedMemory<T> gsm;
         T* shared = gsm.dataPtr();
-        T* shared2 = shared + Gpu::Device::warp_size;
+        T* shared2 = shared + blockDim.x*nitems;
 
         // First of all, get block virtual id.  We must do this to
         // avoid deadlock because CUDA may launch blocks in any order.
         // Anywhere in this function, we should not use blockIdx.
         int virtual_block_id = 0;
         if (gridDim.x > 1) {
-            int& virtual_block_id_shared = *((int*)(shared2+nwarps));
+            int& virtual_block_id_shared = *((int*)(shared+blockDim.x*nitems+nwarps+1));
             if (threadIdx.x == 0) {
                 unsigned int bid = Gpu::Atomic::Inc(virtual_block_id_p, gridDim.x);
                 virtual_block_id_shared = bid;
@@ -190,86 +211,63 @@ T PrefixSum (int n, FIN && fin, FOUT && fout, Type type)
         BlockStatusT& block_status = block_status_p[virtual_block_id];
 
         //
-        // The overall algorithm is based on "Single-pass Parallel
-        // Prefix Scan with Decoupled Look-back" by D. Merrill &
-        // M. Garland.
+        // This is based on "Single-pass Parallel Prefix Scan with
+        // Decoupled Look-back" by D. Merrill & M. Garland.
         //
 
-        // Each block is responsible for nchunks chunks of data,
-        // where each chunk has blockDim.x elements, one for each
-        // thread in the block.
-        T sum_prev_chunk = 0; // inclusive sum from previous chunks.
-        T tmp_out[nchunks]; // block-wide inclusive sum for chunks
-        for (int ichunk = 0; ichunk < nchunks; ++ichunk) {
-            int offset = ibegin + ichunk*blockDim.x;
-            if (offset >= iend) break;
-
-            offset += threadIdx.x;
-            T x0 = (offset < iend) ? fin(offset) : 0;
-            if  (type == Type::exclusive && offset == n-1) {
-                *totalsum_p += x0;
+        // Each block is responsible for threadDim.x*nitems elements.
+        // Each threads is responsible for nitems elements.
+        T items[nitems];
+        for (int i = 0; i < nitems; ++i) {
+            int offset = ibegin + i*blockDim.x + threadIdx.x;
+            if (offset < iend) {
+                items[i] = fin(offset);
+            } else {
+                items[i] = 0;
             }
-            T x = x0;
-            // Scan within a warp
-            for (int i = 1; i <= Gpu::Device::warp_size; i *= 2) {
-                T s = __shfl_up_sync(0xffffffff, x, i);
-                if (lane >= i) x += s;
-            }
+        }
+        detail::StripedToBlocked<nitems>(items, shared);
 
-            // x now holds the inclusive sum within the warp.  The
-            // last thread in each warp holds the inclusive sum of
-            // this warp.  We will store it in shared memory.
-            if (lane == Gpu::Device::warp_size - 1) {
-                shared[warp] = x;
-            }
-
-            __syncthreads();
-
-            // The first warp will do scan on the warp sums for the
-            // whole block.  Not all threads in the warp need to
-            // participate.
-            if (warp == 0 && lane < nwarps) {
-                T y = shared[lane];
-                int mask = (1 << nwarps) - 1;
-                for (int i = 1; i <= nwarps; i *= 2) {
-                    T s = __shfl_up_sync(mask, y, i, nwarps);
-                    if (lane >= i) y += s;
-                }
-
-                shared2[lane] = y;
-            }
-
-            __syncthreads();
-
-            // shared[0:nwarps) holds the inclusive sum of warp sums.
-            
-            // Also note x still holds the inclusive sum within the
-            // warp.  Given these two, we can compute the inclusive
-            // sum within this chunk.
-            T sum_prev_warp = (warp == 0) ? 0 : shared2[warp-1];
-            tmp_out[ichunk] = sum_prev_warp + sum_prev_chunk +
-                ((type == Type::inclusive) ? x : x-x0);
-            sum_prev_chunk += shared2[nwarps-1];
+        // Inclusive sum within a thread
+        #pragma unroll
+        for (int i = 1; i < nitems; ++i) {
+            items[i] += items[i-1];
         }
 
-        // sum_prev_chunk now holds the sum of the whole block.
-        if (threadIdx.x == 0 && gridDim.x > 1) {
-            block_status.write((virtual_block_id == 0) ? 'p' : 'a',
-                               sum_prev_chunk);
+        // Inclusive sum within a warp
+        T x = items[nitems-1];
+        for (int i = 1; i <= Gpu::Device::warp_size; i *= 2) {
+            T s = __shfl_up_sync(0xffffffff, x, i);
+            if (lane >= i) x += s;
         }
 
-        if (virtual_block_id == 0) {
-            for (int ichunk = 0; ichunk < nchunks; ++ichunk) {
-                int offset = ibegin + ichunk*blockDim.x + threadIdx.x;
-                if (offset >= iend) break;
-                fout(offset, tmp_out[ichunk]);
-                if (offset == n-1) {
-                    *totalsum_p += tmp_out[ichunk];
-                }
-            }
-        } else if (virtual_block_id > 0) {
+        T sum_prev_threads = x - items[nitems-1];
 
-            if (warp == 0) {
+        // Store the sum of warp in shared memory.
+        if (lane == Gpu::Device::warp_size-1) {
+            shared2[warp] = x;
+        }
+        __syncthreads();
+
+        T sum_prev_warps = 0;
+        if (warp > 0) {
+            sum_prev_warps = shared2[0];
+            for (int i = 1; i < warp; ++i) {
+                sum_prev_warps += shared2[i];
+            }
+        }
+        bool last_thread_in_block = threadIdx.x == blockDim.x-1;
+        // inclusive_sum_block is only valid for the last thread in the block
+        T inclusive_sum_block;
+        if (last_thread_in_block) {
+            inclusive_sum_block = items[nitems-1] + sum_prev_warps + sum_prev_threads;
+            block_status.write((virtual_block_id == 0) ? 'p' : 'a', inclusive_sum_block);
+        }
+
+        T sum_prev_blocks = 0;
+
+        if (virtual_block_id > 0) {
+            if (warp == nwarps-1) {
                 T exclusive_prefix = 0;
                 BlockStatusT volatile* pbs = block_status_p;
                 for (int iblock0 = virtual_block_id-1; iblock0 >= 0; iblock0 -= Gpu::Device::warp_size)
@@ -310,23 +308,38 @@ T PrefixSum (int n, FIN && fin, FOUT && fout, Type type)
 
                 if (lane == 0) {
                     block_status.write('p', block_status.get_aggregate() + exclusive_prefix);
-                    shared[0] = exclusive_prefix;
+                    shared2[nwarps] = exclusive_prefix;
                 }
             }
 
             __syncthreads();
 
-            T exclusive_prefix = shared[0];
+            sum_prev_blocks = shared2[nwarps];
+        }
 
-            for (int ichunk = 0; ichunk < nchunks; ++ichunk) {
-                int offset = ibegin + ichunk*blockDim.x + threadIdx.x;
-                if (offset >= iend) break;
-                T t = tmp_out[ichunk] + exclusive_prefix;
-                fout(offset, t);
-                if (offset == n-1) {
-                    *totalsum_p += t;
-                }
+        T s = sum_prev_warps + sum_prev_threads;
+        if (type == Type::inclusive) {
+            #pragma unroll
+            for (int i = 0; i < nitems; ++i) {
+                items[i] += s;
             }
+        } else {
+            #pragma unroll
+            for (int i = nitems-1; i > 0; --i) {
+                items[i] = items[i-1] + s;
+            }
+            items[0] = s;
+        }
+
+        detail::BlockedToStriped<nitems>(items, shared);
+        for (int i = 0; i < nitems; ++i) {
+            int offset = ibegin + i*blockDim.x + threadIdx.x;
+            if (offset >= iend) break;
+            fout(offset, items[i]+sum_prev_blocks);
+        }
+
+        if (virtual_block_id == gridDim.x-1 && last_thread_in_block) {
+            *totalsum_p = sum_prev_blocks + inclusive_sum_block;
         }
     });
 
