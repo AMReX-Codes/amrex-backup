@@ -121,7 +121,7 @@ void SDC_advance(MultiFab& phi_old,
         
 	  // Solve for the first implicit part
         
-	  SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt,a,d,r,face_bcoef,prod_stor,sdc_m+1,1, time, epsilon, k_freq, kappa, mlabec_BCfill);
+	  SDC_fcomp(phi_new, flux, geom, bc, SDC, mlmg, mlabec,dt,a,d,r,face_bcoef,prod_stor,sdc_m+1,1, current_time, epsilon, k_freq, kappa, mlabec_BCfill);
      
 
 	  if (SDC.Npieces==3)
@@ -303,7 +303,7 @@ void SDC_fcomp(MultiFab& rhs,
       //  mlabec.setLevelBC(0, &rhs);
       //  mlabec.setLevelBC(0, &SDC.sol[sdc_m]);
         // set level BC to 0
-        int resk=9;
+        int resk=0;
         int maxresk=10;
         while ((resnorm > tol_res) & (resk <=maxresk))
         {
@@ -344,12 +344,12 @@ void SDC_fcomp(MultiFab& rhs,
             resnorm=resid.norm0();
             ++resk;
             
-     /*      if(resnorm <= tol_res){
+           if(resnorm <= tol_res){
                 
     //                amrex::Print() << "Reached tolerance" << "\n";
                 
                 break;
-            }*/
+            }
             
         
             amrex::Print() << "iter " << resk << ",  residual norm " << resnorm << "\n";
@@ -383,12 +383,12 @@ void SDC_fcomp(MultiFab& rhs,
             //////////////////////////////////////////////////////////////////
             mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m],bdry_values);
             
-            mlabec.fourthOrderBCFill(corr,temp_zero);
+          //  mlabec_BCfill.fourthOrderBCFill(corr,temp_zero);
             
             MultiFab::Saxpy(SDC.sol[sdc_m],1.0,corr,0,0,1,2);
             
             
-        //    mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m],bdry_values);
+            mlabec_BCfill.fourthOrderBCFill(SDC.sol[sdc_m],bdry_values);
             
            // corrnorm=corr.norm0();
            // amrex::Print() << "iter " << resk << ",  Correction norm " << corrnorm << "\n";
