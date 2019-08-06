@@ -2,7 +2,7 @@
 #include <AMReX_ParmParse.H>
 #include <AMReX_Print.H>
 
-// Extra for BCMODE
+#include <iostream>
 
 
 #include "myfunc.H"
@@ -67,7 +67,7 @@ void main_main ()
     
     // Manufactured solution parameters
     Real k_freq =3.14159265358979323846;
-    Real epsilon =  0.25;
+    Real epsilon = 0.25;
     Real kappa = 2*d*pow(k_freq,2.0); // This choice leads to cancellation analytically. Doesn't matter now.
     
     
@@ -320,13 +320,23 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     // Boundary values are stored in ghost cells in cross.
     MultiFab bdry_values(ba, dm, 1, 1);
     
-/*    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
     {          const Box& bx = mfi.validbox();
         fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
                          BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
                          geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
     }
-    mlabec.setLevelBC(0,&bdry_values);*/
+/*    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        print_multifab(BL_TO_FORTRAN_ANYD(phi_new[mfi]));
+    }*/
+    
+    mlabec_BCfill.fourthOrderBCFill(phi_new,bdry_values);
+    
+  /*  for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        print_multifab(BL_TO_FORTRAN_ANYD(phi_new[mfi]));
+    }*/
     
     // build an MLMG solver
     MLMG mlmg(mlabec);
@@ -341,13 +351,157 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
   int cg_verbose = 0;
   mlmg.setCGVerbose(cg_verbose);
   
-
-
-
+    
+    /*
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // SMOOTH TESTING SPACE /////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    
+    MultiFab eval_storage(ba, dm, 1, 0);
+    MultiFab rhs(ba, dm, 1, 0);
+    MultiFab soln(ba, dm, 1, 2);
+    MultiFab approx_soln(ba, dm, 1, 2);
+    MultiFab bvalues(ba,dm,1,1);
+    
+    mlabec.setScalars(1.0, d);
+    
+    const Box& domain_bx = geom.Domain();
+   // const Real* dx = geom.CellSize();
+    Real zeroReal = 0.0;
+    int oneInt = 1;
+    
+    
+   /////////////////////////////////////////////////////
+   // SET SOLN VALUE
+   /////////////////////////////////////////////////////
+    for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
+    {
+        const Box& bx = mfi.validbox();
+        init_phi(BL_TO_FORTRAN_BOX(bx),
+                 BL_TO_FORTRAN_ANYD(soln[mfi]),
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
+    }
+    
+    
+    
+    ///////////////////////////////////////////////////////
+    // Intialize Boundary Values
+    ///////////////////////////////////////////////////////
+    bvalues.setVal(0.0);
+    
+    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
+    {          const Box& bx = mfi.validbox();
+        fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
+                         BL_TO_FORTRAN_ANYD(bvalues[mfi]),
+                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+    }
+    
+    
+    
+    /////////////////////////////////////////////////////
+    // APPLY BC TO SOLN
+    /////////////////////////////////////////////////////
+    mlabec_BCfill.fourthOrderBCFill(soln,bvalues);
+    
+    
+    
+    
+    amrex::Print() << "Check 1"  << "\n";
+    
+    /////////////////////////////////////////////////////
+    // Find L^2,4,4 eval of soln (make sure to comment out correct piece of feval)
+    /////////////////////////////////////////////////////
+    for ( MFIter mfi(soln); mfi.isValid(); ++mfi )
+    {
+        const Box& bx = mfi.validbox();
+        SDC_feval_F(BL_TO_FORTRAN_BOX(bx),
+                    BL_TO_FORTRAN_BOX(domain_bx),
+                    BL_TO_FORTRAN_ANYD(soln[mfi]),
+                    BL_TO_FORTRAN_ANYD(flux[0][mfi]),
+                    BL_TO_FORTRAN_ANYD(flux[1][mfi]),
+#if (AMREX_SPACEDIM == 3)
+                    BL_TO_FORTRAN_ANYD(flux[2][mfi]),
+#endif
+                    BL_TO_FORTRAN_ANYD(eval_storage[mfi]),
+                    dx,&a,&d,&r,
+                    BL_TO_FORTRAN_ANYD(face_bcoef[0][mfi]),
+                    BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
+                    BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
+                    BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
+                    &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
+        
+    }
+    
+    /////////////////////////////////////////////////////////////////
+    // MAKE RHS = (I-L^2,4,4)soln
+    /////////////////////////////////////////////////////////////////
+    
+    rhs.setVal(0.0);
+    MultiFab::Saxpy(rhs,1.0,soln,0,0,1,0);
+    MultiFab::Saxpy(rhs,-1.0,eval_storage,0,0,1,0);
+    
+    ////////////////////////////////////////////////////////////////
+    // INITIAL GUESS FOR SOLN
+    ////////////////////////////////////////////////////////////////
+    
+    approx_soln.setVal(0.0);
+    
+    ////////////////////////////////////////////////////////////////
+    // SMOOTHING LOOP
+    ////////////////////////////////////////////////////////////////
+    for (int i =1;i<=1000;i++){
+        
+    
+        ///////////////////////////////////////////////////////////////
+        // BC FOR APPROX
+        ///////////////////////////////////////////////////////////////
+        mlabec_BCfill.fourthOrderBCFill(approx_soln,bvalues);
+      
+        
+        
+        // SMOOTH
+        mlabec.Fsmooth(0,0, approx_soln, rhs, 0);
+    
+    
+    }
+    
+    
+    
+    
+    ////////////////////////////////////////////////////
+    // PRINT MULTIFAB to SEE RESULT
+    ////////////////////////////////////////////////////
+ //   for ( MFIter mfi(approx_soln); mfi.isValid(); ++mfi )
+ //   {
+ //       const Box& bx = mfi.validbox();
+ //       print_multifab(BL_TO_FORTRAN_ANYD(approx_soln[mfi]));
+ //   }
+    
+    
+    
+    //////////////////////////////////////////////////////
+    // ERROR NORM
+    //////////////////////////////////////////////////////
+    
+    MultiFab::Saxpy(approx_soln,-1.0,soln,0,0,1,0);
+    amrex::Print() << "Error norm is " << approx_soln.norm0()  << "\n";
+    
+    
+    // PAUSE AFTER RUNNING THIS AREA
+    std::cin.get();
+    
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    // END SMOOTH TESTING SPACE /////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    /////////////////////////////////////////////////////////////////////////////////////////////////////////
+    */
     
   //  Do the time stepping
   // For now m_bcc assumed to just have spatial dependence. Time dependence should be easy to include.
- // MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
+  MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
   for (int n = 1; n <= Nsteps; ++n)
     {
       //amrex::Print() << "time" << time << "\n";

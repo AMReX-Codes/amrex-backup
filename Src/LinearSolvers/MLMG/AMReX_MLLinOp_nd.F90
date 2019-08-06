@@ -288,10 +288,11 @@ call polyInterpCoeff(-0.5d0, x_ex, 4, coef_short_lo)
 call polyInterpCoeff(-1.5d0, x_ex, 4, coef_long_lo)
 
 do m = 0, 3
+! print*, coef_long_lo(m)
 coef_short_hi(m) = coef_short_lo(3-m)
 coef_long_hi(m) = coef_long_lo(3-m)
 end do
-
+! Far corner doesn't see averaging effect from (2,1) ghost cells.
 
           ! Corners in XY plane
           if (cdir==xlo_dir .or. cdir==ylo_dir) then
@@ -307,6 +308,7 @@ end do
 
                 phi(lo(1)-2,lo(2)-2,k,n) = 0.5d0*(sum(phi(lo(1):lo(1)+3,lo(2)-2,k,n)*coef_long_lo(0:3))) + &
                             0.5d0*(sum(phi(lo(1)-2,lo(2):lo(2)+3,k,n)*coef_long_lo(0:3)))
+
 
 
                ! phi(lo(1)-1,lo(2)-1,k,n) = &
@@ -368,6 +370,8 @@ end do
 
                 phi(hi(1)+2,hi(2)+2,k,n) = 0.5d0*(sum(phi(hi(1)-3:hi(1),hi(2)+2,k,n)*coef_long_hi(0:3))) + &
                             0.5d0*(sum(phi(hi(1)+2,hi(2)-3:hi(2),k,n)*coef_long_hi(0:3)))
+
+               !  print*, phi(hi(1)+2,hi(2)+2,k,n)
 
                ! phi(hi(1)+1,hi(2)+1,k,n) = &
                !      0.5d0*(2.d0*phi(hi(1),hi(2)+1,k,n) - phi(hi(1)-1,hi(2)+1,k,n)) + &
@@ -434,6 +438,8 @@ end do
                 phi(hi(1)+1,j,hi(3)+1,n) = & 
                      0.5d0*(2.d0*phi(hi(1),j,hi(3)+1,n) - phi(hi(1)-1,j,hi(3)+1,n)) + &
                      0.5d0*(2.d0*phi(hi(1)+1,j,hi(3),n) - phi(hi(1)+1,j,hi(3)-1,n))
+
+
              end do
           end if
 #endif

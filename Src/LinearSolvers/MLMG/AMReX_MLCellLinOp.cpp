@@ -599,6 +599,28 @@ MLCellLinOp::applyBC (int amrlev, int mglev, MultiFab& in, BCMode bc_mode, State
                                        BL_TO_FORTRAN_ANYD(fsfab),
                                        maxorder, dxinv, flagbc, ncomp, cross);
             }
+          
+            
+            for (OrientationIter oitr; oitr; ++oitr)
+            {
+                const Orientation ori = oitr();
+                
+                int  cdr = ori;
+                Real bcl = bdl[ori];
+                int  bct = bdc[ori];
+                
+                foofab.setVal(10.0);
+                const FArrayBox& fsfab = (bndry != nullptr) ? bndry->bndryValues(ori)[mfi] : foofab;
+                
+                const Mask& m = maskvals[ori][mfi];
+                
+                amrex_mllinop_apply_bc(BL_TO_FORTRAN_BOX(vbx),
+                                       BL_TO_FORTRAN_ANYD(in[mfi]),
+                                       BL_TO_FORTRAN_ANYD(m),
+                                       cdr, bct, bcl,
+                                       BL_TO_FORTRAN_ANYD(fsfab),
+                                       maxorder, dxinv, flagbc, ncomp, cross);
+            }
         }
     }
 }
@@ -609,7 +631,7 @@ MLCellLinOp::fourthOrderBCFill (MultiFab& in, MultiFab& bdry_values)
     BL_PROFILE("MLCellLinOp::fourthOrderBCFill()");
     MLCellLinOp::setLevelBC(0, &bdry_values);
     MLCellLinOp::applyBC (0,0, in, BCMode::Inhomogeneous, StateMode::Solution,
-             m_bndry_sol[0].get(), 1);
+             m_bndry_sol[0].get(), 0);
     
     
 }

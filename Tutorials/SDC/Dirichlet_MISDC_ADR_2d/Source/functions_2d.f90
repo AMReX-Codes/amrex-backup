@@ -120,8 +120,7 @@ pi=3.14159265358979323846d0
                ! no dx in one variables!
                phi_one = (-5.d0*fluxx(i,j+2)+34.d0*(fluxx(i,j+1)-fluxx(i,j-1))+5.d0*fluxx(i,j-2))/48.d0
                face_one =(-5.d0*facex(i,j+2)+34.d0*(facex(i,j+1)-facex(i,j-1))+5.d0*facex(i,j-2))/48.d0
-              ! print*, dx(1)*phi_one*face_one/12.d0 !THIS IS FORMULA FROM KKM
-               prodx(i,j) = fluxx(i,j)*facex(i,j) + phi_one*face_one/12.d0
+               prodx(i,j) = fluxx(i,j)*facex(i,j) + phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
             end do
         end do
 
@@ -131,7 +130,7 @@ pi=3.14159265358979323846d0
                 ! no dx in one variables!
                 phi_one = (-5.d0*fluxy(i+2,j)+34.d0*(fluxy(i+1,j)-fluxy(i-1,j))+5.d0*fluxy(i-2,j))/48.d0
                 face_one =(-5.d0*facey(i+2,j)+34.d0*(facey(i+1,j)-facey(i-1,j))+5.d0*facey(i-2,j))/48.d0
-                prody(i,j) = fluxy(i,j)*facey(i,j) + phi_one*face_one/12.d0
+                prody(i,j) = fluxy(i,j)*facey(i,j) + phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
             end do
         end do
 
@@ -357,7 +356,7 @@ end if
                 exp(-kappa*time)*cos(k_freq*(x+y_quad))
 
             end do
-
+         !   phi(face_index,j) = 0.5  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end do
 end do
@@ -377,8 +376,6 @@ end if
     !x = prob_lo(1) + (dble(i)+1.d0/2.d0) * dx(1)
     x = prob_lo(1) + dble(i) * dx(1)
 
-    ! phi(i,j) =sin(x*tupi)*sin(y*tupi)
-    ! phi(i,j)=exp(-x*x/(4.0d0*d*t0))*exp(-y*y/(4.0d0*d*t0))
     phi(i,face_index) = 0
 
             do i_quad = 0,2
@@ -388,7 +385,7 @@ end if
 
             end do
 
-
+          !  phi(i,face_index) = 0.5 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !phi(i,j)=cos(pi*(x+y))
     ! phi(i,j) = 0;

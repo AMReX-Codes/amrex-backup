@@ -22,10 +22,10 @@ gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
   t0=0.0025d0/d
 
 !print*, prob_lo, prob_hi, philo,phihi
-  do j = philo(2), phihi(2)
+  do j = lo(2), hi(2)
      !y = prob_lo(2) + (dble(j)+1.d0/2.d0 )* dx(2)
      y = prob_lo(2) + dble(j)* dx(2)
-     do i = philo(1), phihi(1)
+     do i = lo(1), hi(1) ! Went philo - phihi before
         !x = prob_lo(1) + (dble(i)+1.d0/2.d0) * dx(1)
         x = prob_lo(1) + dble(i) * dx(1)
 
@@ -42,7 +42,9 @@ gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
 
         end do
         end do
+       ! phi(i,j) = 0
 
+       ! phi(hi(1)-2,lo(2)+2) = 1
 
         !phi(i,j)=cos(pi*(x+y))
        ! phi(i,j) = 0;

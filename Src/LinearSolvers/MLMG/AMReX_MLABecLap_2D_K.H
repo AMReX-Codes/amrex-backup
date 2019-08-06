@@ -254,7 +254,7 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
     Real feval_coef_ylo_i2_far;
     
     Real stencil_coef_i1_close = -13.0/3.0;
-    Real stencil_coef_i1_far = 4.0*(stencil_coef_i1_close)-6;
+    Real stencil_coef_i1_far = 4.0*(stencil_coef_i1_close)-6.0;
     Real stencil_coef_i2_far = 5.0/3.0;
     
    /* for (int i = lo.x-2; i<=hi.x; ++i){
@@ -337,6 +337,7 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                 
                 //delta = 0 for periodic
                 // Diagonal coefficient
+                
                 Real gamma = alpha*a(i,j,0)
                                 + (15.0/12.0)*dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
                                 + (15.0/12.0)*dhy*( bY(i,j,0,n) + bY(i,j+1,0,n) );
