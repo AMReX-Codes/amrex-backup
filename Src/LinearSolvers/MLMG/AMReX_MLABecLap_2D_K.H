@@ -220,7 +220,7 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                 Array4<int const> const& m1,
                 Array4<int const> const& m2,
                 Array4<int const> const& m3,
-                Box const& vbox, int nc) noexcept
+                Box const& vbox, int nc, Array4<Real const> const& phi_tmp) noexcept
 {
     const auto lo = amrex::lbound(box);
     const auto hi = amrex::ubound(box);
@@ -262,6 +262,7 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
             amrex::Print() << "index " << i << "," << j << " with value " << m0(i,j,0) << "\n";
         }
     }*/
+    
     
   
  
@@ -342,25 +343,30 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                                 + (15.0/12.0)*dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
                                 + (15.0/12.0)*dhy*( bY(i,j,0,n) + bY(i,j+1,0,n) );
                 
-            /*    if (i == lo.x+2 && j == hi.y-176 ){
-                    amrex::Print() << "diag is " << gamma - delta << "\n";
-                    
-                }*/
-              
+               
+                
                 
                 // Remaining piece of stencil
-                Real rho = (1/12.0)*dhx*((-bX(i,j,0,n))*phi(i-2,j,0,n)
-                                         + (15.0*bX(i,j,0,n) + bX(i+1,j,0,n))*phi(i-1,j,0,n)
-                                         + (bX(i,j,0,n) + 15.0*bX(i+1,j,0,n))*phi(i+1,j,0,n)
-                                         - bX(i+1,j,0,n)*phi(i+2,j,0,n) );
-                
-                rho = rho    + (1/12.0)*dhy*((-bY(i,j,0,n))*phi(i,j-2,0,n)
-                                             + (15.0*bY(i,j,0,n) + bY(i,j+1,0,n))*phi(i,j-1,0,n)
-                                             + (bY(i,j,0,n) + 15.0*bY(i,j+1,0,n))*phi(i,j+1,0,n)
-                                             - bY(i,j+1,0,n)*phi(i,j+2,0,n) );
+                Real rho = (1/12.0)*dhx*((-bX(i,j,0,n))*phi_tmp(i-2,j,0,n)
+                                         + (15.0*bX(i,j,0,n) + bX(i+1,j,0,n))*phi_tmp(i-1,j,0,n)
+                                         + (bX(i,j,0,n) + 15.0*bX(i+1,j,0,n))*phi_tmp(i+1,j,0,n)
+                                         - bX(i+1,j,0,n)*phi_tmp(i+2,j,0,n) );
+                rho = 0;
+                rho = rho    + (1/12.0)*dhy*((-bY(i,j,0,n))*phi_tmp(i,j-2,0,n)
+                                             + (15.0*bY(i,j,0,n) + bY(i,j+1,0,n))*phi_tmp(i,j-1,0,n)
+                                             + (bY(i,j,0,n) + 15.0*bY(i,j+1,0,n))*phi_tmp(i,j+1,0,n)
+                                             - bY(i,j+1,0,n)*phi_tmp(i,j+2,0,n) );
                 // Correct sign on delta?
-                phi(i,j,0,n) = (rhs(i,j,0,n) + rho - delta*phi(i,j,0,n) )
+                phi(i,j,0,n) = (rhs(i,j,0,n) + rho - delta*phi_tmp(i,j,0,n) )
                                 / (gamma - delta);
+                
+            /*    if (i == 48 && j == 32 ){
+                    amrex::Print() << "phi is " << bY(i,j,0,n) << " " << phi(i,j-2,0,n)
+                    << " " << bY(i,j,0,n) << " "<< bY(i,j+1,0,n) << " " << phi(i,j-1,0,n)
+                    << " " << bY(i,j,0,n) << " " << bY(i,j+1,0,n) << " " << phi(i,j+1,0,n)
+                     << " " << bY(i,j+1,0,n) << " " << phi(i,j+2,0,n) << "\n";
+                    Abort("diag");
+                }*/
                
                 
             }

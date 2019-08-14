@@ -293,12 +293,11 @@ coef_short_hi(m) = coef_short_lo(3-m)
 coef_long_hi(m) = coef_long_lo(3-m)
 end do
 ! Far corner doesn't see averaging effect from (2,1) ghost cells. MAY NOT WORK ON MULTIPLE LEVELS
-
+!print*, mlo(1), " ", mhi(1),  " ", mlo(2), " ", mhi(2)
           ! Corners in XY plane
           if (cdir==xlo_dir .or. cdir==ylo_dir) then
              do k = lo(3), hi(3)
-
-                if ((mask(lo(1)-1,lo(2),k) .gt. 0) .or. (mask(lo(1),lo(2)-1,k) .gt. 0)) then ! need to make more robust
+! need to make more robust
                     phi(lo(1)-1,lo(2)-1,k,n) = 0.5d0*(sum(phi(lo(1):lo(1)+3,lo(2)-1,k,n)*coef_short_lo(0:3))) + &
                                 0.5d0*(sum(phi(lo(1)-1,lo(2):lo(2)+3,k,n)*coef_short_lo(0:3)))
 
@@ -310,7 +309,7 @@ end do
 
                     phi(lo(1)-2,lo(2)-2,k,n) = 0.5d0*(sum(phi(lo(1):lo(1)+3,lo(2)-2,k,n)*coef_long_lo(0:3))) + &
                                 0.5d0*(sum(phi(lo(1)-2,lo(2):lo(2)+3,k,n)*coef_long_lo(0:3)))
-                end if
+
 
 
                ! phi(lo(1)-1,lo(2)-1,k,n) = &
@@ -321,7 +320,6 @@ end do
           if (cdir==xhi_dir .or. cdir==ylo_dir) then
              do k = lo(3), hi(3)
 
-                if ((mask(hi(1)+1,lo(2),k) .gt. 0) .or. (mask(hi(1),lo(2)-1,k) .gt. 0)) then
                     phi(hi(1)+1,lo(2)-1,k,n) = 0.5d0*(sum(phi(hi(1)-3:hi(1),lo(2)-1,k,n)*coef_short_hi(0:3))) + &
                                 0.5d0*(sum(phi(hi(1)+1,lo(2):lo(2)+3,k,n)*coef_short_lo(0:3)))
 
@@ -333,7 +331,7 @@ end do
 
                     phi(hi(1)+2,lo(2)-2,k,n) = 0.5d0*(sum(phi(hi(1)-3:hi(1),lo(2)-2,k,n)*coef_long_hi(0:3))) + &
                                 0.5d0*(sum(phi(hi(1)+2,lo(2):lo(2)+3,k,n)*coef_long_lo(0:3)))
-                end if
+
 
                ! phi(hi(1)+1,lo(2)-1,k,n) = &
                !      0.5d0*(2.d0*phi(hi(1),lo(2)-1,k,n) - phi(hi(1)-1,lo(2)-1,k,n)) + &
@@ -344,7 +342,6 @@ end do
              do k = lo(3), hi(3)
 
 
-                if ((mask(lo(1)-1,hi(2),k) .gt. 0) .or. (mask(lo(1),hi(2)+1,k) .gt. 0)) then
                     phi(lo(1)-1,hi(2)+1,k,n) = 0.5d0*(sum(phi(lo(1):lo(1)+3,hi(2)+1,k,n)*coef_short_lo(0:3))) + &
                                 0.5d0*(sum(phi(lo(1)-1,hi(2)-3:hi(2),k,n)*coef_short_hi(0:3)))
 
@@ -356,7 +353,7 @@ end do
 
                     phi(lo(1)-2,hi(2)+2,k,n) = 0.5d0*(sum(phi(lo(1):lo(1)+3,hi(2)+2,k,n)*coef_long_lo(0:3))) + &
                                 0.5d0*(sum(phi(lo(1)-2,hi(2)-3:hi(2),k,n)*coef_long_hi(0:3)))
-                end if
+
 
                ! phi(lo(1)-1,hi(2)+1,k,n) = &
                !      0.5d0*(2.d0*phi(lo(1),hi(2)+1,k,n) - phi(lo(1)+1,hi(2)+1,k,n)) + &
@@ -367,7 +364,6 @@ end do
              do k = lo(3), hi(3)
 
 
-                if ((mask(hi(1)+1,hi(2),k) .gt. 0) .or. (mask(hi(1),hi(2)+1,k) .gt. 0)) then
                     phi(hi(1)+1,hi(2)+1,k,n) = 0.5d0*(sum(phi(hi(1)-3:hi(1),hi(2)+1,k,n)*coef_short_hi(0:3))) + &
                                 0.5d0*(sum(phi(hi(1)+1,hi(2)-3:hi(2),k,n)*coef_short_hi(0:3)))
 
@@ -379,7 +375,7 @@ end do
 
                     phi(hi(1)+2,hi(2)+2,k,n) = 0.5d0*(sum(phi(hi(1)-3:hi(1),hi(2)+2,k,n)*coef_long_hi(0:3))) + &
                                 0.5d0*(sum(phi(hi(1)+2,hi(2)-3:hi(2),k,n)*coef_long_hi(0:3)))
-                end if
+           
 
                !  print*, phi(hi(1)+2,hi(2)+2,k,n)
 

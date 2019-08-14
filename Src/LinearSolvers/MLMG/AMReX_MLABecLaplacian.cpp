@@ -512,10 +512,12 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
         
         MFItInfo mfi_info;
         // if (Gpu::notInLaunchRegion()) mfi_info.EnableTiling().SetDynamic(true);
-        
+    // mf phi_temp
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
+        {
+            FArrayBox phi_tmp;
         for (MFIter mfi(sol,mfi_info); mfi.isValid(); ++mfi)
         {
 
@@ -543,7 +545,10 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
                          const auto& bzfab = bzcoef.array(mfi););
             
 
-            
+            phi_tmp.resize(grow(tbx,2),nc);
+            phi_tmp.copy(sol[mfi]);
+            const auto& phi_tmpfab = phi_tmp.array();
+            // Fix for GPU later...
    
 #if (AMREX_SPACEDIM == 2)
             AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( tbx, thread_box,
@@ -551,12 +556,13 @@ MLABecLaplacian::Fsmooth (int amrlev, int mglev, MultiFab& sol, const MultiFab& 
                  abec_gsrb_high(thread_box, solnfab, rhsfab, alpha, dhx, dhy,
                            afab, bxfab, byfab,
                            m0, m1, m2, m3,
-                           vbx, nc);
+                           vbx, nc, phi_tmpfab);
              });
 #endif
             
 
         }
+      }
     }
     
     
