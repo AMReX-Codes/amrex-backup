@@ -342,6 +342,12 @@ void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
                                 + (15.0/12.0)*dhx*( bX(i,j,0,n) + bX(i+1,j,0,n) )
                                 + (15.0/12.0)*dhy*( bY(i,j,0,n) + bY(i,j+1,0,n) );
                 
+            /*    if (i == lo.x+2 && j == hi.y-176 ){
+                    amrex::Print() << "diag is " << gamma - delta << "\n";
+                    
+                }*/
+              
+                
                 // Remaining piece of stencil
                 Real rho = (1/12.0)*dhx*((-bX(i,j,0,n))*phi(i-2,j,0,n)
                                          + (15.0*bX(i,j,0,n) + bX(i+1,j,0,n))*phi(i-1,j,0,n)

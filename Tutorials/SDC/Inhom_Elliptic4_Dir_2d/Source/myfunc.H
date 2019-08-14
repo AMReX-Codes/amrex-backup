@@ -55,6 +55,6 @@ void SDC_fcomp(MultiFab& rhs,
            std::array<MultiFab,AMREX_SPACEDIM>& face_bcoef,
            std::array<MultiFab,AMREX_SPACEDIM>& prod_stor,
 	       int sdc_m,int npiece, Real time, Real epsilon,
-               Real k_freq, Real kappa, MLABecLaplacian& mlabec_BCfill, int numsweeps);
+               Real k_freq, Real kappa, MLABecLaplacian& mlabec_BCfill);
 
 #endif

@@ -10,7 +10,7 @@ subroutine init_phi(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi, k_freq) bin
   real(amrex_real), intent(in   ) :: prob_lo(2) 
   real(amrex_real), intent(in   ) :: prob_hi(2) 
   real(amrex_real), intent(in   ) :: k_freq
-  integer          :: i,j, i_quad, j_quad
+  integer          :: i,j, i_quad, j_quad, freq_iter, max_freq_iter
   double precision :: x,y,tupi,t0,d, pi, x_quad, y_quad
 double precision :: gauss_nodeFrac(0:2)
 double precision :: gauss_weights(0:2)
@@ -18,6 +18,10 @@ gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0
 gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
   tupi=3.14159265358979323846d0*2d0
   pi=3.14159265358979323846d0
+  d=0.1
+  t0=0.0025d0/d
+
+max_freq_iter = 1
 
 
 !print*, prob_lo, prob_hi, philo,phihi
@@ -30,26 +34,101 @@ gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
 
        ! phi(i,j) =sin(x*tupi)*sin(y*tupi)
        ! phi(i,j)=exp(-x*x/(4.0d0*d*t0))*exp(-y*y/(4.0d0*d*t0))
-        phi(i,j) = 0.d0
+        phi(i,j) = 0
         do j_quad = 0,2
         y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
         !print*, y_quad
         do i_quad = 0,2
         x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
-            phi(i,j) = phi(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
-                        sin(k_freq*(x_quad))*sin(k_freq*(y_quad))
+
+            do freq_iter = 1,max_freq_iter
+                phi(i,j) = phi(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
+                    (1.d0/dble(max_freq_iter))*cos(freq_iter*k_freq*(x_quad))*cos(freq_iter*k_freq*(y_quad))
+            end do
+
+
+
 
         end do
         end do
        ! phi(i,j) = 0
 
-       ! phi(lo(1)+2,hi(2)-176) = 1
+       ! phi(hi(1)-2,lo(2)+2) = 1
 
         !phi(i,j)=cos(pi*(x+y))
        ! phi(i,j) = 0;
      end do
   end do
 end subroutine init_phi
+
+
+
+subroutine analytic_diffusion(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi, k_freq, epsilon,d) bind(C, name="analytic_diffusion")
+!  Initialize the scalar field phi
+use amrex_fort_module, only : amrex_real
+
+implicit none
+
+integer, intent(in) :: lo(2), hi(2), philo(2), phihi(2)
+real(amrex_real), intent(inout) :: phi(philo(1):phihi(1),philo(2):phihi(2))
+real(amrex_real), intent(in   ) :: dx(2)
+real(amrex_real), intent(in   ) :: prob_lo(2)
+real(amrex_real), intent(in   ) :: prob_hi(2)
+real(amrex_real), intent(in   ) :: k_freq, epsilon
+integer          :: i,j, i_quad, j_quad
+double precision :: x,y,tupi,t0,d, pi, x_quad, y_quad
+double precision :: gauss_nodeFrac(0:2)
+double precision :: gauss_weights(0:2)
+gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0.5d0))/2.d0 /)
+gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
+tupi=3.14159265358979323846d0*2d0
+pi=3.14159265358979323846d0
+
+
+
+
+!print*, prob_lo, prob_hi, philo,phihi
+do j = lo(2), hi(2)
+!y = prob_lo(2) + (dble(j)+1.d0/2.d0 )* dx(2)
+y = prob_lo(2) + dble(j)* dx(2)
+do i = lo(1), hi(1) ! Went philo - phihi before
+!x = prob_lo(1) + (dble(i)+1.d0/2.d0) * dx(1)
+x = prob_lo(1) + dble(i) * dx(1)
+
+! phi(i,j) =sin(x*tupi)*sin(y*tupi)
+! phi(i,j)=exp(-x*x/(4.0d0*d*t0))*exp(-y*y/(4.0d0*d*t0))
+phi(i,j) = 0
+    do j_quad = 0,2
+    y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
+    !print*, y_quad
+        do i_quad = 0,2
+        x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
+
+            phi(i,j) = phi(i,j)-gauss_weights(j_quad)*gauss_weights(i_quad)* &
+                        d*k_freq*( &
+                            -2.d0*k_freq*cos(k_freq*(x_quad))*cos(k_freq*(y_quad)) &
+                            + epsilon*k_freq*(((sin(k_freq*y_quad))**2)*((cos(k_freq*x_quad))**2) + ((cos(k_freq*y_quad))**2)*((sin(k_freq*x_quad))**2)) &
+                            -2.d0*epsilon*k_freq*((cos(k_freq*x_quad))**2)*((cos(k_freq*y_quad))**2) &
+                        )
+
+
+
+        end do
+    end do
+! phi(i,j) = 0
+
+! phi(hi(1)-2,lo(2)+2) = 1
+
+!phi(i,j)=cos(pi*(x+y))
+! phi(i,j) = 0;
+end do
+end do
+end subroutine analytic_diffusion
+
+
+
+
+
 
 subroutine init_beta(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,epsilon, k_freq) bind(C, name="init_beta")
 !  Initialize the scalar field phi
@@ -73,20 +152,17 @@ double precision :: gauss_weights(0:4)
 pi=3.14159265358979323846d0
 
 ! Even higher order initialization!
-gauss_nodeFrac = (/ (1.d0 - ((1.d0/3.d0)*dsqrt(5.d0+2.d0*dsqrt(10.d0/7.d0))))/2.d0, &
-                    (1.d0 - ((1.d0/3.d0)*dsqrt(5.d0-2.d0*dsqrt(10.d0/7.d0))))/2.d0, &
+gauss_nodeFrac = (/ (1.d0 - ((1.d0/3.d0)*sqrt(5.d0+2.d0*sqrt(10.d0/7.d0))))/2.d0, &
+                    (1.d0 - ((1.d0/3.d0)*sqrt(5.d0-2.d0*sqrt(10.d0/7.d0))))/2.d0, &
                     0.5d0,&
-                    (1.d0 + ((1.d0/3.d0)*dsqrt(5.d0-2.d0*dsqrt(10.d0/7.d0))))/2.d0, &
-                    (1.d0 + ((1.d0/3.d0)*dsqrt(5.d0+2.d0*dsqrt(10.d0/7.d0))))/2.d0 /)
+                    (1.d0 + ((1.d0/3.d0)*sqrt(5.d0-2.d0*sqrt(10.d0/7.d0))))/2.d0, &
+                    (1.d0 + ((1.d0/3.d0)*sqrt(5.d0+2.d0*sqrt(10.d0/7.d0))))/2.d0 /)
 
-gauss_weights = (/(322.d0-13.d0*dsqrt(70.d0))/1800.d0 , &
-                   (322.d0+13.d0*dsqrt(70.d0))/1800.d0, &
+gauss_weights = (/(322.d0-13.d0*sqrt(70.d0))/1800.d0 , &
+                   (322.d0+13.d0*sqrt(70.d0))/1800.d0, &
                   128.d0/450.d0, &
-                  (322.d0+13.d0*dsqrt(70.d0))/1800.d0, &
-                  (322.d0-13.d0*dsqrt(70.d0))/1800.d0/)
-
-
-
+                  (322.d0+13.d0*sqrt(70.d0))/1800.d0, &
+                  (322.d0-13.d0*sqrt(70.d0))/1800.d0/)
 
 do j = philo(2), phihi(2)
 !y = prob_lo(2) + (dble(j)+(1.d0/2.d0)) * dx(2)
@@ -102,7 +178,7 @@ y = prob_lo(2) + dble(j) * dx(2)
             do i_quad = 0,4
             x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
                 phi(i,j) = phi(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
-                    (1.d0+epsilon*sin(k_freq*(x_quad))*sin(k_freq*(y_quad)))
+                    (1.d0+epsilon*cos(k_freq*(x_quad))*cos(k_freq*(y_quad)))
 
             end do
         end do
@@ -147,9 +223,7 @@ gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
 
  ! t0=0.0025d0/d
   !nbox = ceiling(sqrt(4.0*d*(t0+time)*37.0)/2.0)  !  Decide how many periodic images
-
- 
-
+  
   do j = philo(2), phihi(2)
     !y = prob_lo(2) + (dble(j)+1.d0/2.d0) * dx(2) !+a*time
     y = prob_lo(2) + dble(j) * dx(2)

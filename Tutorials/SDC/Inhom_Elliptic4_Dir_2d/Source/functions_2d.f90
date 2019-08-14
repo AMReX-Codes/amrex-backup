@@ -145,9 +145,8 @@ pi=3.14159265358979323846d0
         end do
 
 
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-      !  print*, 1.d0-f(lo(1)+2,hi(2)-176)
+
+
 
 
 
@@ -326,13 +325,23 @@ real(amrex_real), intent(in   ) :: prob_hi(2)
 real(amrex_real), intent(in   ) :: k_freq, time, kappa, epsilon
 integer          :: i,j, i_quad, j_quad, face_index
 double precision :: x,y,tupi,t0,d, pi, x_quad, y_quad
-double precision :: gauss_nodeFrac(0:2)
-double precision :: gauss_weights(0:2)
-gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0.5d0))/2.d0 /)
-gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
+double precision :: gauss_nodeFrac(0:4)
+double precision :: gauss_weights(0:4)
+!gauss_nodeFrac = (/ (1.d0-(3.d0/5.d0)**(0.5d0))/2.d0,0.5d0,(1.d0+(3.d0/5.d0)**(0.5d0))/2.d0 /)
+!gauss_weights = (/ (5.d0/18.d0),(8.d0/18.d0),(5.d0/18.d0)/)
 tupi=3.14159265358979323846d0*2d0
 pi=3.14159265358979323846d0
+gauss_nodeFrac = (/ (1.d0 - ((1.d0/3.d0)*sqrt(5.d0+2.d0*sqrt(10.d0/7.d0))))/2.d0, &
+(1.d0 - ((1.d0/3.d0)*sqrt(5.d0-2.d0*sqrt(10.d0/7.d0))))/2.d0, &
+0.5d0,&
+(1.d0 + ((1.d0/3.d0)*sqrt(5.d0-2.d0*sqrt(10.d0/7.d0))))/2.d0, &
+(1.d0 + ((1.d0/3.d0)*sqrt(5.d0+2.d0*sqrt(10.d0/7.d0))))/2.d0 /)
 
+gauss_weights = (/(322.d0-13.d0*sqrt(70.d0))/1800.d0 , &
+(322.d0+13.d0*sqrt(70.d0))/1800.d0, &
+128.d0/450.d0, &
+(322.d0+13.d0*sqrt(70.d0))/1800.d0, &
+(322.d0-13.d0*sqrt(70.d0))/1800.d0/)
  ! We fill ghost cells with Dir values
 
 ! x faces
@@ -350,15 +359,15 @@ end if
     y = prob_lo(2) + dble(j)* dx(2)
 
         phi(face_index,j) = 0.d0
-            do j_quad = 0,2
+            do j_quad = 0,4
             y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
             !print*, y_quad
 
                 phi(face_index,j) = phi(face_index,j)+ gauss_weights(j_quad)* &
-                    0.d0
+                    cos(k_freq*x)*cos(k_freq*y_quad)
 
             end do
-            phi(face_index,j) = 0.d0  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+            !phi(face_index,j) = 0.d0  !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     end do
 end do
@@ -380,14 +389,14 @@ end if
 
     phi(i,face_index) = 0.d0
 
-            do i_quad = 0,2
+            do i_quad = 0,4
             x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
             phi(i,face_index) = phi(i,face_index)+ gauss_weights(i_quad)* &
-                0.d0
+                cos(k_freq*x_quad)*cos(k_freq*y)
 
             end do
 
-            phi(i,face_index) = 0.d0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+          !  phi(i,face_index) = 0.d0 !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
     !phi(i,j)=cos(pi*(x+y))
     ! phi(i,j) = 0;
