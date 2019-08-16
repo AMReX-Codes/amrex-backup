@@ -87,20 +87,30 @@ BoxCommHelper::BoxCommHelper (const Box& bx, int* p_)
     : p(p_)
 {
     if (p == 0) {
-	v.resize(3*AMREX_SPACEDIM);
+	v.resize(3*AMREX_SPACEDIM+1);
 	p = &v[0];
     }
 
-    AMREX_D_EXPR(p[0]               = bx.smallend[0],
-	   p[1]               = bx.smallend[1],
-	   p[2]               = bx.smallend[2]);
-    AMREX_D_EXPR(p[0+AMREX_SPACEDIM]   = bx.bigend[0],
-	   p[1+AMREX_SPACEDIM]   = bx.bigend[1],
-	   p[2+AMREX_SPACEDIM]   = bx.bigend[2]);
+    AMREX_D6_EXPR(p[0] = bx.smallend[0],
+                  p[1] = bx.smallend[1],
+                  p[2] = bx.smallend[2],
+                  p[3] = bx.smallend[3],
+                  p[4] = bx.smallend[4],
+                  p[5] = bx.smallend[5]);
+    AMREX_D6_EXPR(p[0+AMREX_SPACEDIM] = bx.bigend[0],
+                  p[1+AMREX_SPACEDIM] = bx.bigend[1],
+                  p[2+AMREX_SPACEDIM] = bx.bigend[2],
+                  p[3+AMREX_SPACEDIM] = bx.bigend[3],
+                  p[4+AMREX_SPACEDIM] = bx.bigend[4],
+                  p[5+AMREX_SPACEDIM] = bx.bigend[5]);
     const IntVect& typ = bx.btype.ixType();
-    AMREX_D_EXPR(p[0+AMREX_SPACEDIM*2] = typ[0],
-	   p[1+AMREX_SPACEDIM*2] = typ[1],
-	   p[2+AMREX_SPACEDIM*2] = typ[2]);
+    AMREX_D6_EXPR(p[0+AMREX_SPACEDIM*2] = typ[0],
+                  p[1+AMREX_SPACEDIM*2] = typ[1],
+                  p[2+AMREX_SPACEDIM*2] = typ[2],
+                  p[3+AMREX_SPACEDIM*2] = typ[3],
+                  p[4+AMREX_SPACEDIM*2] = typ[4],
+                  p[5+AMREX_SPACEDIM*2] = typ[5]);
+    p[AMREX_SPACEDIM*3] = bx.dimen;
 }
 
 void

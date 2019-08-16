@@ -42,7 +42,7 @@ operator>> (std::istream& is,
                    is.ignore(BL_IGNORE_MAX, ',') >> t4,
                    is.ignore(BL_IGNORE_MAX, ',') >> t5 );
     is.ignore(BL_IGNORE_MAX, ')');
-    AMREX_D_TERM(
+    AMREX_D6_TERM(
         BL_ASSERT(t0 == 'C' || t0 == 'N'); t0=='N'?it.set(0):it.unset(0); ,
         BL_ASSERT(t1 == 'C' || t1 == 'N'); t1=='N'?it.set(1):it.unset(1); ,
         BL_ASSERT(t2 == 'C' || t2 == 'N'); t2=='N'?it.set(2):it.unset(2); ,

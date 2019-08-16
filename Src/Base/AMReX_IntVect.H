@@ -11,6 +11,7 @@
 
 #include <AMReX_ccse-mpi.H>
 #include <AMReX_SPACE.H>
+#include <AMReX_Dimension.H>
 #include <AMReX_Array.H>
 #include <AMReX_Vector.H>
 #include <AMReX_Dim3.H>
@@ -145,9 +146,9 @@ public:
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
     DimN dimn () const noexcept {
 #if (AMREX_SPACEDIM == 1)
-        return DimN{vect[0],0,0};
+        return DimN{vect[0]};
 #elif (AMREX_SPACEDIM == 2)
-        return DimN{vect[0],vect[1],0};
+        return DimN{vect[0],vect[1]};
 #elif (AMREX_SPACEDIM == 3)
         return DimN{vect[0],vect[1],vect[2]};
 #elif (AMREX_SPACEDIM == 4)

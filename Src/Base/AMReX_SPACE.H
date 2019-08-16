@@ -42,8 +42,6 @@
 namespace amrex
 {
     constexpr int SpaceDim = AMREX_SPACEDIM;
-    enum struct Dimension : int { one = 1, two = 2, three = 3,
-                                  four = 4, five = 5, six = 6 };
 }
 #endif
 

@@ -62,9 +62,12 @@ public:
     AMREX_GPU_HOST_DEVICE
     Box (const IntVect& small, const int* vec_len) noexcept
         : smallend(small),
-          bigend(AMREX_D_DECL(small[0]+vec_len[0]-1,
-                              small[1]+vec_len[1]-1,
-                              small[2]+vec_len[2]-1))
+          bigend(AMREX_D6_DECL(small[0]+vec_len[0]-1,
+                               small[1]+vec_len[1]-1,
+                               small[2]+vec_len[2]-1,
+                               small[3]+vec_len[3]-1,
+                               small[4]+vec_len[4]-1,
+                               small[5]+vec_len[5]-1))
         {}
 
     /**
@@ -127,22 +130,36 @@ public:
     AMREX_GPU_HOST_DEVICE
     IndexType::CellIndex type (int dir) const noexcept { return btype.ixType(dir); }
 
+    // Return the dimension of the Box.
+    AMREX_GPU_HOST_DEVICE
+    Dimension dimension () const noexcept { return dimen; }
+
+    // Return the dimension of the Box.
+    AMREX_GPU_HOST_DEVICE
+    int dimensionInt () const noexcept { return static_cast<int>(dimen); }
+
     //! Return the length of the Box.
     AMREX_GPU_HOST_DEVICE
     IntVect size () const noexcept
     {
-        return IntVect(AMREX_D_DECL(bigend[0]-smallend[0] + 1,
-                                    bigend[1]-smallend[1] + 1,
-                                    bigend[2]-smallend[2] + 1));
+        return IntVect(AMREX_D6_DECL(bigend[0]-smallend[0] + 1,
+                                     bigend[1]-smallend[1] + 1,
+                                     bigend[2]-smallend[2] + 1,
+                                     bigend[3]-smallend[3] + 1,
+                                     bigend[4]-smallend[4] + 1,
+                                     bigend[5]-smallend[5] + 1));
     }
 
     //! Return the length of the Box.
     AMREX_GPU_HOST_DEVICE
     IntVect length () const noexcept
     {
-        return IntVect(AMREX_D_DECL(bigend[0]-smallend[0] + 1,
-                                    bigend[1]-smallend[1] + 1,
-                                    bigend[2]-smallend[2] + 1));
+        return IntVect(AMREX_D6_DECL(bigend[0]-smallend[0] + 1,
+                                     bigend[1]-smallend[1] + 1,
+                                     bigend[2]-smallend[2] + 1,
+                                     bigend[0]-smallend[3] + 1,
+                                     bigend[1]-smallend[4] + 1,
+                                     bigend[2]-smallend[5] + 1));
     }
 
     //! Return the length of the Box in given direction.
@@ -155,8 +172,28 @@ public:
         return {bigend[0]-smallend[0]+1, 1, 1};
 #elif (AMREX_SPACEDIM == 2)
         return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, 1};
+#else
+        return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, bigend[2]-smallend[2]+1};
+#endif
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    GpuArray<int,AMREX_SPACEDIM> lengthnd () const noexcept {
+#if (AMREX_SPACEDIM == 1)
+        return {bigend[0]-smallend[0]+1};
+#elif (AMREX_SPACEDIM == 2)
+        return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1};
 #elif (AMREX_SPACEDIM == 3)
         return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, bigend[2]-smallend[2]+1};
+#elif (AMREX_SPACEDIM == 4)
+        return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, bigend[2]-smallend[2]+1,
+                bigend[3]-smallend[3]+1};
+#elif (AMREX_SPACEDIM == 5)
+        return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, bigend[2]-smallend[2]+1,
+                bigend[3]-smallend[3]+1, bigend[4]-smallend[4]+1};
+#elif (AMREX_SPACEDIM == 6)
+        return {bigend[0]-smallend[0]+1, bigend[1]-smallend[1]+1, bigend[2]-smallend[2]+1,
+                bigend[3]-smallend[3]+1, bigend[4]-smallend[4]+1, bigend[5]-smallend[5]+1};
 #endif
     }
 
@@ -166,8 +203,25 @@ public:
         return {smallend[0], 0, 0};
 #elif (AMREX_SPACEDIM == 2)
         return {smallend[0], smallend[1], 0};
+#else
+        return {smallend[0], smallend[1], smallend[2]};
+#endif
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    GpuArray<int,AMREX_SPACEDIM> loVectnd () const noexcept {
+#if (AMREX_SPACEDIM == 1)
+        return {smallend[0]};
+#elif (AMREX_SPACEDIM == 2)
+        return {smallend[0], smallend[1]};
 #elif (AMREX_SPACEDIM == 3)
         return {smallend[0], smallend[1], smallend[2]};
+#elif (AMREX_SPACEDIM == 4)
+        return {smallend[0], smallend[1], smallend[2], smallend[3]};
+#elif (AMREX_SPACEDIM == 5)
+        return {smallend[0], smallend[1], smallend[2], smallend[3], smallend[4]};
+#elif (AMREX_SPACEDIM == 6)
+        return {smallend[0], smallend[1], smallend[2], smallend[3], smallend[4], smallend[5]};
 #endif
     }
 
@@ -177,8 +231,25 @@ public:
         return {bigend[0], 0, 0};
 #elif (AMREX_SPACEDIM == 2)
         return {bigend[0], bigend[1], 0};
+#else
+        return {bigend[0], bigend[1], bigend[2]};
+#endif
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    GpuArray<int,AMREX_SPACEDIM> hiVectnd () const noexcept {
+#if (AMREX_SPACEDIM == 1)
+        return {bigend[0]};
+#elif (AMREX_SPACEDIM == 2)
+        return {bigend[0], bigend[1]};
 #elif (AMREX_SPACEDIM == 3)
         return {bigend[0], bigend[1], bigend[2]};
+#elif (AMREX_SPACEDIM == 4)
+        return {bigend[0], bigend[1], bigend[2], bigend[3]};
+#elif (AMREX_SPACEDIM == 5)
+        return {bigend[0], bigend[1], bigend[2], bigend[3], bigend[4]};
+#elif (AMREX_SPACEDIM == 6)
+        return {bigend[0], bigend[1], bigend[2], bigend[3], bigend[4], bigend[5]};
 #endif
     }
 
@@ -250,18 +321,27 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool sameSize (const Box& b) const noexcept {
         BL_ASSERT(sameType(b));
-        return AMREX_D_TERM(length(0) == b.length(0),
-                         && length(1) == b.length(1),
-                         && length(2) == b.length(2));
+        return AMREX_D6_TERM(length(0) == b.length(0),
+                          && length(1) == b.length(1),
+                          && length(2) == b.length(2),
+                          && length(3) == b.length(3),
+                          && length(4) == b.length(4),
+                          && length(5) == b.length(5));
     }
 
     //! Returns true if Boxes have same type.
     AMREX_GPU_HOST_DEVICE
     bool sameType (const Box &b) const noexcept { return btype == b.btype; }
 
+    //! Returns true if Boxes have same dimension.
+    AMREX_GPU_HOST_DEVICE
+    bool sameDimension (const Box& b) const noexcept { return dimen == b.dimen; }
+
     //! Returns true if Boxes are identical (including type).
     AMREX_GPU_HOST_DEVICE
-    bool operator== (const Box& b) const noexcept { return smallend == b.smallend && bigend == b.bigend && b.btype == btype; }
+    bool operator== (const Box& b) const noexcept {
+        return smallend == b.smallend && bigend == b.bigend && b.btype == btype && dimen == b.dimen;
+    }
 
     //! Returns true if Boxes differ (including type).
     AMREX_GPU_HOST_DEVICE
@@ -270,10 +350,10 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool operator< (const Box& rhs) const noexcept
     {
-        return btype < rhs.btype ||
-             ((btype == rhs.btype) &&
-	         (  (smallend < rhs.smallend) ||
-                   ((smallend == rhs.smallend) && (bigend < rhs.bigend)) ));
+        return (static_cast<short>(dimen) < static_cast<short>(rhs.dimen)) || ((dimen == rhs.dimen) &&
+              ((btype    < rhs.btype   ) || ((btype == rhs.btype) &&
+              ((smallend < rhs.smallend) || ((smallend == rhs.smallend) &&
+              ((bigend   < rhs.bigend  )) )))));
     }
     AMREX_GPU_HOST_DEVICE
     bool operator <= (const Box& rhs) const noexcept {
@@ -298,9 +378,12 @@ public:
     */
     AMREX_GPU_HOST_DEVICE
     long numPts () const noexcept {
-        auto r = AMREX_D_TERM( static_cast<unsigned long>(length(0)),
-                              *static_cast<unsigned long>(length(1)),
-                              *static_cast<unsigned long>(length(2)));
+        auto r = AMREX_D6_TERM( static_cast<unsigned long>(length(0)),
+                               *static_cast<unsigned long>(length(1)),
+                               *static_cast<unsigned long>(length(2)),
+                               *static_cast<unsigned long>(length(3)),
+                               *static_cast<unsigned long>(length(4)),
+                               *static_cast<unsigned long>(length(5)) );
         return static_cast<long>(r);
     }
 
@@ -311,7 +394,8 @@ public:
     AMREX_GPU_HOST_DEVICE
     double d_numPts () const noexcept {
         BL_ASSERT(ok());
-        return AMREX_D_TERM(double(length(0)), *double(length(1)), *double(length(2)));
+        return AMREX_D6_TERM(double(length(0)), *double(length(1)), *double(length(2)),
+                            *double(length(3)), *double(length(4)), *double(length(5)));
     }
 
     /**
@@ -322,9 +406,12 @@ public:
     */
     AMREX_GPU_HOST_DEVICE
     long volume () const noexcept {
-        return AMREX_D_TERM( static_cast<long>(length(0)-btype[0]),
-                            *static_cast<long>(length(1)-btype[1]),
-                            *static_cast<long>(length(2)-btype[2]));
+        return AMREX_D6_TERM( static_cast<long>(length(0)-btype[0]),
+                             *static_cast<long>(length(1)-btype[1]),
+                             *static_cast<long>(length(2)-btype[2]),
+                             *static_cast<long>(length(1)-btype[3]),
+                             *static_cast<long>(length(2)-btype[4]),
+                             *static_cast<long>(length(1)-btype[5]));
     }
 
     /**
@@ -712,6 +799,7 @@ private:
     IntVect         smallend;
     IntVect         bigend;
     IndexType       btype;
+    Dimension       dimen = amrex::maxDim;
 };
 
 AMREX_GPU_HOST_DEVICE
@@ -854,7 +942,22 @@ Box::index (const IntVect& v) const noexcept
     result += length(0)*(v[1]-smallend[1]);
 #elif AMREX_SPACEDIM==3
     result += length(0)*(v[1]-smallend[1]
-                         +(v[2]-smallend[2])*length(1));
+             +length(1)*(v[2]-smallend[2]));
+#elif AMREX_SPACEDIM==4
+    result += length(0)* (v[1]-smallend[1]
+             +length(1)*((v[2]-smallend[2])
+             +length(2)*((v[3]-smallend[3]))));
+#elif AMREX_SPACEDIM==5
+    result += length(0)* (v[1]-smallend[1]
+             +length(1)*((v[2]-smallend[2])
+             +length(2)*((v[3]-smallend[3])
+             +length(3)*((v[4]-smallend[4])))));
+#elif AMREX_SPACEDIM==6
+    result += length(0)* (v[1]-smallend[1]
+             +length(1)*((v[2]-smallend[2])
+             +length(2)*((v[3]-smallend[3])
+             +length(3)*((v[4]-smallend[4])
+             +length(4)*((v[5]-smallend[5]))))));
 #endif
     return result;
 }
@@ -864,6 +967,7 @@ AMREX_FORCE_INLINE
 IntVect
 Box::atOffset (long offset) const noexcept
 {
+#if (AMREX_SPACEDIM <= 3)
     auto len = this->length3d();
     auto lo  = this->loVect3d();
     long k = offset / (len[0]*len[1]);
@@ -872,6 +976,58 @@ Box::atOffset (long offset) const noexcept
     return {AMREX_D_DECL(static_cast<int>(i+lo[0]),
                          static_cast<int>(j+lo[1]),
                          static_cast<int>(k+lo[2])) };
+#elif (AMREX_SPACEDIM == 4)
+    auto len = this->lengthnd();
+    auto lo  = this->loVectnd();
+    long jstride = len[0];
+    long kstride = jstride*len[1];
+    long lstride = kstride*len[2];
+    long l = offset / lstride;
+    long k = (offset - l*lstride) / kstride;
+    long j = (offset - l*lstride - k*kstride) / jstride;
+    long i =  offset - l*lstride - k*kstride - j*jstride;
+    return {static_cast<int>(i+lo[0]),
+            static_cast<int>(j+lo[1]),
+            static_cast<int>(k+lo[2]),
+            static_cast<int>(l+lo[3])};
+#elif (AMREX_SPACEDIM == 5)
+    auto len = this->lengthnd();
+    auto lo  = this->loVectnd();
+    long jstride = len[0];
+    long kstride = jstride*len[1];
+    long lstride = kstride*len[2];
+    long mstride = lstride*len[3];
+    long m = offset / mstride;
+    long l = (offset - m*mstride) / lstride;
+    long k = (offset - m*mstride - l*lstride) / kstride;
+    long j = (offset - m*mstride - l*lstride - k*kstride) / jstride;
+    long i =  offset - m*mstride - l*lstride - k*kstride - j*jstride;
+    return {static_cast<int>(i+lo[0]),
+            static_cast<int>(j+lo[1]),
+            static_cast<int>(k+lo[2]),
+            static_cast<int>(l+lo[3]),
+            static_cast<int>(m+lo[4])};
+#elif (AMREX_SPACEDIM == 6)
+    auto len = this->lengthnd();
+    auto lo  = this->loVectnd();
+    long jstride = len[0];
+    long kstride = jstride*len[1];
+    long lstride = kstride*len[2];
+    long mstride = lstride*len[3];
+    long nstride = lstride*len[4];
+    long n = offset / nstride;
+    long m = (offset - n*nstride) / mstride;
+    long l = (offset - n*nstride - m*mstride) / lstride;
+    long k = (offset - n*nstride - m*mstride - l*lstride) / kstride;
+    long j = (offset - n*nstride - m*mstride - l*lstride - k*kstride) / jstride;
+    long i =  offset - n*nstride - m*mstride - l*lstride - k*kstride - j*jstride;
+    return {static_cast<int>(i+lo[0]),
+            static_cast<int>(j+lo[1]),
+            static_cast<int>(k+lo[2]),
+            static_cast<int>(l+lo[3]),
+            static_cast<int>(m+lo[4]),
+            static_cast<int>(n+lo[5])};
+#endif
 }
 
 AMREX_GPU_HOST_DEVICE
@@ -948,6 +1104,27 @@ Box::next (IntVect& p) const noexcept
 	{
 	    p[1] = smallend[1];
 	    ++p[2];
+#if (AMREX_SPACEDIM == 4)
+            if (p[2] > bigend[2])
+            {
+                p[2] = smallend[2];
+                ++p[3];
+#if (AMREX_SPACEDIM == 5)
+                if (p[3] > bigend[3])
+                {
+                    p[3] = smallend[3];
+                    ++p[4];
+#if (AMREX_SPACEDIM == 6)
+                    if (p[4] > bigend[4])
+                    {
+                        p[4] = smallend[4];
+                        ++p[5];
+                    }
+#endif
+                }
+#endif
+            }
+#endif
 	}
 #endif
     }
@@ -959,13 +1136,21 @@ AMREX_FORCE_INLINE
 bool
 Box::isSquare () const noexcept
 {
-    const IntVect& sz = this->size();
 #if AMREX_SPACEDIM==1
     return false; // can't build a square in 1-D
-#elif AMREX_SPACEDIM==2
+#else
+    const IntVect& sz = this->size();
+#if AMREX_SPACEDIM==2
     return (sz[0] == sz[1]);
 #elif AMREX_SPACEDIM==3
     return (sz[0] == sz[1] && (sz[1] == sz[2]));
+#elif AMREX_SPACEDIM==4
+    return (sz[0] == sz[1] && (sz[1] == sz[2]) && (sz[2] == sz[3]));
+#elif AMREX_SPACEDIM==5
+    return (sz[0] == sz[1] && (sz[1] == sz[2]) && (sz[2] == sz[3]) && sz[3] == sz[4]);
+#elif AMREX_SPACEDIM==6
+    return (sz[0] == sz[1] && (sz[1] == sz[2]) && (sz[2] == sz[3]) && sz[3] == sz[4] && sz[4] && sz[5]);
+#endif
 #endif
 }
 
@@ -1056,7 +1241,7 @@ public:
 	return Box(IntVect(p), IntVect(p+AMREX_SPACEDIM), IntVect(p+2*AMREX_SPACEDIM));
     }
 
-    static int size () noexcept { return 3*AMREX_SPACEDIM; }
+    static int size () noexcept { return 3*AMREX_SPACEDIM+1; }
 
 private:
     int* p;
@@ -1470,7 +1655,7 @@ Dim3 lbound (Box const& box) noexcept
     return {box.smallend[0], 0, 0};
 #elif (AMREX_SPACEDIM == 2)
     return {box.smallend[0], box.smallend[1], 0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {box.smallend[0], box.smallend[1], box.smallend[2]};
 #endif
 }
@@ -1483,7 +1668,7 @@ Dim3 ubound (Box const& box) noexcept
     return {box.bigend[0], 0, 0};
 #elif (AMREX_SPACEDIM == 2)
     return {box.bigend[0], box.bigend[1], 0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {box.bigend[0], box.bigend[1], box.bigend[2]};
 #endif
 }
@@ -1496,7 +1681,7 @@ Dim3 begin (Box const& box) noexcept
     return {box.smallend[0], 0, 0};
 #elif (AMREX_SPACEDIM == 2)
     return {box.smallend[0], box.smallend[1], 0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {box.smallend[0], box.smallend[1], box.smallend[2]};
 #endif
 }
@@ -1509,7 +1694,7 @@ Dim3 end (Box const& box) noexcept
     return {box.bigend[0]+1, 1, 1};
 #elif (AMREX_SPACEDIM == 2)
     return {box.bigend[0]+1, box.bigend[1]+1, 1};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {box.bigend[0]+1, box.bigend[1]+1, box.bigend[2]+1};
 #endif
 }
@@ -1523,7 +1708,7 @@ Dim3 length (Box const& box) noexcept
 #elif (AMREX_SPACEDIM == 2)
     return {box.bigend[0]-box.smallend[0]+1,
             box.bigend[1]-box.smallend[1]+1, 1};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {box.bigend[0]-box.smallend[0]+1,
             box.bigend[1]-box.smallend[1]+1,
             box.bigend[2]-box.smallend[2]+1};
@@ -1542,7 +1727,7 @@ Dim3 max_lbound (Box const& b1, Box const& b2) noexcept
     return {amrex::max(b1.smallend[0], b2.smallend[0]),
             amrex::max(b1.smallend[1], b2.smallend[1]),
             0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {amrex::max(b1.smallend[0], b2.smallend[0]),
             amrex::max(b1.smallend[1], b2.smallend[1]),
             amrex::max(b1.smallend[2], b2.smallend[2])};
@@ -1560,7 +1745,7 @@ Dim3 max_lbound (Box const& b1, Dim3 const& lo) noexcept
     return {amrex::max(b1.smallend[0], lo.x),
             amrex::max(b1.smallend[1], lo.y),
             0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {amrex::max(b1.smallend[0], lo.x),
             amrex::max(b1.smallend[1], lo.y),
             amrex::max(b1.smallend[2], lo.z)};
@@ -1579,7 +1764,7 @@ Dim3 min_ubound (Box const& b1, Box const& b2) noexcept
     return {amrex::min(b1.bigend[0], b2.bigend[0]),
             amrex::min(b1.bigend[1], b2.bigend[1]),
             0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {amrex::min(b1.bigend[0], b2.bigend[0]),
             amrex::min(b1.bigend[1], b2.bigend[1]),
             amrex::min(b1.bigend[2], b2.bigend[2])};
@@ -1597,7 +1782,7 @@ Dim3 min_ubound (Box const& b1, Dim3 const& hi) noexcept
     return {amrex::min(b1.bigend[0], hi.x),
             amrex::min(b1.bigend[1], hi.y),
             0};
-#elif (AMREX_SPACEDIM == 3)
+#else
     return {amrex::min(b1.bigend[0], hi.x),
             amrex::min(b1.bigend[1], hi.y),
             amrex::min(b1.bigend[2], hi.z)};
@@ -1625,6 +1810,42 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
                        amrex::min(b1.bigend  [1], b2.bigend  [1]),
                        amrex::min(b1.bigend  [2], b2.bigend  [2])),
+               typ);
+#elif (AMREX_SPACEDIM == 4)
+    return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
+                       amrex::max(b1.smallend[1], b2.smallend[1]),
+                       amrex::max(b1.smallend[2], b2.smallend[2]),
+                       amrex::max(b1.smallend[3], b2.smallend[3])),
+               IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
+                       amrex::min(b1.bigend  [1], b2.bigend  [1]),
+                       amrex::min(b1.bigend  [2], b2.bigend  [2]),
+                       amrex::min(b1.bigend  [3], b2.bigend  [3])),
+               typ);
+#elif (AMREX_SPACEDIM == 5)
+    return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
+                       amrex::max(b1.smallend[1], b2.smallend[1]),
+                       amrex::max(b1.smallend[2], b2.smallend[2]),
+                       amrex::max(b1.smallend[3], b2.smallend[3]),
+                       amrex::max(b1.smallend[4], b2.smallend[4])),
+               IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
+                       amrex::min(b1.bigend  [1], b2.bigend  [1]),
+                       amrex::min(b1.bigend  [2], b2.bigend  [2]),
+                       amrex::min(b1.bigend  [3], b2.bigend  [3]),
+                       amrex::min(b1.bigend  [4], b2.bigend  [4])),
+               typ);
+#elif (AMREX_SPACEDIM == 6)
+    return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
+                       amrex::max(b1.smallend[1], b2.smallend[1]),
+                       amrex::max(b1.smallend[2], b2.smallend[2]),
+                       amrex::max(b1.smallend[3], b2.smallend[3]),
+                       amrex::max(b1.smallend[4], b2.smallend[4]),
+                       amrex::max(b1.smallend[5], b2.smallend[5])),
+               IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
+                       amrex::min(b1.bigend  [1], b2.bigend  [1]),
+                       amrex::min(b1.bigend  [2], b2.bigend  [2]),
+                       amrex::min(b1.bigend  [3], b2.bigend  [3]),
+                       amrex::min(b1.bigend  [4], b2.bigend  [4]),
+                       amrex::min(b1.bigend  [5], b2.bigend  [5])),
                typ);
 #endif
 }

@@ -6,11 +6,10 @@
 
 #include <AMReX_BLassert.H>
 #include <AMReX_SPACE.H>
+#include <AMReX_Dimension.H>
 #include <AMReX_GpuQualifiers.H>
 
 namespace amrex {
-
-enum class Direction : int { AMREX_D_DECL(x = 0, y = 1, z = 2) };
 
 class OrientationIter;
 
