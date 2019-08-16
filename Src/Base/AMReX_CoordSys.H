@@ -262,7 +262,7 @@ CoordSys::IsSPHERICAL () const noexcept
 #if (AMREX_SPACEDIM <= 2)
     return (c_sys == SPHERICAL);
 #endif
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 3)
     return false;
 #endif
 }
@@ -275,7 +275,7 @@ CoordSys::IsRZ () const noexcept
 #if (AMREX_SPACEDIM <= 2)
     return (c_sys == RZ);
 #endif
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 3)
     return false;
 #endif
 }

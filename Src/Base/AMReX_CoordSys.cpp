@@ -205,8 +205,12 @@ CoordSys::SetVolume (FArrayBox& a_volfab,
     AMREX_ASSERT(ok);
     AMREX_ASSERT(region.cellCentered());
 
+#if (AMREX_SPACEDIM >= 4)
+    amrex::Abort("CoordSys::SetVolume: TODO");
+#else
+
     auto vol = a_volfab.array();
-    GpuArray<Real,AMREX_SPACEDIM> a_dx{AMREX_D_DECL(dx[0], dx[1], dx[2])};
+    GpuArray<Real,AMREX_SPACEDIM> a_dx{AMREX_D6_DECL(dx[0], dx[1], dx[2], 0, 0, 0)};
 
 #if (AMREX_SPACEDIM == 3)
     AMREX_ASSERT(IsCartesian());
@@ -222,6 +226,8 @@ CoordSys::SetVolume (FArrayBox& a_volfab,
     {
         amrex_setvol(tbx, vol, a_offset, a_dx, coord);
     });
+#endif
+
 #endif
 }
 
@@ -244,7 +250,9 @@ CoordSys::SetDLogA (FArrayBox& a_dlogafab,
 
     auto dloga = a_dlogafab.array();
 
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 4)
+    amrex::Abort("CoordSys::SetDLogA: TODO");
+#elif (AMREX_SPACEDIM == 3)
     AMREX_ASSERT(IsCartesian());
     AMREX_HOST_DEVICE_FOR_3D ( region, i, j, k,
     {
@@ -281,7 +289,9 @@ CoordSys::SetFaceArea (FArrayBox& a_areafab,
 
     auto area = a_areafab.array();
 
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 4)
+    amrex::Abort("CoordSys::SetFaceArea: TODO");
+#elif (AMREX_SPACEDIM == 3)
     AMREX_ASSERT(IsCartesian());
     const Real da = (dir == 0) ? dx[1]*dx[2] : ((dir == 1) ? dx[0]*dx[2] : dx[0]*dx[1]);
     AMREX_HOST_DEVICE_FOR_3D ( region, i, j, k,

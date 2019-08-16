@@ -350,9 +350,10 @@ Geometry::periodicShift (const Box&      target,
                 //
                 if (target.intersects(locsrc))
                 {
-                    out.push_back(IntVect(AMREX_D_DECL(ri*domain.length(0),
-                                                 rj*domain.length(1),
-                                                 rk*domain.length(2))));
+                    out.push_back(IntVect(AMREX_D6_DECL(ri*domain.length(0),
+                                                        rj*domain.length(1),
+                                                        rk*domain.length(2),
+                                                        0,0,0)));
                 }
                 if (rk != 0
 #if (AMREX_SPACEDIM == 3)

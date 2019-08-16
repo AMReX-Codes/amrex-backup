@@ -162,16 +162,28 @@ namespace amrex
 #  define AMREX_D6_TERM(a,b,c,d,e,f) a b c
 #  define AMREX_D6_PICK(a,b,c,d,e,f) c
 #elif AMREX_SPACEDIM==4
+#  define AMREX_D_EXPR(a,b,c) ((void)((a),(b),(c),0))
+#  define AMREX_D_DECL(a,b,c) a,b,c
+#  define AMREX_D_TERM(a,b,c) a b c
+#  define AMREX_D_PICK(a,b,c) c
 #  define AMREX_D6_EXPR(a,b,c,d,e,f) ((void)((a),(b),(c),(d),0))
 #  define AMREX_D6_DECL(a,b,c,d,e,f) a,b,c,d
 #  define AMREX_D6_TERM(a,b,c,d,e,f) a b c d
 #  define AMREX_D6_PICK(a,b,c,d,e,f) d
 #elif AMREX_SPACEDIM==5
+#  define AMREX_D_EXPR(a,b,c) ((void)((a),(b),(c),0))
+#  define AMREX_D_DECL(a,b,c) a,b,c
+#  define AMREX_D_TERM(a,b,c) a b c
+#  define AMREX_D_PICK(a,b,c) c
 #  define AMREX_D6_EXPR(a,b,c,d,e,f) ((void)((a),(b),(c),(d),(e),0))
 #  define AMREX_D6_DECL(a,b,c,d,e,f) a,b,c,d,e
 #  define AMREX_D6_TERM(a,b,c,d,e,f) a b c d e
 #  define AMREX_D6_PICK(a,b,c,d,e,f) e
 #elif AMREX_SPACEDIM==6
+#  define AMREX_D_EXPR(a,b,c) ((void)((a),(b),(c),0))
+#  define AMREX_D_DECL(a,b,c) a,b,c
+#  define AMREX_D_TERM(a,b,c) a b c
+#  define AMREX_D_PICK(a,b,c) c
 #  define AMREX_D6_EXPR(a,b,c,d,e,f) ((void)((a),(b),(c),(d),(e),(f),0))
 #  define AMREX_D6_DECL(a,b,c,d,e,f) a,b,c,d,e,f
 #  define AMREX_D6_TERM(a,b,c,d,e,f) a b c d e f

@@ -1299,39 +1299,6 @@ public:
     AMREX_GPU_HOST_DEVICE
     void SetBoxType (const IndexType& typ) noexcept { this->domain.setType(typ); }
 
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEach (const Box& b, int c, int nc, F f) noexcept {
-        ForEachImpl(*this, b, c, nc, f);
-    }
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEach (const Box& b, int c, int nc, F f) const noexcept {
-        ForEachImpl(*this, b, c, nc, f);
-    }
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEachIV (const Box& b, int c, int nc, F f) noexcept {
-        ForEachIVImpl(*this, b, c, nc, f);
-    }
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEachIV (const Box& b, int c, int nc, F f) const noexcept {
-        ForEachIVImpl(*this, b, c, nc, f);
-    }
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEach (const Box& dstbox, int dstcomp, int numcomp,
-                  const BaseFab<T>& src, int srccomp, F f) noexcept;
-
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void ForEach (const Box& dstbox, int dstcomp, int numcomp,
-                  const BaseFab<T>& src, const Box& srcbox, int srccomp, F f) noexcept;
-
-    template <typename P, class F> //!< AMREX_GPU_HOST_DEVICE
-    P Accumulate (const Box& b, int c, int nc, P init, F f) const noexcept;
-
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void Transform (T* dst, const Box& b, int c, int nc, F f) const noexcept;
-
-    template <class F> //!< AMREX_GPU_HOST_DEVICE
-    void Transform (const Box& b, int c, int nc, T const* src, F f) noexcept;
-
     //
     // New interfaces
     //
@@ -1528,197 +1495,6 @@ public:
 #endif
 
 };
-
-
-template <class B, class F>
-//AMREX_GPU_HOST_DEVICE
-inline
-void
-ForEachImpl (B& fab, const Box& b, int c, int nc, F f) noexcept
-{
-    AMREX_ASSERT(fab.contains(b));
-    AMREX_ASSERT(c >= 0 && c + nc <= fab.nComp());
-
-    const auto len3 = b.length3d();
-    const int* blo = b.loVect();
-    for (int n = c; n < c+nc; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect line_begin{AMREX_D_DECL(blo[0],
-                                                      blo[1]+j,
-                                                      blo[2]+k)};
-                auto d = fab.dataPtr(line_begin, n);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(d+i));
-                }
-            }
-        }
-    }
-}
-
-template <class B, class F>
-inline
-//AMREX_GPU_HOST_DEVICE
-void
-ForEachIVImpl (B& fab, const Box& b, int c, int nc, F f) noexcept
-{
-    AMREX_ASSERT(fab.contains(b));
-    AMREX_ASSERT(c >= 0 && c + nc <= fab.nComp());
-
-    const auto len3 = b.length3d();
-    const int* blo = b.loVect();
-    for (int n = c; n < c+nc; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect line_begin{AMREX_D_DECL(blo[0],
-                                                      blo[1]+j,
-                                                      blo[2]+k)};
-                auto d = fab.dataPtr(line_begin, n);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(d+i), IntVect{AMREX_D_DECL(blo[0]+i,
-                                                   blo[1]+j,
-                                                   blo[2]+k)});
-                }
-            }
-        }
-    }
-}
-
-template <class T>
-template <class F>
-void
-BaseFab<T>::ForEach (const Box& dstbox, int dstcomp, int numcomp,
-                     const BaseFab<T>& src, const Box& srcbox, int srccomp, F f) noexcept
-{
-    AMREX_ASSERT(contains(dstbox));
-    AMREX_ASSERT(src.contains(srcbox));
-    AMREX_ASSERT(dstbox.size() == srcbox.size());
-    AMREX_ASSERT(dstcomp >= 0 && dstcomp+numcomp <= nComp());
-    AMREX_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
-
-    const auto len3 = dstbox.length3d();
-    const int* dlo = dstbox.loVect();
-    const int* slo = srcbox.loVect();
-    for (int n = 0; n < numcomp; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect dline_begin{AMREX_D_DECL(dlo[0],
-                                                       dlo[1]+j,
-                                                       dlo[2]+k)};
-                auto d = dataPtr(dline_begin, n+dstcomp);
-                const IntVect sline_begin{AMREX_D_DECL(slo[0],
-                                                       slo[1]+j,
-                                                       slo[2]+k)};
-                auto s = src.dataPtr(sline_begin, n+srccomp);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(d+i), *(s+i));
-                }
-            }
-        }
-    }
-}
-
-template <class T>
-template <class F>
-void
-BaseFab<T>::ForEach (const Box& dstbox, int dstcomp, int numcomp,
-                     const BaseFab<T>& src, int srccomp, F f) noexcept
-{
-    AMREX_ASSERT(contains(dstbox));
-    AMREX_ASSERT(src.contains(dstbox));
-    AMREX_ASSERT(dstcomp >= 0 && dstcomp+numcomp <= nComp());
-    AMREX_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
-
-    const auto len3 = dstbox.length3d();
-    const int* dlo = dstbox.loVect();
-    for (int n = 0; n < numcomp; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect dline_begin{AMREX_D_DECL(dlo[0],
-                                                       dlo[1]+j,
-                                                       dlo[2]+k)};
-                auto d = dataPtr(dline_begin, n+dstcomp);
-                auto s = src.dataPtr(dline_begin, n+srccomp);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(d+i), *(s+i));
-                }
-            }
-        }
-    }
-}
-
-template <class T>
-template <typename P, class F>
-P
-BaseFab<T>::Accumulate (const Box& b, int c, int nc, P init, F f) const noexcept
-{
-    const auto len3 = b.length3d();
-    const int* blo = b.loVect();
-    for (int n = c; n < c+nc; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect line_begin{AMREX_D_DECL(blo[0],
-                                                      blo[1]+j,
-                                                      blo[2]+k)};
-                const T* d = dataPtr(line_begin, n);
-                for (int i = 0; i < len3[0]; ++i) {
-                    init = f(init, *(d+i));
-                }
-            }
-        }
-    }
-    return init;
-}
-
-template <class T>
-template <class F>
-void
-BaseFab<T>::Transform (T* dst, const Box& b, int c, int nc, F f) const noexcept
-{
-    AMREX_ASSERT(contains(b));
-    AMREX_ASSERT(c >= 0 && c + nc <= nComp());
-
-    const auto len3 = b.length3d();
-    const int* blo = b.loVect();
-    for (int n = c; n < c+nc; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect line_begin{AMREX_D_DECL(blo[0],
-                                                      blo[1]+j,
-                                                      blo[2]+k)};
-                auto s = dataPtr(line_begin, n);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(dst++), *(s+i));
-                }
-            }
-        }
-    }
-}
-
-template <class T>
-template <class F>
-void
-BaseFab<T>::Transform (const Box& b, int c, int nc, T const* src, F f) noexcept
-{
-    AMREX_ASSERT(contains(b));
-    AMREX_ASSERT(c >= 0 && c + nc <= nComp());
-
-    const auto len3 = b.length3d();
-    const int* blo = b.loVect();
-    for (int n = c; n < c+nc; ++n) {
-        for     (int k = 0; k < len3[2]; ++k) {
-            for (int j = 0; j < len3[1]; ++j) {
-                const IntVect line_begin{AMREX_D_DECL(blo[0],
-                                                      blo[1]+j,
-                                                      blo[2]+k)};
-                auto d = dataPtr(line_begin, n);
-                for (int i = 0; i < len3[0]; ++i) {
-                    f(*(d+i), *(src++));
-                }
-            }
-        }
-    }
-}
 
 template <class T>
 AMREX_FORCE_INLINE
@@ -2027,32 +1803,32 @@ BaseFab<T>::BaseFab (const Box& bx, int ncomp, T* p)
 template<class T>
 BaseFab<T>::BaseFab (Array4<T> const& a) noexcept
     : dptr(a.p),
-      domain(IntVect(AMREX_D_DECL(a.begin.x,a.begin.y,a.begin.z)),
-             IntVect(AMREX_D_DECL(a.end.x-1,a.end.y-1,a.end.z-1))),
+      domain(IntVect(AMREX_D6_DECL(a.begin.x,a.begin.y,a.begin.z,0,0,0)),
+             IntVect(AMREX_D6_DECL(a.end.x-1,a.end.y-1,a.end.z-1,0,0,0))),
       nvar(a.ncomp), truesize(a.ncomp*a.nstride)
 {}
 
 template<class T>
 BaseFab<T>::BaseFab (Array4<T> const& a, IndexType t) noexcept
     : dptr(a.p),
-      domain(IntVect(AMREX_D_DECL(a.begin.x,a.begin.y,a.begin.z)),
-             IntVect(AMREX_D_DECL(a.end.x-1,a.end.y-1,a.end.z-1)), t),
+      domain(IntVect(AMREX_D6_DECL(a.begin.x,a.begin.y,a.begin.z,0,0,0)),
+             IntVect(AMREX_D6_DECL(a.end.x-1,a.end.y-1,a.end.z-1,0,0,0)), t),
       nvar(a.ncomp), truesize(a.ncomp*a.nstride)
 {}
 
 template<class T>
 BaseFab<T>::BaseFab (Array4<T const> const& a) noexcept
     : dptr(const_cast<T*>(a.p)),
-      domain(IntVect(AMREX_D_DECL(a.begin.x,a.begin.y,a.begin.z)),
-             IntVect(AMREX_D_DECL(a.end.x-1,a.end.y-1,a.end.z-1))),
+      domain(IntVect(AMREX_D6_DECL(a.begin.x,a.begin.y,a.begin.z,0,0,0)),
+             IntVect(AMREX_D6_DECL(a.end.x-1,a.end.y-1,a.end.z-1,0,0,0))),
       nvar(a.ncomp), truesize(a.ncomp*a.nstride)
 {}
 
 template<class T>
 BaseFab<T>::BaseFab (Array4<T const> const& a, IndexType t) noexcept
     : dptr(const_cast<T*>(a.p)),
-      domain(IntVect(AMREX_D_DECL(a.begin.x,a.begin.y,a.begin.z)),
-             IntVect(AMREX_D_DECL(a.end.x-1,a.end.y-1,a.end.z-1)), t),
+      domain(IntVect(AMREX_D6_DECL(a.begin.x,a.begin.y,a.begin.z,0,0,0)),
+             IntVect(AMREX_D6_DECL(a.end.x-1,a.end.y-1,a.end.z-1,0,0,0)), t),
       nvar(a.ncomp), truesize(a.ncomp*a.nstride)
 {}
 
@@ -2581,7 +2357,7 @@ BaseFab<T>::minIndex (const Box& subbox, int comp) const noexcept
         }
     }
 
-    return IntVect(AMREX_D_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z));
+    return IntVect(AMREX_D6_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z,0,0,0));
 }
 
 template <class T>
@@ -2610,7 +2386,7 @@ BaseFab<T>::indexFromValue (Real value, const Box& subbox, int comp) const noexc
         }
     }
 
-    return IntVect(AMREX_D_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z));
+    return IntVect(AMREX_D6_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z,0,0,0));
 }
 
 template <class T>
@@ -2669,7 +2445,7 @@ BaseFab<T>::maxIndex (const Box& subbox,
         }
     }
 
-    return IntVect(AMREX_D_DECL(imax+lo.x,jmax+lo.y,kmax+lo.z));
+    return IntVect(AMREX_D6_DECL(imax+lo.x,jmax+lo.y,kmax+lo.z,0,0,0));
 }
 
 template <class T>

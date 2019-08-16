@@ -357,6 +357,8 @@ BoxList::complementIn (const Box& b, const BoxArray& ba)
         Real s_avgbox = std::sqrt(npts_avgbox);
 #elif (AMREX_SPACEDIM == 3)
         Real s_avgbox = std::cbrt(npts_avgbox);
+#else
+        Real s_avgbox = std::pow(npts_avgbox, 1./AMREX_SPACEDIM);
 #endif
 
         const int block_size = 4 * std::max(1,static_cast<int>(std::ceil(s_avgbox/4.))*4);
@@ -718,7 +720,7 @@ BoxList::maxSize (const IntVect& chunk)
 BoxList&
 BoxList::maxSize (int chunk)
 {
-    return maxSize(IntVect(AMREX_D_DECL(chunk,chunk,chunk)));
+    return maxSize(IntVect(chunk));
 }
 
 BoxList&

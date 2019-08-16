@@ -110,7 +110,7 @@ BoxCommHelper::BoxCommHelper (const Box& bx, int* p_)
                   p[3+AMREX_SPACEDIM*2] = typ[3],
                   p[4+AMREX_SPACEDIM*2] = typ[4],
                   p[5+AMREX_SPACEDIM*2] = typ[5]);
-    p[AMREX_SPACEDIM*3] = bx.dimen;
+    p[AMREX_SPACEDIM*3] = static_cast<int>(bx.dimen);
 }
 
 void

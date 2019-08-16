@@ -191,7 +191,7 @@ public:
         int r = vect[0] > vect[1] ? vect[0] : vect[1];
         int r2 = vect[2] > vect[3] ? vect[2] : vect[3];
         r = r > r2 ? r : r2;
-        return r > r[4] ? r : r[4];
+        return r > vect[4] ? r : vect[4];
 #elif (AMREX_SPACEDIM == 6)
         int r = vect[0] > vect[1] ? vect[0] : vect[1];
         r = (r > vect[2]) ? r : vect[2];
@@ -220,7 +220,7 @@ public:
         int r = vect[0] < vect[1] ? vect[0] : vect[1];
         int r2 = vect[2] < vect[3] ? vect[2] : vect[3];
         r = r < r2 ? r : r2;
-        return r < r[4] ? r : r[4];
+        return r < vect[4] ? r : vect[4];
 #elif (AMREX_SPACEDIM == 6)
         int r = vect[0] < vect[1] ? vect[0] : vect[1];
         r = (r < vect[2]) ? r : vect[2];

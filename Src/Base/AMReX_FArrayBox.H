@@ -492,7 +492,7 @@ FArrayBox::contains_nan (const Box& bx, int scomp, int ncomp, IntVect& where) co
             for     (int j = lo.y; j <= hi.y; ++j) {
                 for (int i = lo.x; i <= hi.x; ++i) {
                     if (amrex::isnan(a(i,j,k,n))) {
-                        where = IntVect(AMREX_D_DECL(i,j,k));
+                        where = IntVect(AMREX_D6_DECL(i,j,k,0,0,0));
                         return true;
                     }
                 }
@@ -571,7 +571,7 @@ FArrayBox::contains_inf (const Box& bx, int scomp, int ncomp, IntVect& where) co
             for     (int j = lo.y; j <= hi.y; ++j) {
                 for (int i = lo.x; i <= hi.x; ++i) {
                     if (amrex::isinf(a(i,j,k,n))) {
-                        where = IntVect(AMREX_D_DECL(i,j,k));
+                        where = IntVect(AMREX_D6_DECL(i,j,k,0,0,0));
                         return true;
                     }
                 }

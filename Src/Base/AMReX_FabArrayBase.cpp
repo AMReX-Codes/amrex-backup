@@ -27,13 +27,7 @@ int     FabArrayBase::MaxComp;
 
 #if defined(AMREX_USE_GPU) && defined(AMREX_USE_GPU_PRAGMA)
 
-#if AMREX_SPACEDIM == 1
 IntVect FabArrayBase::mfiter_tile_size(1024000);
-#elif AMREX_SPACEDIM == 2
-IntVect FabArrayBase::mfiter_tile_size(1024000,1024000);
-#else
-IntVect FabArrayBase::mfiter_tile_size(1024000,1024000,1024000);
-#endif
 
 #else
 
@@ -42,17 +36,17 @@ IntVect FabArrayBase::mfiter_tile_size(1024000);
 #elif AMREX_SPACEDIM == 2
 IntVect FabArrayBase::mfiter_tile_size(1024000,1024000);
 #else
-IntVect FabArrayBase::mfiter_tile_size(1024000,8,8);
+IntVect FabArrayBase::mfiter_tile_size(AMREX_D6_DECL(1024000,8,8,8,8,8));
 #endif
 
 #endif
 
 #ifdef AMREX_USE_GPU
-IntVect FabArrayBase::comm_tile_size(AMREX_D_DECL(1024000, 1024000, 1024000));
-IntVect FabArrayBase::mfghostiter_tile_size(AMREX_D_DECL(1024000, 1024000, 1024000));
+IntVect FabArrayBase::comm_tile_size(1024000);
+IntVect FabArrayBase::mfghostiter_tile_size(1024000);
 #else
-IntVect FabArrayBase::comm_tile_size(AMREX_D_DECL(1024000, 8, 8));
-IntVect FabArrayBase::mfghostiter_tile_size(AMREX_D_DECL(1024000, 8, 8));
+IntVect FabArrayBase::comm_tile_size(AMREX_D6_DECL(1024000, 8, 8, 8, 8, 8));
+IntVect FabArrayBase::mfghostiter_tile_size(AMREX_D6_DECL(1024000, 8, 8, 8, 8, 8));
 #endif
 
 FabArrayBase::TACache              FabArrayBase::m_TheTileArrayCache;

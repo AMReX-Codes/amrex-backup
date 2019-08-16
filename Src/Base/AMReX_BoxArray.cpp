@@ -524,7 +524,7 @@ BoxArray::CellEqual (const BoxArray& rhs) const noexcept
 BoxArray&
 BoxArray::maxSize (int block_size)
 {
-    return maxSize(IntVect(AMREX_D_DECL(block_size,block_size,block_size)));
+    return maxSize(IntVect(block_size));
 }
 
 BoxArray&
@@ -545,7 +545,7 @@ BoxArray::maxSize (const IntVect& block_size)
 BoxArray&
 BoxArray::refine (int refinement_ratio)
 {
-    return refine(IntVect(AMREX_D_DECL(refinement_ratio,refinement_ratio,refinement_ratio)));
+    return refine(IntVect(refinement_ratio));
 }
 
 BoxArray&
@@ -595,7 +595,7 @@ BoxArray::coarsenable(const IntVect& refinement_ratio, int min_width) const
 BoxArray&
 BoxArray::coarsen (int refinement_ratio)
 {
-    return coarsen(IntVect(AMREX_D_DECL(refinement_ratio,refinement_ratio,refinement_ratio)));
+    return coarsen(IntVect(refinement_ratio));
 }
 
 BoxArray&

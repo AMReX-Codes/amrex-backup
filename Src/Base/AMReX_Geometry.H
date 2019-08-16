@@ -203,16 +203,22 @@ public:
     int period (int dir) const noexcept { BL_ASSERT(is_periodic[dir]); return domain.length(dir); }
 
     Periodicity periodicity () const noexcept {
-	return Periodicity(IntVect(AMREX_D_DECL(domain.length(0) * is_periodic[0],
-					  domain.length(1) * is_periodic[1],
-					  domain.length(2) * is_periodic[2])));
+	return Periodicity(IntVect(AMREX_D6_DECL(domain.length(0) * is_periodic[0],
+                                                 domain.length(1) * is_periodic[1],
+                                                 domain.length(2) * is_periodic[2],
+                                                 domain.length(3) * is_periodic[3],
+                                                 domain.length(4) * is_periodic[4],
+                                                 domain.length(5) * is_periodic[5])));
     }
 
     Periodicity periodicity (const Box& b) const noexcept {
         AMREX_ASSERT(b.cellCentered());
-	return Periodicity(IntVect(AMREX_D_DECL(b.length(0) * is_periodic[0],
-                                                b.length(1) * is_periodic[1],
-                                                b.length(2) * is_periodic[2])));
+	return Periodicity(IntVect(AMREX_D6_DECL(b.length(0) * is_periodic[0],
+                                                 b.length(1) * is_periodic[1],
+                                                 b.length(2) * is_periodic[2],
+                                                 b.length(3) * is_periodic[3],
+                                                 b.length(4) * is_periodic[4],
+                                                 b.length(5) * is_periodic[5])));
     }
 
     /**
