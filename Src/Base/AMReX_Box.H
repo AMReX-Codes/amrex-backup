@@ -53,9 +53,11 @@ public:
 
     //! Construct cell-centered type Box.
     AMREX_GPU_HOST_DEVICE
-    constexpr Box (const IntVect& small, const IntVect& big) noexcept
-        : smallend(small),
-          bigend(big)
+    Box (const IntVect& small, const IntVect& big, Dimension d = amrex::maxDim) noexcept
+        : smallend(amrex::convert(small,d)),
+          bigend(amrex::convert(big,d)),
+          btype(),
+          dimen(d)
         {}
 
     //! Construct box with specified lengths.
@@ -75,10 +77,12 @@ public:
     * to be consistent with given type.
     */
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const IntVect& big, const IntVect& typ) noexcept
-        : smallend(small),
-          bigend(big),
-          btype(typ)
+    Box (const IntVect& small, const IntVect& big, const IntVect& typ,
+         Dimension d = amrex::maxDim) noexcept
+        : smallend(amrex::convert(small,d)),
+          bigend(amrex::convert(big,d)),
+          btype(amrex::convert(typ,d)),
+          dimen(d)
         {
             BL_ASSERT(typ.allGE(IntVect::TheZeroVector()) && typ.allLE(IntVect::TheUnitVector()));
         }

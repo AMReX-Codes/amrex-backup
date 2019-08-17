@@ -42,6 +42,7 @@ target_sources( amrex
    AMReX_CONSTANTS.H
    AMReX_SPACE.H
    AMReX_Dimension.H
+   AMReX_Dimension.cpp
    AMReX_DistributionMapping.H
    AMReX_DistributionMapping.cpp
    AMReX_ParallelDescriptor.H

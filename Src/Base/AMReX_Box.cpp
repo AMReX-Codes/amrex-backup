@@ -15,13 +15,13 @@ namespace amrex {
 //
 
 std::ostream&
-operator<< (std::ostream& os,
-            const Box&    b)
+operator<< (std::ostream& os, const Box& b)
 {
+    auto d= b.dimension();
     os << '('
-       << b.smallEnd() << ' '
-       << b.bigEnd()   << ' '
-       << b.type()
+       << IntVectDim(b.smallEnd(),d) << ' '
+       << IntVectDim(b.bigEnd(),d)   << ' '
+       << IntVectDim(b.type(),d)
        << ')';
 
     if (os.fail())
@@ -36,10 +36,9 @@ operator<< (std::ostream& os,
 #define BL_IGNORE_MAX 100000
 
 std::istream&
-operator>> (std::istream& is,
-            Box&          b)
+operator>> (std::istream& is, Box& b)
 {
-    IntVect lo, hi, typ;
+    IntVectDim lo, hi, typ;
 
     is >> std::ws;
     char c;
@@ -75,10 +74,13 @@ operator>> (std::istream& is,
         amrex::Error("operator>>(istream&,Box&): expected \'(\'");
     }
 
-    b = Box(lo,hi,typ);
+    AMREX_ASSERT(lo.dimension() == hi.dimension() && lo.dimension() == typ.dimension());
 
-    if (is.fail())
+    b = Box(lo.intVect(),hi.intVect(),typ.intVect(),lo.dimension());
+
+    if (is.fail()) {
         amrex::Error("operator>>(istream&,Box&) failed");
+    }
 
     return is;
 }

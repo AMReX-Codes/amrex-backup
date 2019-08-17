@@ -1,11 +1,23 @@
 #ifndef AMREX_DIMENSION_H_
 #define AMREX_DIMENSION_H_
 
-#include <cstdint>
+#include <iosfwd>
+#include <AMReX_GpuQualifiers.H>
+#include <AMReX_Extension.H>
 
 namespace amrex {
 
 enum struct Dimension : short { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6 };
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Dimension operator+ (Dimension d, short i) {
+    return static_cast<Dimension>(static_cast<short>(d)+i);
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Dimension operator- (Dimension d, short i) {
+    return static_cast<Dimension>(static_cast<short>(d)-i);
+}
 
 #if (AMREX_SPACEDIM == 1)
 static constexpr Dimension maxDim = Dimension::one;
@@ -21,7 +33,9 @@ static constexpr Dimension maxDim = Dimension::five;
 static constexpr Dimension maxDim = Dimension::six;
 #endif
 
-enum struct Direction : int { AMREX_D6_DECL(x = 0, y = 1, z = 2, u = 3, v = 4, w = 5) };
+enum struct Direction : int { x = 0, y = 1, z = 2, u = 3, v = 4, w = 5 };
+
+std::ostream& operator<< (std::ostream& os, Dimension const& dimen);
 
 }
 

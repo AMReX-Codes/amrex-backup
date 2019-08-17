@@ -958,6 +958,49 @@ Dim3 coarsen (Dim3 const& fine, IntVect const& ratio) noexcept
 #endif
 }
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+IntVect
+convert (IntVect const& iv, Dimension dimen)
+{
+    return IntVect(AMREX_D6_DECL(iv[0],
+                                 (dimen > Dimension::one  ) ? iv[1] : 0,
+                                 (dimen > Dimension::two  ) ? iv[2] : 0,
+                                 (dimen > Dimension::three) ? iv[3] : 0,
+                                 (dimen > Dimension::four ) ? iv[4] : 0,
+                                 (dimen > Dimension::five ) ? iv[5] : 0));
+}
+
+class IntVectDim
+{
+public:
+
+    AMREX_GPU_HOST_DEVICE
+    constexpr IntVectDim () noexcept {}
+
+    AMREX_GPU_HOST_DEVICE
+    constexpr IntVectDim (IntVect const& a_iv, Dimension a_d) noexcept
+        : iv(a_iv), d(a_d) {}
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    const IntVect& intVect () const& noexcept { return iv; }
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    IntVect& intVect () & noexcept { return iv; }
+    IntVect& intVect () && = delete;
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    const Dimension& dimension () const noexcept { return d; }
+
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    Dimension& dimension () noexcept { return d; }
+
+private:
+    friend std::ostream& operator<< (std::ostream& os, const IntVectDim& ivd);
+    friend std::istream& operator>> (std::istream& is, IntVectDim& ivd);
+
+    IntVect iv;
+    Dimension d = amrex::maxDim;
+};
+
 }
 
 #endif /*BL_INTVECT_H*/
