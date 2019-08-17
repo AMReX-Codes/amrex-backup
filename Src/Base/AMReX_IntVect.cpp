@@ -16,9 +16,8 @@ std::ostream&
 operator<< (std::ostream&  os,
             const IntVect& p)
 {
-    os << AMREX_D_TERM( '(' << p[0] , <<
-                  ',' << p[1] , <<
-                  ',' << p[2])  << ')';
+    os << AMREX_D6_TERM(   '(' << p[0] , << ',' << p[1] , << ',' << p[2] ,
+                        << ',' << p[3] , << ',' << p[4] , << ',' << p[5] )  << ')';
     if (os.fail())
         amrex::Error("operator<<(ostream&,IntVect&) failed");
     return os;
@@ -34,7 +33,7 @@ operator>> (std::istream& is,
     char c;
     is >> c;
 
-    AMREX_D_TERM(iv[0]=0;, iv[1]=0;, iv[2]=0);
+    iv = IntVect::TheZeroVector();
 
     if (c == '(')
     {
@@ -45,12 +44,36 @@ operator>> (std::istream& is,
         if (ic == static_cast<int>(',')) {
             is.ignore(BL_IGNORE_MAX, ',');
             is >> iv[1];
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 3)
             is >> std::ws;
             ic = is.peek();
             if (ic == static_cast<int>(',')) {
                 is.ignore(BL_IGNORE_MAX, ',');
                 is >> iv[2];
+#if (AMREX_SPACEDIM >= 4)
+                is >> std::ws;
+                ic = is.peek();
+                if (ic == static_cast<int>(',')) {
+                    is.ignore(BL_IGNORE_MAX, ',');
+                    is >> iv[3];
+#if (AMREX_SPACEDIM >= 5)
+                    is >> std::ws;
+                    ic = is.peek();
+                    if (ic == static_cast<int>(',')) {
+                        is.ignore(BL_IGNORE_MAX, ',');
+                        is >> iv[4];
+#if (AMREX_SPACEDIM == 6)
+                        is >> std::ws;
+                        ic = is.peek();
+                        if (ic == static_cast<int>(',')) {
+                            is.ignore(BL_IGNORE_MAX, ',');
+                            is >> iv[5];
+                        }
+#endif
+                    }
+#endif
+                }
+#endif
             }
 #endif
         }
