@@ -62,14 +62,17 @@ public:
 
     //! Construct box with specified lengths.
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const int* vec_len) noexcept
-        : smallend(small),
-          bigend(AMREX_D6_DECL(small[0]+vec_len[0]-1,
-                               small[1]+vec_len[1]-1,
-                               small[2]+vec_len[2]-1,
-                               small[3]+vec_len[3]-1,
-                               small[4]+vec_len[4]-1,
-                               small[5]+vec_len[5]-1))
+    Box (const IntVect& small, const int* vec_len, Dimension d = amrex::maxDim) noexcept
+        : smallend(amrex::convert(small,d)),
+          bigend(amrex::convert(IntVect(AMREX_D6_DECL(small[0]+vec_len[0]-1,
+                                                      small[1]+vec_len[1]-1,
+                                                      small[2]+vec_len[2]-1,
+                                                      small[3]+vec_len[3]-1,
+                                                      small[4]+vec_len[4]-1,
+                                                      small[5]+vec_len[5]-1)),
+                                d)),
+          btype(),
+          dimen(d)
         {}
 
     /**
@@ -89,10 +92,12 @@ public:
 
     //! Construct dimension specific Boxes.
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const IntVect& big, IndexType t) noexcept
-        : smallend(small),
-          bigend(big),
-          btype(t)
+    Box (const IntVect& small, const IntVect& big, IndexType t,
+         Dimension d = amrex::maxDim) noexcept
+        : smallend(amrex::convert(small,d)),
+          bigend(amrex::convert(big,d)),
+          btype(amrex::convert(t,d)),
+          dimen(d)
         {}
 
     template <typename T>
@@ -281,11 +286,15 @@ public:
 
     //! Checks if it is a proper Box (including a valid type).
     AMREX_GPU_HOST_DEVICE
-    bool ok () const noexcept { return bigend.allGE(smallend) && btype.ok(); }
+    bool ok () const noexcept {
+        return bigend.allGE(smallend,dimen) && btype.ok();
+    }
 
     //! Returns true if argument is contained within Box.
     AMREX_GPU_HOST_DEVICE
-    bool contains (const IntVect& p) const noexcept { return p.allGE(smallend) && p.allLE(bigend); }
+    bool contains (const IntVect& p) const noexcept {
+        return p.allGE(smallend,dimen) && p.allLE(bigend,dimen);
+    }
 
     /** \brief Returns true if argument is contained within Box.
     * It is an error if the Boxes have different types.
@@ -293,13 +302,15 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool contains (const Box& b) const noexcept
     {
-	BL_ASSERT(sameType(b));
-	return b.smallend.allGE(smallend) && b.bigend.allLE(bigend);
+	BL_ASSERT(sameType(b) && sameDimension(b));
+	return b.smallend.allGE(smallend,dimen) && b.bigend.allLE(bigend,dimen);
     }
 
     //! Returns true if argument is strictly contained within Box.
     AMREX_GPU_HOST_DEVICE
-    bool strictly_contains (const IntVect& p) const noexcept { return p.allGT(smallend) && p.allLT(bigend); }
+    bool strictly_contains (const IntVect& p) const noexcept {
+        return p.allGT(smallend,dimen) && p.allLT(bigend,dimen);
+    }
 
     /**
     * \brief Returns true if argument is strictly contained within Box.
@@ -308,15 +319,20 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool strictly_contains (const Box& b) const noexcept
     {
-	BL_ASSERT(sameType(b));
-	return b.smallend.allGT(smallend) && b.bigend.allLT(bigend);
+	BL_ASSERT(sameType(b) && sameDimension(b));
+	return b.smallend.allGT(smallend,dimen) && b.bigend.allLT(bigend,dimen);
     }
     /**
     * \brief Returns true if Boxes have non-null intersections.
     * It is an error if the Boxes have different types.
     */
     AMREX_GPU_HOST_DEVICE
-    bool intersects (const Box& b) const noexcept { Box isect(*this); isect &= b; return isect.ok(); }
+    bool intersects (const Box& b) const noexcept {
+        AMREX_ASSERT(sameType(b) && sameDimension(b));
+        Box isect(*this);
+        isect &= b;
+        return isect.ok();
+    }
 
     /**
     * \brief Returns true is Boxes same size, ie translates of each other,.
@@ -487,7 +503,7 @@ public:
 
     //! Redefine the small end of the Box.
     AMREX_GPU_HOST_DEVICE
-    Box& setSmall (const IntVect& sm) noexcept { smallend = sm; return *this; }
+    Box& setSmall (const IntVect& sm) noexcept { smallend = amrex::convert(sm,dimen); return *this; }
 
     //! Redefine the small end of the Box.
     AMREX_GPU_HOST_DEVICE
@@ -495,7 +511,7 @@ public:
 
     //! Redefine the big end of the Box.
     AMREX_GPU_HOST_DEVICE
-    Box& setBig (const IntVect& bg) noexcept { bigend = bg; return *this; }
+    Box& setBig (const IntVect& bg) noexcept { bigend = amrex::convert(bg,dimen); return *this; }
 
     //! Redefine the big end of the Box.
     AMREX_GPU_HOST_DEVICE
@@ -507,21 +523,28 @@ public:
     * illegal Box if n_cells <= 0.
     */
     AMREX_GPU_HOST_DEVICE
-    Box& setRange (int dir,
-                   int sm_index,
-                   int n_cells = 1) noexcept;
+    Box& setRange (int dir, int sm_index, int n_cells = 1) noexcept;
 
     //! Set indexing type
     AMREX_GPU_HOST_DEVICE
-    Box& setType (const IndexType& t) noexcept { btype = t; return *this; }
+    Box& setType (const IndexType& t) noexcept { btype = amrex::convert(t,dimen); return *this; }
 
     //! Shift this Box nzones indexing positions in coordinate direction dir.
     AMREX_GPU_HOST_DEVICE
-    Box& shift (int dir, int nzones) noexcept { smallend.shift(dir,nzones); bigend.shift(dir,nzones); return *this; }
+    Box& shift (int dir, int nzones) noexcept {
+        smallend.shift(dir,nzones); bigend.shift(dir,nzones);
+        return *this;
+    }
 
     //! Equivalent to b.shift(0,iv[0]).shift(1,iv[1]) ....
     AMREX_GPU_HOST_DEVICE
-    Box& shift (const IntVect& iv) noexcept { smallend.shift(iv); bigend.shift(iv); return *this; }
+    Box& shift (const IntVect& iv) noexcept {
+        for (int i = 0, n = static_cast<int>(dimen); i < n; ++i) {
+            smallend[i] += iv[i];
+            bigend[i] += iv[i];
+        }
+        return *this;
+    }
 
     /**
     * \brief This member shifts the Box by "half" indicies, thereby
@@ -611,7 +634,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     Box& minBox (const Box& b) noexcept {
         // BoxArray may call this with not ok boxes.  BL_ASSERT(b.ok() && ok());
-        BL_ASSERT(sameType(b));
+        BL_ASSERT(sameType(b) && sameDimension(b));
         smallend.min(b.smallend);
         bigend.max(b.bigend);
         return *this;
@@ -619,7 +642,13 @@ public:
 
     //! Shift Box (relative) by given IntVect.
     AMREX_GPU_HOST_DEVICE
-    Box& operator+= (const IntVect& v) noexcept { smallend += v; bigend   += v; return *this; }
+    Box& operator+= (const IntVect& v) noexcept {
+        for (int i = 0, n = static_cast<int>(dimen); i < n; ++i) {
+            smallend[i] += v[i];
+            bigend[i] += v[i];
+        }
+        return *this;
+    }
 
     //! Shift Box (relative) by given IntVect.
     AMREX_GPU_HOST_DEVICE
@@ -627,7 +656,13 @@ public:
 
     //! Shift Box (relative) by given IntVect.
     AMREX_GPU_HOST_DEVICE
-    Box& operator-= (const IntVect& v) noexcept { smallend -= v; bigend -= v; return *this; }
+    Box& operator-= (const IntVect& v) noexcept {
+        for (int i = 0, n = static_cast<int>(dimen); i < n; ++i) {
+            smallend[i] -= v[i];
+            bigend[i] -= v[i];
+        }
+        return *this;
+    }
 
     //! Shift Box (relative) by given IntVect.
     AMREX_GPU_HOST_DEVICE
@@ -653,11 +688,23 @@ public:
     * NOTE: n_cell negative shrinks the Box by that number of cells.
     */
     AMREX_GPU_HOST_DEVICE
-    Box& grow (int i) noexcept { smallend.diagShift(-i); bigend.diagShift(i); return *this; }
+    Box& grow (int i) noexcept {
+        for (int d = 0, D=static_cast<int>(dimen); d < D; ++d) {
+            smallend[d] -= i;
+            bigend[d] += i;
+        }
+        return *this;
+    }
 
     //! Grow Box in each direction by specified amount.
     AMREX_GPU_HOST_DEVICE
-    Box& grow (const IntVect& v) noexcept { smallend -= v; bigend += v; return *this;}
+    Box& grow (const IntVect& v) noexcept {
+        for (int d = 0, D=static_cast<int>(dimen); d < D; ++d) {
+            smallend[d] -= v[d];
+            bigend[d] += v[d];
+        }
+        return *this;
+    }
 
     /**
     * \brief Grow the Box on the low and high end by n_cell cells
@@ -768,7 +815,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     bool coarsenable(const IntVect& refrat, int min_width=1) const noexcept
     {
-        if (!size().allGE(refrat*min_width)) {
+        if (!size().allGE(refrat*min_width,dimen)) {
             return false;
         } else {
             Box testBox = *this;
@@ -781,7 +828,7 @@ public:
     AMREX_GPU_HOST_DEVICE
     void normalize () noexcept
     {
-        for (int idim=0; idim < AMREX_SPACEDIM; ++idim) {
+        for (int idim=0, D=static_cast<int>(dimen); idim < D; ++idim) {
             if (this->length(idim) == 0) {
                 this->growHi(idim,1);
             }
@@ -811,13 +858,10 @@ AMREX_FORCE_INLINE
 Box&
 Box::refine (const IntVect& ref_ratio) noexcept
 {
-    if (ref_ratio != 1) {
-        IntVect shft(1);
-        shft -= btype.ixType();
-        smallend *= ref_ratio;
-        bigend += shft;
-        bigend *= ref_ratio;
-        bigend -= shft;
+    for (int d=0, D=static_cast<int>(dimen); d < D; ++d) {
+        smallend[d] *= ref_ratio[d];
+        int shft = 1 - btype[d];
+        bigend[d] = (bigend[d]+shft)*ref_ratio[d] - shft;
     }
     return *this;
 }
@@ -829,23 +873,20 @@ Box::coarsen (const IntVect& ref_ratio) noexcept
 {
     if (ref_ratio != 1)
     {
-        smallend.coarsen(ref_ratio);
+        smallend.coarsen(ref_ratio, dimen);
 
         if (btype.any())
         {
-            IntVect off(0);
-            for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
+            for (int dir = 0, D=static_cast<int>(dimen); dir < D; dir++)
             {
-                if (btype[dir])
-                    if (bigend[dir]%ref_ratio[dir])
-                        off.setVal(dir,1);
+                bigend[dir] = amrex::coarsen(bigend[dir],ref_ratio[dir]);
+                int off = btype[dir] && (bigend[dir]%ref_ratio[dir]);
+                bigend[dir] += off;
             }
-            bigend.coarsen(ref_ratio);
-            bigend += off;
         }
         else
         {
-            bigend.coarsen(ref_ratio);
+            bigend.coarsen(ref_ratio,dimen);
         }
     }
 
@@ -858,9 +899,11 @@ Box&
 Box::convert (const IntVect& typ) noexcept
 {
     BL_ASSERT(typ.allGE(IntVect::TheZeroVector()) && typ.allLE(IntVect::TheUnitVector()));
-    IntVect shft(typ - btype.ixType());
-    bigend += shft;
-    btype = IndexType(typ);
+    for (int d=0, D=static_cast<int>(dimen); d < D; ++d) {
+        int shft = typ[d] - btype[d];
+        bigend[d] += shft;
+        btype.setType(d, static_cast<IndexType::CellIndex>(typ[d]));
+    }
     return *this;
 }
 
@@ -869,13 +912,10 @@ AMREX_FORCE_INLINE
 Box&
 Box::convert (IndexType t) noexcept
 {
-   for (int dir = 0; dir < AMREX_SPACEDIM; dir++)
-   {
-      const unsigned int typ = t[dir];
-      const unsigned int bitval = btype[dir];
-      const int off = typ - bitval;
-      bigend.shift(dir,off);
-      btype.setType(dir, (IndexType::CellIndex) typ);
+    for (int d=0, D=static_cast<int>(dimen); d < D; ++d) {
+        int shft = t[d] - btype[d];
+        bigend[d] += shft;
+        btype.setType(d, static_cast<IndexType::CellIndex>(t[d]));
    }
    return *this;
 }
@@ -901,10 +941,12 @@ AMREX_FORCE_INLINE
 Box&
 Box::surroundingNodes () noexcept
 {
-    for (int i = 0; i < AMREX_SPACEDIM; ++i)
-        if ((btype[i] == 0))
-            bigend.shift(i,1);
-    btype.setall();
+    for (int d=0, D=static_cast<int>(dimen); d<D; ++d) {
+        if (btype[d] == 0) {
+            bigend[d] += 1;
+            btype.set(d);
+        }
+    }
     return *this;
 }
 
@@ -929,10 +971,12 @@ AMREX_FORCE_INLINE
 Box&
 Box::enclosedCells () noexcept
 {
-    for (int i = 0 ; i < AMREX_SPACEDIM; ++i)
-        if (btype[i])
-            bigend.shift(i,-1);
-    btype.clear();
+    for (int d=0, D=static_cast<int>(dimen); d<D; ++d) {
+        if (btype[d]) {
+            bigend[d] -= 1;
+            btype.unset(d);
+        }
+    }
     return *this;
 }
 
@@ -942,27 +986,9 @@ long
 Box::index (const IntVect& v) const noexcept
 {
     long result = v[0]-smallend[0];
-#if   AMREX_SPACEDIM==2
-    result += length(0)*(v[1]-smallend[1]);
-#elif AMREX_SPACEDIM==3
-    result += length(0)*(v[1]-smallend[1]
-             +length(1)*(v[2]-smallend[2]));
-#elif AMREX_SPACEDIM==4
-    result += length(0)* (v[1]-smallend[1]
-             +length(1)*((v[2]-smallend[2])
-             +length(2)*((v[3]-smallend[3]))));
-#elif AMREX_SPACEDIM==5
-    result += length(0)* (v[1]-smallend[1]
-             +length(1)*((v[2]-smallend[2])
-             +length(2)*((v[3]-smallend[3])
-             +length(3)*((v[4]-smallend[4])))));
-#elif AMREX_SPACEDIM==6
-    result += length(0)* (v[1]-smallend[1]
-             +length(1)*((v[2]-smallend[2])
-             +length(2)*((v[3]-smallend[3])
-             +length(3)*((v[4]-smallend[4])
-             +length(4)*((v[5]-smallend[5]))))));
-#endif
+    for (int d=1, D=static_cast<int>(dimen); d<D; ++d) {
+        result += length(d-1) * (v[d]-smallend[d]);
+    }
     return result;
 }
 
@@ -1052,9 +1078,7 @@ Box::atOffset3d (long offset) const noexcept
 AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE
 Box&
-Box::setRange (int dir,
-               int sm_index,
-               int n_cells) noexcept
+Box::setRange (int dir, int sm_index, int n_cells) noexcept
 {
     smallend.setVal(dir,sm_index);
     bigend.setVal(dir,sm_index+n_cells-1);
@@ -1197,7 +1221,7 @@ Box::chop (int dir, int chop_pnt) noexcept
         //
         bigend.setVal(dir,chop_pnt-1);
     }
-    return Box(sm,bg,btype);
+    return Box(sm,bg,btype,dimen);
 }
 
 AMREX_GPU_HOST_DEVICE
@@ -1211,12 +1235,15 @@ Box::shiftHalf (int dir, int nzones) noexcept
     // Toggle btyp bit if nzones is odd.
     //
     const unsigned int bit_dir = btype[dir];
-    if (nbit)
+    if (nbit) {
         btype.flip(dir);
-    if (nzones < 0)
+    }
+    if (nzones < 0) {
         nshift -= (bit_dir ? nbit : 0);
-    else
+    }
+    else {
         nshift += (bit_dir ? 0 : nbit);
+    }
     smallend.shift(dir,nshift);
     bigend.shift(dir,nshift);
     return *this;
@@ -1227,9 +1254,10 @@ inline
 Box&
 Box::shiftHalf (const IntVect& nz) noexcept
 {
-    for (int i = 0; i < AMREX_SPACEDIM; i++)
-        shiftHalf(i,nz[i]);
-   return *this;
+    for (int d=0, D=static_cast<int>(dimen); d<D; ++d) {
+        shiftHalf(d,nz[d]);
+    }
+    return *this;
 }
 
 class BoxCommHelper
@@ -1242,7 +1270,8 @@ public:
     int* data () && = delete;
 
     Box make_box () const noexcept {
-	return Box(IntVect(p), IntVect(p+AMREX_SPACEDIM), IntVect(p+2*AMREX_SPACEDIM));
+	return Box(IntVect(p), IntVect(p+AMREX_SPACEDIM), IntVect(p+2*AMREX_SPACEDIM),
+                   static_cast<Dimension>(p[3*AMREX_SPACEDIM]));
     }
 
     static int size () noexcept { return 3*AMREX_SPACEDIM+1; }
@@ -1494,7 +1523,7 @@ Box bdryLo (const Box& b, int dir, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.set(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     /**
@@ -1516,7 +1545,7 @@ Box bdryHi (const Box& b, int dir, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.set(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     /**
@@ -1548,7 +1577,7 @@ Box bdryNode (const Box& b, Orientation face, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.set(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     /**
@@ -1578,7 +1607,7 @@ Box adjCellLo (const Box& b, int dir, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.unset(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     //! Similar to adjCellLo but builds an adjacent Box on the high end.
@@ -1598,7 +1627,7 @@ Box adjCellHi (const Box& b, int dir, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.unset(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     //! Similar to adjCellLo and adjCellHi; operates on given face.
@@ -1628,7 +1657,7 @@ Box adjCell (const Box& b, Orientation face, int len=1) noexcept
     //
     IndexType typ(b.ixType());
     typ.unset(dir);
-    return Box(low,hi,typ);
+    return Box(low,hi,typ,b.dimension());
 }
 
     /**
@@ -1800,13 +1829,13 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
 #if (AMREX_SPACEDIM == 1)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0])),
                IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0])),
-               typ);
+               typ, b1.dimension());
 #elif (AMREX_SPACEDIM == 2)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
                        amrex::max(b1.smallend[1], b2.smallend[1])),
                IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
                        amrex::min(b1.bigend  [1], b2.bigend  [1])),
-               typ);
+               typ, b1.dimension());
 #elif (AMREX_SPACEDIM == 3)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
                        amrex::max(b1.smallend[1], b2.smallend[1]),
@@ -1814,7 +1843,7 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                IntVect(amrex::min(b1.bigend  [0], b2.bigend  [0]),
                        amrex::min(b1.bigend  [1], b2.bigend  [1]),
                        amrex::min(b1.bigend  [2], b2.bigend  [2])),
-               typ);
+               typ, b1.dimension());
 #elif (AMREX_SPACEDIM == 4)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
                        amrex::max(b1.smallend[1], b2.smallend[1]),
@@ -1824,7 +1853,7 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                        amrex::min(b1.bigend  [1], b2.bigend  [1]),
                        amrex::min(b1.bigend  [2], b2.bigend  [2]),
                        amrex::min(b1.bigend  [3], b2.bigend  [3])),
-               typ);
+               typ, b1.dimension());
 #elif (AMREX_SPACEDIM == 5)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
                        amrex::max(b1.smallend[1], b2.smallend[1]),
@@ -1836,7 +1865,7 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                        amrex::min(b1.bigend  [2], b2.bigend  [2]),
                        amrex::min(b1.bigend  [3], b2.bigend  [3]),
                        amrex::min(b1.bigend  [4], b2.bigend  [4])),
-               typ);
+               typ, b1.dimension());
 #elif (AMREX_SPACEDIM == 6)
     return Box(IntVect(amrex::max(b1.smallend[0], b2.smallend[0]),
                        amrex::max(b1.smallend[1], b2.smallend[1]),
@@ -1850,7 +1879,7 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                        amrex::min(b1.bigend  [3], b2.bigend  [3]),
                        amrex::min(b1.bigend  [4], b2.bigend  [4]),
                        amrex::min(b1.bigend  [5], b2.bigend  [5])),
-               typ);
+               typ, b1.dimension());
 #endif
 }
 
