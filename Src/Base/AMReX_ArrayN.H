@@ -1,0 +1,360 @@
+#ifndef AMREX_ARRAY_N_H_
+#define AMREX_ARRAY_N_H_
+
+#include <AMReX_IntVect.H>
+
+namespace amrex {
+
+    template <typename T>
+    struct ArrayN
+    {
+        T* AMREX_RESTRICT p;
+        long stride[AMREX_SPACEDIM];
+        DimN begin;
+        DimN end;
+        int ncomp;
+
+        AMREX_GPU_HOST_DEVICE
+        constexpr ArrayN (T* a_p, DimN const& a_begin, DimN const& a_end, int a_ncomp) noexcept
+            : p(a_p),
+              stride{AMREX_D6_DECL((long)(a_end.i0-a_begin.i0) ,
+                                   (long)(a_end.i0-a_begin.i0)
+                                  *(long)(a_end.i1-a_begin.i1) ,
+                                   (long)(a_end.i0-a_begin.i0)
+                                  *(long)(a_end.i1-a_begin.i1)
+                                  *(long)(a_end.i2-a_begin.i2) ,
+                                   (long)(a_end.i0-a_begin.i0)
+                                  *(long)(a_end.i1-a_begin.i1)
+                                  *(long)(a_end.i2-a_begin.i2)
+                                  *(long)(a_end.i3-a_begin.i3) ,
+                                   (long)(a_end.i0-a_begin.i0)
+                                  *(long)(a_end.i1-a_begin.i1)
+                                  *(long)(a_end.i2-a_begin.i2)
+                                  *(long)(a_end.i3-a_begin.i3)
+                                  *(long)(a_end.i4-a_begin.i4) ,
+                                   (long)(a_end.i0-a_begin.i0)
+                                  *(long)(a_end.i1-a_begin.i1)
+                                  *(long)(a_end.i2-a_begin.i2)
+                                  *(long)(a_end.i3-a_begin.i3)
+                                  *(long)(a_end.i4-a_begin.i4)
+                                  *(long)(a_end.i5-a_begin.i5))},
+              begin(a_begin),
+              end(a_end),
+              ncomp(a_ncomp)
+            {}
+
+        template <class U,
+                  class = typename std::enable_if
+                  <std::is_same<typename std::remove_const<T>::type,
+                                typename std::remove_const<U>::type>::value>::type >
+        AMREX_GPU_HOST_DEVICE
+        constexpr ArrayN (ArrayN<U> const& rhs, int start_comp) noexcept
+            : ArrayN((T*)(rhs.p+start_comp*rhs.stride[AMREX_SPACEDIM-1]),
+                     rhs.stride,rhs.begin,rhs.end,rhs.ncomp-start_comp)
+        {}
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        U& operator() (IntVect const& iv) const noexcept {
+#if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
+            index_assert(iv,0);
+#endif
+#if (AMREX_SPACEDIM == 1)
+            return p[iv[0]-begin.i0];
+#elif (AMREX_SPACEDIM == 2)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]];
+#elif (AMREX_SPACEDIM == 3)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]];
+#elif (AMREX_SPACEDIM == 4)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]];
+#elif (AMREX_SPACEDIM == 5)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]];
+#elif (AMREX_SPACEDIM == 6)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]+(iv[5]-begin.i5)*stride[4]];
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        U& operator() (IntVect const& iv, int n) const noexcept {
+#if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
+            index_assert(iv,n);
+#endif
+#if (AMREX_SPACEDIM == 1)
+            return p[iv[0]-begin.i0 + n*stride[0]];
+#elif (AMREX_SPACEDIM == 2)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0] + n*stride[1]];
+#elif (AMREX_SPACEDIM == 3)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     + n*stride[2]];
+#elif (AMREX_SPACEDIM == 4)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2] + n*stride[3]];
+#elif (AMREX_SPACEDIM == 5)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3] + n*stride[4]];
+#elif (AMREX_SPACEDIM == 6)
+            return p[(iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]+(iv[5]-begin.i5)*stride[4]
+                     + n*stride[5]];
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        T* ptr (IntVect const& iv) const noexcept {
+#if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
+            index_assert(iv,0);
+#endif
+#if (AMREX_SPACEDIM == 1)
+            return p + (iv[0]-begin.i0);
+#elif (AMREX_SPACEDIM == 2)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]);
+#elif (AMREX_SPACEDIM == 3)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]);
+#elif (AMREX_SPACEDIM == 4)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                        +(iv[3]-begin.i3)*stride[2]);
+#elif (AMREX_SPACEDIM == 5)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]);
+#elif (AMREX_SPACEDIM == 6)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]+(iv[5]-begin.i5)*stride[4]);
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        T* ptr (IntVect const& iv, int n) const noexcept {
+#if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
+            index_assert(iv,n);
+#endif
+#if (AMREX_SPACEDIM == 1)
+            return p + (iv[0]-begin.i0 + n*stride[0]);
+#elif (AMREX_SPACEDIM == 2)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0] + n*stride[1]);
+#elif (AMREX_SPACEDIM == 3)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     + n*stride[2]);
+#elif (AMREX_SPACEDIM == 4)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2] + n*stride[3]);
+#elif (AMREX_SPACEDIM == 5)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3] + n*stride[4]);
+#elif (AMREX_SPACEDIM == 6)
+            return p + ((iv[0]-begin.i0)+(iv[1]-begin.i1)*stride[0]+(iv[2]-begin.i2)*stride[1]
+                     +(iv[3]-begin.i3)*stride[2]+(iv[4]-begin.i4)*stride[3]+(iv[5]-begin.i5)*stride[4]
+                     + n*stride[5]);
+#endif
+        }
+
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        T* dataPtr () const noexcept {
+            return this->p;
+        }
+
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        std::size_t size () const noexcept {
+            return this->stride[AMREX_SPACEDIM-1] * this->ncomp;
+        }
+
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        int nComp () const noexcept { return ncomp; }
+
+#if defined(AMREX_DEBUG) || defined(AMREX_BOUND_CHECK)
+        AMREX_GPU_HOST_DEVICE inline
+        void index_assert (IntVect const& iv, int n) const
+        {
+#if (AMREX_SPACEDIM == 1)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d) is out of bound (%d:%d,0:%d)\n",
+                            iv[0], n,
+                            begin.i0, end.i0-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," <<  n
+                   << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#elif (AMREX_SPACEDIM == 2)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                iv[1] < begin.i1 || iv[1] >= end.i1 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d,%d) is out of bound (%d:%d,%d:%d,0:%d)\n",
+                            iv[0], iv[1], n,
+                            begin.i0, end.i0-1,
+                            begin.i1, end.i1-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," << iv[1] << "," <<  n
+                   << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << begin.i1 << ":" << end.i1-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#elif (AMREX_SPACEDIM == 3)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                iv[1] < begin.i1 || iv[1] >= end.i1 ||
+                iv[2] < begin.i2 || iv[2] >= end.i2 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d,%d,%d) is out of bound (%d:%d,%d:%d,%d:%d,0:%d)\n",
+                            iv[0], iv[1], iv[2], n,
+                            begin.i0, end.i0-1,
+                            begin.i1, end.i1-1,
+                            begin.i2, end.i2-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," << iv[1] << "," << iv[2] << "," <<  n
+                   << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << begin.i1 << ":" << end.i1-1 << ","
+                   << begin.i2 << ":" << end.i2-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#elif (AMREX_SPACEDIM == 4)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                iv[1] < begin.i1 || iv[1] >= end.i1 ||
+                iv[2] < begin.i2 || iv[2] >= end.i2 ||
+                iv[3] < begin.i3 || iv[3] >= end.i3 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d,%d,%d,%d) is out of bound (%d:%d,%d:%d,%d:%d,%d:%d,0:%d)\n",
+                            iv[0], iv[1], iv[2], iv[3], n,
+                            begin.i0, end.i0-1,
+                            begin.i1, end.i1-1,
+                            begin.i2, end.i2-1,
+                            begin.i3, end.i3-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," << iv[1] << "," << iv[2] << "," << iv[3] << "," <<  n
+                   << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << begin.i1 << ":" << end.i1-1 << ","
+                   << begin.i2 << ":" << end.i2-1 << ","
+                   << begin.i3 << ":" << end.i3-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#elif (AMREX_SPACEDIM == 5)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                iv[1] < begin.i1 || iv[1] >= end.i1 ||
+                iv[2] < begin.i2 || iv[2] >= end.i2 ||
+                iv[3] < begin.i3 || iv[3] >= end.i3 ||
+                iv[4] < begin.i4 || iv[4] >= end.i4 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d,%d,%d,%d,%d) is out of bound (%d:%d,%d:%d,%d:%d,%d:%d,%d:%d,0:%d)\n",
+                            iv[0], iv[1], iv[2], iv[3], iv[4], n,
+                            begin.i0, end.i0-1,
+                            begin.i1, end.i1-1,
+                            begin.i2, end.i2-1,
+                            begin.i3, end.i3-1,
+                            begin.i4, end.i4-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," << iv[1] << "," << iv[2] << "," << iv[3] << ","
+                   << iv[4] << ", " << n << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << begin.i1 << ":" << end.i1-1 << ","
+                   << begin.i2 << ":" << end.i2-1 << ","
+                   << begin.i3 << ":" << end.i3-1 << ","
+                   << begin.i4 << ":" << end.i4-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#elif (AMREX_SPACEDIM == 6)
+            if (iv[0] < begin.i0 || iv[0] >= end.i0 ||
+                iv[1] < begin.i1 || iv[1] >= end.i1 ||
+                iv[2] < begin.i2 || iv[2] >= end.i2 ||
+                iv[3] < begin.i3 || iv[3] >= end.i3 ||
+                iv[4] < begin.i4 || iv[4] >= end.i4 ||
+                iv[5] < begin.i5 || iv[5] >= end.i5 ||
+                n < 0 || n >= ncomp) {
+#ifdef AMREX_DEVICE_COMPILE
+                std::printf(" (%d,%d,%d,%d,%d,%d,%d) is out of bound (%d:%d,%d:%d,%d:%d,%d:%d,%d:%d,%d:%d,0:%d)\n",
+                            iv[0], iv[1], iv[2], iv[3], iv[4], iv[5], n,
+                            begin.i0, end.i0-1,
+                            begin.i1, end.i1-1,
+                            begin.i2, end.i2-1,
+                            begin.i3, end.i3-1,
+                            begin.i4, end.i4-1,
+                            begin.i5, end.i5-1,
+                            ncomp-1);
+                amrex::Abort();
+#else
+                std::stringstream ss;
+                ss << " (" << iv[0] << "," << iv[1] << "," << iv[2] << "," << iv[3] << ","
+                   << iv[4] << ", " << iv[5] << ", " << n << ") is out of bound ("
+                   << begin.i0 << ":" << end.i0-1 << ","
+                   << begin.i1 << ":" << end.i1-1 << ","
+                   << begin.i2 << ":" << end.i2-1 << ","
+                   << begin.i3 << ":" << end.i3-1 << ","
+                   << begin.i4 << ":" << end.i4-1 << ","
+                   << begin.i5 << ":" << end.i5-1 << ","
+                   << "0:" << ncomp-1 << ")";
+                amrex::Abort(ss.str());
+#endif
+            }
+#endif
+        }
+#endif
+    };
+
+    template <class T>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    DimN lboundn (ArrayN<T> const& a) noexcept
+    {
+        return a.begin;
+    }
+
+    template <class T>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    DimN uboundn (ArrayN<T> const& a) noexcept
+    {
+        return DimN{AMREX_D6_DECL(a.end.i0-1,a.end.i1-1,a.end.i2-1,a.end.i3-1,a.end.i4-1,a.end.i5-1)};
+    }
+
+    template <class T>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    DimN lengthn (ArrayN<T> const& a) noexcept
+    {
+        return DimN{AMREX_D6_DECL(a.end.i0-a.begin.i0,a.end.i1-a.begin.i1,a.end.i2-a.begin.i2,
+                                  a.end.i3-a.begin.i3,a.end.i4-a.begin.i4,a.end.i5-a.begin.i5)};
+    }
+
+    template <typename T>
+    std::ostream& operator<< (std::ostream& os, const ArrayN<T>& a) {
+        os << "((" << lboundn(a) << ',' << uboundn(a) << ")," << a.ncomp << ')';
+        return os;
+    }
+}
+
+#endif

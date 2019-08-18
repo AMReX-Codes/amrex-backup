@@ -116,6 +116,7 @@ target_sources( amrex
    AMReX_BaseFab.H
    AMReX_BaseFab.cpp
    AMReX_Array4.H
+   AMReX_ArrayN.H
    AMReX_MakeType.H
    AMReX_TypeTraits.H
    AMReX_FabFactory.H

@@ -13,6 +13,7 @@
 #include <AMReX_SPACE.H>
 #include <AMReX_Array.H>
 #include <AMReX_Array4.H>
+#include <AMReX_ArrayN.H>
 #include <AMReX_Vector.H>
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_GpuControl.H>
@@ -845,6 +846,12 @@ public:
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Dim3 min_ubound (Box const&, Box const&) noexcept;
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Dim3 min_ubound (Box const&, Dim3 const&) noexcept;
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Box minBox (Box const&, Box const&, IndexType) noexcept;
+
+    AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE DimN lboundn (Box const& box) noexcept;
+    AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE DimN uboundn (Box const& box) noexcept;
+    AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE DimN beginn  (Box const& box) noexcept;
+    AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE DimN endn    (Box const& box) noexcept;
+    AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE DimN lengthn (Box const& box) noexcept;
 
 private:
     IntVect         smallend;
@@ -1882,6 +1889,117 @@ Box minBox (Box const& b1, Box const& b2, IndexType typ) noexcept
                typ, b1.dimension());
 #endif
 }
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+DimN lboundn (Box const& box) noexcept
+{
+#if (AMREX_SPACEDIM == 1)
+    return {box.smallend[0]};
+#elif (AMREX_SPACEDIM == 2)
+    return {box.smallend[0], box.smallend[1]};
+#elif (AMREX_SPACEDIM == 3)
+    return {box.smallend[0], box.smallend[1], box.smallend[2]};
+#elif (AMREX_SPACEDIM == 4)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3]};
+#elif (AMREX_SPACEDIM == 5)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3], box.smallend[4]};
+#elif (AMREX_SPACEDIM == 6)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3], box.smallend[4], box.smallend[5]};
+#endif
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+DimN uboundn (Box const& box) noexcept
+{
+#if (AMREX_SPACEDIM == 1)
+    return {box.bigend[0]};
+#elif (AMREX_SPACEDIM == 2)
+    return {box.bigend[0], box.bigend[1]};
+#elif (AMREX_SPACEDIM == 3)
+    return {box.bigend[0], box.bigend[1], box.bigend[2]};
+#elif (AMREX_SPACEDIM == 4)
+    return {box.bigend[0], box.bigend[1], box.bigend[2], box.bigend[3]};
+#elif (AMREX_SPACEDIM == 5)
+    return {box.bigend[0], box.bigend[1], box.bigend[2], box.bigend[3], box.bigend[4]};
+#elif (AMREX_SPACEDIM == 6)
+    return {box.bigend[0], box.bigend[1], box.bigend[2], box.bigend[3], box.bigend[4], box.bigend[5]};
+#endif
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+DimN beginn (Box const& box) noexcept
+{
+#if (AMREX_SPACEDIM == 1)
+    return {box.smallend[0]};
+#elif (AMREX_SPACEDIM == 2)
+    return {box.smallend[0], box.smallend[1]};
+#elif (AMREX_SPACEDIM == 3)
+    return {box.smallend[0], box.smallend[1], box.smallend[2]};
+#elif (AMREX_SPACEDIM == 4)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3]};
+#elif (AMREX_SPACEDIM == 5)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3], box.smallend[4]};
+#elif (AMREX_SPACEDIM == 6)
+    return {box.smallend[0], box.smallend[1], box.smallend[2], box.smallend[3], box.smallend[4], box.smallend[5]};
+#endif
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+DimN endn (Box const& box) noexcept
+{
+#if (AMREX_SPACEDIM == 1)
+    return {box.bigend[0]+1};
+#elif (AMREX_SPACEDIM == 2)
+    return {box.bigend[0]+1, box.bigend[1]+1};
+#elif (AMREX_SPACEDIM == 3)
+    return {box.bigend[0]+1, box.bigend[1]+1, box.bigend[2]+1};
+#elif (AMREX_SPACEDIM == 4)
+    return {box.bigend[0]+1, box.bigend[1]+1, box.bigend[2]+1, box.bigend[3]+1};
+#elif (AMREX_SPACEDIM == 5)
+    return {box.bigend[0]+1, box.bigend[1]+1, box.bigend[2]+1, box.bigend[3]+1, box.bigend[4]+1};
+#elif (AMREX_SPACEDIM == 6)
+    return {box.bigend[0]+1, box.bigend[1]+1, box.bigend[2]+1, box.bigend[3]+1, box.bigend[4]+1, box.bigend[5]+1};
+#endif
+}
+
+AMREX_GPU_HOST_DEVICE
+AMREX_FORCE_INLINE
+DimN lengthn (Box const& box) noexcept
+{
+#if (AMREX_SPACEDIM == 1)
+    return {box.bigend[0]-box.smallend[0]+1};
+#elif (AMREX_SPACEDIM == 2)
+    return {box.bigend[0]-box.smallend[0]+1,
+            box.bigend[1]-box.smallend[1]+1};
+#elif (AMREX_SPACEDIM == 3)
+    return {box.bigend[0]-box.smallend[0]+1,
+            box.bigend[1]-box.smallend[1]+1,
+            box.bigend[2]-box.smallend[2]+1};
+#elif (AMREX_SPACEDIM == 4)
+    return {box.bigend[0]-box.smallend[0]+1,
+            box.bigend[1]-box.smallend[1]+1,
+            box.bigend[2]-box.smallend[2]+1,
+            box.bigend[3]-box.smallend[3]+1};
+#elif (AMREX_SPACEDIM == 5)
+    return {box.bigend[0]-box.smallend[0]+1,
+            box.bigend[1]-box.smallend[1]+1,
+            box.bigend[2]-box.smallend[2]+1,
+            box.bigend[3]-box.smallend[3]+1,
+            box.bigend[4]-box.smallend[4]+1};
+#elif (AMREX_SPACEDIM == 6)
+    return {box.bigend[0]-box.smallend[0]+1,
+            box.bigend[1]-box.smallend[1]+1,
+            box.bigend[2]-box.smallend[2]+1,
+            box.bigend[3]-box.smallend[3]+1,
+            box.bigend[4]-box.smallend[4]+1,
+            box.bigend[5]-box.smallend[5]+1};
+#endif
+}
+
 
 // Returns a Box that covers all the argument Boxes in index
 // space. The types are ignored. Thus, the arguments can have
