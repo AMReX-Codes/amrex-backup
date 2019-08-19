@@ -104,6 +104,14 @@ makeArray4 (T* p, Box const& bx, int ncomp) noexcept
     return Array4<T>{p, amrex::begin(bx), amrex::end(bx), ncomp};
 }
 
+template <typename T>
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+ArrayN<T>
+makeArrayN (T* p, Box const& bx, int ncomp) noexcept
+{
+    return ArrayN<T>{p, amrex::beginn(bx), amrex::endn(bx), ncomp};
+}
+
 /**
 *  \brief A Fortran Array-like Object
 *  BaseFab emulates the Fortran array concept.
@@ -320,6 +328,9 @@ public:
     AMREX_GPU_HOST_DEVICE
     const Box& box () const noexcept { return this->domain; }
 
+    AMREX_GPU_HOST_DEVICE
+    Dimension dimension () const noexcept { return this->domain.dimension(); }
+
     /**
     * \brief Returns a pointer to an array of SPACEDIM integers
     * giving the length of the domain in each direction
@@ -423,6 +434,27 @@ public:
     Array4<T const> const_array () const noexcept
     {
         return makeArray4<T const>(this->dptr, this->domain, this->nvar);
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    ArrayN<T const> arraynd () const noexcept
+    {
+        return makeArrayN<T const>(this->dptr, this->domain, this->nvar);
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    ArrayN<T> arraynd () noexcept
+    {
+        return makeArrayN<T>(this->dptr, this->domain, this->nvar);
+    }
+
+    AMREX_GPU_HOST_DEVICE
+    AMREX_FORCE_INLINE
+    ArrayN<T const> const_arraynd () const noexcept
+    {
+        return makeArrayN<T const>(this->dptr, this->domain, this->nvar);
     }
 
     AMREX_GPU_HOST_DEVICE
