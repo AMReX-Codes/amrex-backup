@@ -54,7 +54,7 @@ public:
 
     //! Construct cell-centered type Box.
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const IntVect& big, Dimension d = amrex::maxDim) noexcept
+    constexpr Box (const IntVect& small, const IntVect& big, Dimension d = amrex::maxDim) noexcept
         : smallend(amrex::convert(small,d)),
           bigend(amrex::convert(big,d)),
           btype(),
@@ -63,15 +63,14 @@ public:
 
     //! Construct box with specified lengths.
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const int* vec_len, Dimension d = amrex::maxDim) noexcept
+    constexpr Box (const IntVect& small, const int* vec_len, Dimension d = amrex::maxDim) noexcept
         : smallend(amrex::convert(small,d)),
-          bigend(amrex::convert(IntVect(AMREX_D6_DECL(small[0]+vec_len[0]-1,
-                                                      small[1]+vec_len[1]-1,
-                                                      small[2]+vec_len[2]-1,
-                                                      small[3]+vec_len[3]-1,
-                                                      small[4]+vec_len[4]-1,
-                                                      small[5]+vec_len[5]-1)),
-                                d)),
+          bigend(AMREX_D6_DECL(small.vect[0]+vec_len[0]-1,
+                               (d > Dimension::one  ) ? small.vect[1]+vec_len[1]-1 : 0,
+                               (d > Dimension::two  ) ? small.vect[2]+vec_len[2]-1 : 0,
+                               (d > Dimension::three) ? small.vect[3]+vec_len[3]-1 : 0,
+                               (d > Dimension::four ) ? small.vect[4]+vec_len[4]-1 : 0,
+                               (d > Dimension::five ) ? small.vect[5]+vec_len[5]-1 : 0)),
           btype(),
           dimen(d)
         {}
@@ -81,19 +80,17 @@ public:
     * to be consistent with given type.
     */
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const IntVect& big, const IntVect& typ,
+    constexpr Box (const IntVect& small, const IntVect& big, const IntVect& typ,
          Dimension d = amrex::maxDim) noexcept
         : smallend(amrex::convert(small,d)),
           bigend(amrex::convert(big,d)),
           btype(amrex::convert(typ,d)),
           dimen(d)
-        {
-            BL_ASSERT(typ.allGE(IntVect::TheZeroVector()) && typ.allLE(IntVect::TheUnitVector()));
-        }
+        {}
 
     //! Construct dimension specific Boxes.
     AMREX_GPU_HOST_DEVICE
-    Box (const IntVect& small, const IntVect& big, IndexType t,
+    constexpr Box (const IntVect& small, const IntVect& big, IndexType t,
          Dimension d = amrex::maxDim) noexcept
         : smallend(amrex::convert(small,d)),
           bigend(amrex::convert(big,d)),
@@ -167,9 +164,9 @@ public:
         return IntVect(AMREX_D6_DECL(bigend[0]-smallend[0] + 1,
                                      bigend[1]-smallend[1] + 1,
                                      bigend[2]-smallend[2] + 1,
-                                     bigend[0]-smallend[3] + 1,
-                                     bigend[1]-smallend[4] + 1,
-                                     bigend[2]-smallend[5] + 1));
+                                     bigend[3]-smallend[3] + 1,
+                                     bigend[4]-smallend[4] + 1,
+                                     bigend[5]-smallend[5] + 1));
     }
 
     //! Return the length of the Box in given direction.
@@ -430,9 +427,9 @@ public:
         return AMREX_D6_TERM( static_cast<long>(length(0)-btype[0]),
                              *static_cast<long>(length(1)-btype[1]),
                              *static_cast<long>(length(2)-btype[2]),
-                             *static_cast<long>(length(1)-btype[3]),
-                             *static_cast<long>(length(2)-btype[4]),
-                             *static_cast<long>(length(1)-btype[5]));
+                             *static_cast<long>(length(3)-btype[3]),
+                             *static_cast<long>(length(4)-btype[4]),
+                             *static_cast<long>(length(5)-btype[5]));
     }
 
     /**
@@ -533,7 +530,8 @@ public:
     //! Shift this Box nzones indexing positions in coordinate direction dir.
     AMREX_GPU_HOST_DEVICE
     Box& shift (int dir, int nzones) noexcept {
-        smallend.shift(dir,nzones); bigend.shift(dir,nzones);
+        smallend.shift(dir,nzones);
+        bigend.shift(dir,nzones);
         return *this;
     }
 
@@ -993,8 +991,10 @@ long
 Box::index (const IntVect& v) const noexcept
 {
     long result = v[0]-smallend[0];
+    long stride = 1L;
     for (int d=1, D=static_cast<int>(dimen); d<D; ++d) {
-        result += length(d-1) * (v[d]-smallend[d]);
+        stride *= length(d-1);
+        result += stride * (v[d]-smallend[d]);
     }
     return result;
 }
@@ -1134,17 +1134,17 @@ Box::next (IntVect& p) const noexcept
     {
 	p[0] = smallend[0];
 	++p[1];
-#if (AMREX_SPACEDIM == 3)
+#if (AMREX_SPACEDIM >= 3)
 	if (p[1] > bigend[1])
 	{
 	    p[1] = smallend[1];
 	    ++p[2];
-#if (AMREX_SPACEDIM == 4)
+#if (AMREX_SPACEDIM >= 4)
             if (p[2] > bigend[2])
             {
                 p[2] = smallend[2];
                 ++p[3];
-#if (AMREX_SPACEDIM == 5)
+#if (AMREX_SPACEDIM >= 5)
                 if (p[3] > bigend[3])
                 {
                     p[3] = smallend[3];

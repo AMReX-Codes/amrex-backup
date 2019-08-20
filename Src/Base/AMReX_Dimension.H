@@ -10,12 +10,12 @@ namespace amrex {
 enum struct Dimension : short { one = 1, two = 2, three = 3, four = 4, five = 5, six = 6 };
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Dimension operator+ (Dimension d, short i) {
+constexpr Dimension operator+ (Dimension d, short i) {
     return static_cast<Dimension>(static_cast<short>(d)+i);
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-Dimension operator- (Dimension d, short i) {
+constexpr Dimension operator- (Dimension d, short i) {
     return static_cast<Dimension>(static_cast<short>(d)-i);
 }
 

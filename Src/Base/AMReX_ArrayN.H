@@ -49,8 +49,11 @@ namespace amrex {
                                 typename std::remove_const<U>::type>::value>::type >
         AMREX_GPU_HOST_DEVICE
         constexpr ArrayN (ArrayN<U> const& rhs, int start_comp) noexcept
-            : ArrayN((T*)(rhs.p+start_comp*rhs.stride[AMREX_SPACEDIM-1]),
-                     rhs.stride,rhs.begin,rhs.end,rhs.ncomp-start_comp)
+            : p((T*)(rhs.p+start_comp*rhs.stride[AMREX_SPACEDIM-1])),
+              stride(rhs.stride),
+              begin(rhs.begin),
+              end(rhs.end),
+              ncomp(rhs.ncomp-start_comp)
         {}
 
         template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >

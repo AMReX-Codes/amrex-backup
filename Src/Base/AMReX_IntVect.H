@@ -31,6 +31,9 @@ namespace amrex {
 * to implement scaling and translation operations.
 */
 
+class Box;
+class IndexType;
+
 class IntVect
 {
     friend MPI_Datatype ParallelDescriptor::Mpi_typemap<IntVect>::type();
@@ -735,6 +738,8 @@ private:
 
     friend std::ostream& operator<< (std::ostream& os, const IntVect& iv);
     friend std::istream& operator>> (std::istream& is, IntVect& iv);
+    friend class Box;
+    friend class IndexType;
 
     int vect[AMREX_SPACEDIM];
 };

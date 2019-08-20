@@ -32,9 +32,9 @@ public:
     constexpr IndexType () noexcept : itype(0) {}
     //! Construct an IndexType identical to an IntVect.
     AMREX_GPU_HOST_DEVICE
-    explicit IndexType (const IntVect& iv) noexcept
-        : itype(AMREX_D6_TERM((iv[0]?1:0), | ((iv[1]?1:0)<<1), | ((iv[2]?1:0)<<2),
-                       | ((iv[3]?1:0)<<3), | ((iv[4]?1:0)<<4), | ((iv[5]?1:0)<<5)))
+    explicit constexpr IndexType (const IntVect& iv) noexcept
+        : itype(AMREX_D6_TERM((iv.vect[0]?1:0), | ((iv.vect[1]?1:0)<<1), | ((iv.vect[2]?1:0)<<2),
+                       | ((iv.vect[3]?1:0)<<3), | ((iv.vect[4]?1:0)<<4), | ((iv.vect[5]?1:0)<<5)))
         {}
     AMREX_GPU_HOST_DEVICE
     explicit constexpr IndexType (int t) : itype(t) {}
