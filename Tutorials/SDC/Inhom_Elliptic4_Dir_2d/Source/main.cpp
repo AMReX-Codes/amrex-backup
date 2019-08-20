@@ -131,7 +131,7 @@ void main_main ()
     // MFIter = MultiFab Iterator
     for ( MFIter mfi(phi_new); mfi.isValid(); ++mfi )
     {
-        const Box& bx = mfi.validbox();
+        const Box& bx = mfi.growntilebox();
         init_phi(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(phi_new[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
@@ -189,7 +189,7 @@ void main_main ()
 
     MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);
     
-    
+
     if (plot_int > 0)
       {
 	if (plot_err == 1)  // Turn the solution into the error
@@ -208,7 +208,7 @@ void main_main ()
 	const std::string& pltfile = amrex::Concatenate("plt",n,5);
 	WriteSingleLevelPlotfile(pltfile, phi_new, {"phi"}, geom, time, 0);
 	if (plot_err == 1)  // Put the solution back
-	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 2);	
+	  MultiFab::Copy(phi_new, phi_old, 0, 0, 1, 0);	
       }
 
   // Set an assorment of solver and parallization options and parameters
@@ -286,7 +286,7 @@ void main_main ()
     // Need to implement 4th order extrapolation; for now, we simply use that the use that this function is periodic.
     for ( MFIter mfi(BccCoef); mfi.isValid(); ++mfi )
     {
-        const Box& bx = mfi.validbox();
+        const Box& bx = mfi.growntilebox();
         init_beta(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq);
@@ -300,7 +300,7 @@ void main_main ()
     { // Assumes .boxArray() doesn't include ghostCells (validBoxArray command?)
         const BoxArray& bamg = amrex::convert(BccCoef.boxArray(),
                                               IntVect::TheDimensionVector(idim));
-        face_bcoef[idim].define(bamg, BccCoef.DistributionMap(), 1, 2);
+        face_bcoef[idim].define(bamg, BccCoef.DistributionMap(), 1, 2);  face_bcoef[idim].setBndry(0);
         prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
         // Apply fortran routine to find face valued b_coeffs using cell centered bcc.
         
@@ -318,14 +318,14 @@ mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
 mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     // Need to be able to find the boundary conditions at a given time. We do this intialization a quick and dirty way. Would be better to utilize maskvals and oitr.
     // Boundary values are stored in ghost cells in cross.
-    MultiFab bdry_values(ba, dm, 1, 1);
+    MultiFab bdry_values(ba, dm, 1, 1); bdry_values.setBndry(0);
     
     for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
     {          const Box& bx = mfi.validbox();
         fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
                          BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
                          geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
-    }
+    }        
 /*    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
     {          const Box& bx = mfi.validbox();
         print_multifab(BL_TO_FORTRAN_ANYD(phi_new[mfi]));
@@ -368,7 +368,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     MultiFab corr(ba,dm,1,2);
     MultiFab err_soln(ba,dm,1,0);
     MultiFab zero_mf(ba,dm,1,1);
-    zero_mf.setVal(0.0);
+    zero_mf.setBndry(0);
     d =.01;
     
     
@@ -388,7 +388,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     soln.setVal(0.0);
     for ( MFIter mfi(approx_soln); mfi.isValid(); ++mfi )
     {
-        const Box& bx = mfi.validbox();
+        const Box& bx = mfi.growntilebox();
         init_phi(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(soln[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
@@ -399,7 +399,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     ///////////////////////////////////////////////////////
     // Intialize Boundary Values
     ///////////////////////////////////////////////////////
-    bvalues.setVal(0.0);
+    bvalues.setVal(0,0); bvalues.setBndry(0);
     
     for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
     {          const Box& bx = mfi.validbox();
@@ -408,14 +408,13 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                          geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
     }
     
-    
+
     /////////////////////////////////////////////////////
     // APPLY BC TO SOLN
     /////////////////////////////////////////////////////
     
     
     mlabec_BCfill.fourthOrderBCFill(soln,bvalues);
-    soln.FillBoundary(geom.periodicity());
     
     
    ////////////////////////////////////////////////////////////
@@ -441,8 +440,6 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                     &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
         
     }
-    
-    
     
    /* BoxArray bam(geom.Domain());
     MultiFab Marc(bam,DistributionMapping(bam),1,0);
@@ -482,7 +479,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     /////////////////////////////////////////////////////////////////
     // MAKE RHS = (I-grad(beta * grad))soln
     /////////////////////////////////////////////////////////////////
-    
+    rhs.setVal(0);
     MultiFab::Saxpy(rhs,aScalarLoc,soln,0,0,1,0);
     MultiFab::Saxpy(rhs,1.0,eval_storage,0,0,1,0);
     
@@ -490,16 +487,20 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     // INITIAL GUESS FOR SOLN
     ////////////////////////////////////////////////////////////////
     
-    approx_soln.setVal(0.0);
-    
+    approx_soln.setVal(0,0); approx_soln.setBndry(0);
     
     ////////////////////////////////////////////////////////////////
     // Spatial iterations LOOP
     ////////////////////////////////////////////////////////////////
     int resk=0;
-    int maxresk=100;
+    int maxresk=1;
+    pp.query("maxresk",maxresk);
+    int numGS=1;
+    pp.query("numGS",numGS);
+    
     while ( (resk <=maxresk)) //(resnorm > tol_res) &
     {
+        mlabec_BCfill.fourthOrderBCFill(approx_soln,bvalues);
         
         for ( MFIter mfi(approx_soln); mfi.isValid(); ++mfi )
         {
@@ -521,9 +522,8 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                         &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
             
         }
-        //Rescale resid as it is currently just an evaluation
-        
-        
+    
+        //Rescale resid as it is currently just an evaluation        
         resid.setVal(0.0);
         MultiFab::Saxpy(resid,1.0,eval_storage,0,0,1,0);
         MultiFab::Saxpy(resid,1.0,rhs,0,0,1,0);
@@ -551,8 +551,8 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
         /////////////////////////////////////////////////////////////////
         // SMOOTHER
         /////////////////////////////////////////////////////////////////
-        for(int g = 1; g<=1;g++){
-            
+        for(int g = 1; g<=numGS;g++){
+
             mlabec.fourthOrderBCFill(corr,zero_mf); // as bvalues are 0
             
             //mlabec.prepareForSolve();
@@ -560,14 +560,10 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
         }
         //////////////////////////////////////////////////////////////////
        
-        mlabec_BCfill.fourthOrderBCFill(approx_soln,bvalues);
-        approx_soln.FillBoundary(geom.periodicity());
+        Print() << "iter, err: " << resk << ", " << corr.norm0() << std::endl;
         
         MultiFab::Saxpy(approx_soln,1.0,corr,0,0,1,2);
         
-        mlabec_BCfill.fourthOrderBCFill(approx_soln,bvalues);
-        approx_soln.FillBoundary(geom.periodicity());
-      //  amrex::Print() << "Iter " << resk << " with resnorm " << resnorm << "\n";
         resk++;
         
         ////////////////////////////////////////////////////////////////////////
@@ -580,9 +576,11 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
             err_soln.setVal(0.0);
             MultiFab::Saxpy(err_soln,1.0,approx_soln,0,0,1,0);
             MultiFab::Saxpy(err_soln,-1.0,soln,0,0,1,0);
+
+            Print() << "      iter, err: " << resk << ", " << err_soln.norm0() << std::endl;
             
             const std::string& pltfile = amrex::Concatenate("plt",resk,5);
-            WriteSingleLevelPlotfile(pltfile, err_soln, {"phi"}, geom, time, resk);
+            WriteSingleLevelPlotfile(pltfile, err_soln, {"phi"}, geom, time, resk+1);
         }
     }
     
@@ -594,6 +592,8 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     
     MultiFab::Saxpy(approx_soln,-1.0,soln,0,0,1,0);
     amrex::Print() << "Error norm is " << approx_soln.norm0()  << "\n";
+    
+    return;
     
     ///////////////////////////////////////////////////////
     // Plot Error

@@ -164,10 +164,10 @@ gauss_weights = (/(322.d0-13.d0*sqrt(70.d0))/1800.d0 , &
                   (322.d0+13.d0*sqrt(70.d0))/1800.d0, &
                   (322.d0-13.d0*sqrt(70.d0))/1800.d0/)
 
-do j = philo(2), phihi(2)
+do j = lo(2), hi(2)
 !y = prob_lo(2) + (dble(j)+(1.d0/2.d0)) * dx(2)
 y = prob_lo(2) + dble(j) * dx(2)
-    do i = philo(1), phihi(1)
+    do i = lo(1), hi(1)
     !x = prob_lo(1) + (dble(i)+(1.d0/2.d0)) * dx(1)
     x = prob_lo(1) + dble(i) * dx(1)
     !phi(i,j)=1.d0+epsilon*sin(k_freq*(x+y))
