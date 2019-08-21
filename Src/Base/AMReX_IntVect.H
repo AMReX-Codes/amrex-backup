@@ -179,7 +179,7 @@ public:
     int sum () const noexcept
     {
         int retval = AMREX_D6_TERM((*this)[0], + (*this)[1], +(*this)[2],
-                                  +(*this)[0], + (*this)[1], +(*this)[2]);
+                                  +(*this)[3], + (*this)[4], +(*this)[5]);
         return retval;
     }
 
@@ -679,7 +679,7 @@ public:
         return  (d==0) ? IntVect(AMREX_D6_DECL(1,0,0,0,0,0)) :
                ((d==1) ? IntVect(AMREX_D6_DECL(0,1,0,0,0,0)) :
                ((d==2) ? IntVect(AMREX_D6_DECL(0,0,1,0,0,0)) :
-                         IntVect(AMREX_D6_DECL(0,0,1,0,0,0))));
+                         IntVect(AMREX_D6_DECL(0,0,0,1,0,0))));
 #elif (AMREX_SPACEDIM == 5)
         return  (d==0) ? IntVect(AMREX_D6_DECL(1,0,0,0,0,0)) :
                ((d==1) ? IntVect(AMREX_D6_DECL(0,1,0,0,0,0)) :

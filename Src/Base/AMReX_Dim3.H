@@ -44,8 +44,8 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     return os;
 }
 #elif (AMREX_SPACEDIM == 5)
-struct DimN { int i0; int i1; int i2; int i3; int i4; int i5; };
-struct XDimN { Real x0; Real x1; Real x2; Real x3; Real x4; Real x5; };
+struct DimN { int i0; int i1; int i2; int i3; int i4; };
+struct XDimN { Real x0; Real x1; Real x2; Real x3; Real x4; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 << ',' << d.i2
        << ',' << d.i3 << ',' << d.i4 <<')';
