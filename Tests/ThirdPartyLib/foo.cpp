@@ -51,8 +51,11 @@ void csolve ()
     // set right hand side to some random numbers
     for (MFIter mfi(rhs); mfi.isValid(); ++mfi)
     {
-        auto& fab = rhs[mfi];
-        fab.ForEach(fab.box(), 0, 1, [] (Real& rho) { rho = Random(); });
+        const Box& bx = mfi.fabbox();
+        auto const& fab = rhs.array(mfi);
+        amrex::Loop(bx, [=] (int i, int j, int k) noexcept {
+            fab(i,j,k) = amrex::Random();
+        });
     }
 
     // set initial guess of potential to zero

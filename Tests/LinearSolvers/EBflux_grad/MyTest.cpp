@@ -174,13 +174,13 @@ MyTest::initData ()
         // Initialize Dirichlet boundary
         for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
         {
-            FArrayBox& fab = phi[ilev][mfi];
-            const Box& bx = fab.box();
-            fab.ForEachIV(bx, 0, 1, [=] (Real& p, const IntVect& iv) {
-                    Real rx = (iv[0]+0.5)*dx[0];
-                    Real ry = (iv[1]+0.5)*dx[1];
-                    p = std::sqrt(0.5)*(rx + ry);
-                });
+            const Box& bx = mfi.fabbox();
+            auto const& fab = phi[ilev].array(mfi);
+            amrex::Loop(bx, [=] (int i, int j, int k) noexcept {
+                Real rx = (i+0.5)*dx[0];
+                Real ry = (j+0.5)*dx[1];
+                fab(i,j,k) = std::sqrt(0.5)*(rx + ry);
+            });
         }
 
         phi[ilev].setVal(0.0, 0, 1, 0);
