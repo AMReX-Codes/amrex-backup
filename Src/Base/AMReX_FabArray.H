@@ -312,6 +312,12 @@ public:
     template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
     Array4<typename FabArray<FAB>::value_type> array (int K) noexcept;
 
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    Array4<typename FabArray<FAB>::value_type const> const_array (const MFIter& mfi) const noexcept;
+    //
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    Array4<typename FabArray<FAB>::value_type const> const_array (int K) const noexcept;
+
     //! Explicitly set the Kth FAB in the FabArray to point to elem.
     void setFab (int K, FAB* elem);
 
@@ -422,9 +428,7 @@ public:
 
     //! Set ncomp values in the boundary region, starting at start_comp to val.
     template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
-    void setBndry (value_type val,
-                   int        strt_comp,
-                   int        ncomp);
+    void setBndry (value_type val, int strt_comp, int ncomp);
 
    //! Set all values outside the Geometry domain to val.
     template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
@@ -932,7 +936,7 @@ template <class,class>
 Array4<typename FabArray<FAB>::value_type const>
 FabArray<FAB>::array (const MFIter& mfi) const noexcept
 {
-    return fabPtr(mfi)->array();
+    return fabPtr(mfi)->const_array();
 }
 
 template <class FAB>
@@ -948,7 +952,7 @@ template <class,class>
 Array4<typename FabArray<FAB>::value_type const>
 FabArray<FAB>::array (int K) const noexcept
 {
-    return fabPtr(K)->array();
+    return fabPtr(K)->const_array();
 }
 
 template <class FAB>
@@ -957,6 +961,22 @@ Array4<typename FabArray<FAB>::value_type>
 FabArray<FAB>::array (int K) noexcept
 {
     return fabPtr(K)->array();
+}
+
+template <class FAB>
+template <class,class>
+Array4<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::const_array (const MFIter& mfi) const noexcept
+{
+    return fabPtr(mfi)->const_array();
+}
+
+template <class FAB>
+template <class,class>
+Array4<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::const_array (int K) const noexcept
+{
+    return fabPtr(K)->const_array();
 }
 
 template <class FAB>
@@ -1187,11 +1207,11 @@ FabArray<FAB>::define (const BoxArray&            bxs,
 
     if(info.alloc) {
         AllocFabs(*m_factory, info.arena, info.tags);
-    }
-
+        Gpu::synchronize();
 #ifdef BL_USE_TEAM
-    if (info.alloc) ParallelDescriptor::MyTeam().MemoryBarrier();
+        ParallelDescriptor::MyTeam().MemoryBarrier();
 #endif
+    }
 }
 
 template <class FAB>
@@ -1596,6 +1616,7 @@ FabArray<FAB>::setVal (value_type val,
     BL_PROFILE("FabArray::setVal(val,region,comp,ncomp,nghost)");
 
 #ifdef _OPENMP
+    AMREX_ALWAYS_ASSERT(!omp_in_parallel());
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
     for (MFIter fai(*this,TilingIfNotGPU()); fai.isValid(); ++fai)

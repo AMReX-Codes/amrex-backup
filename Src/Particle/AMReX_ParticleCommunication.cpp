@@ -28,7 +28,7 @@ void ParticleCopyPlan::clear ()
     m_rcv_box_ids.clear();
 }
 
-void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
+void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map, bool do_handshake)
 {
     BL_PROFILE("ParticleCopyPlan::buildMPIStart");
 
@@ -37,11 +37,16 @@ void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
     const int MyProc = ParallelDescriptor::MyProc();
     const int NNeighborProcs = m_neighbor_procs.size();
 
-    m_Snds.resize(0);
-    m_Snds.resize(NProcs, 0);
+    if (NProcs == 1) return;
 
-    m_Rcvs.resize(0);
-    m_Rcvs.resize(NProcs, 0);
+    if (do_handshake)
+    {
+        m_Snds.resize(0);
+        m_Snds.resize(NProcs, 0);
+
+        m_Rcvs.resize(0);
+        m_Rcvs.resize(NProcs, 0);
+    }
     
     m_snd_num_particles.resize(0);
     m_snd_num_particles.resize(NProcs, 0);
@@ -72,7 +77,7 @@ void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
 	m_NumSnds += nbytes;
     }
 
-    doHandShake(m_Snds, m_Rcvs);
+    if (do_handshake) doHandShake(m_Snds, m_Rcvs);
 
     const int SeqNum = ParallelDescriptor::SeqNum();
     long tot_snds_this_proc = 0;
@@ -129,6 +134,7 @@ void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
         if (i == MyProc) continue;
         const auto Who = i;
         const auto Cnt = m_Snds[i];
+        if (Cnt == 0) continue;
 
         BL_ASSERT(Cnt > 0);
         BL_ASSERT(Who >= 0 && Who < NProcs);
@@ -144,6 +150,10 @@ void ParticleCopyPlan::buildMPIFinish (const ParticleBufferMap& map)
     BL_PROFILE("ParticleCopyPlan::buildMPIFinish");
 
 #ifdef BL_USE_MPI
+
+    const int NProcs = ParallelDescriptor::NProcs();
+    if (NProcs == 1) return;
+
     if (m_nrcvs > 0)
     {
         ParallelDescriptor::Waitall(m_rreqs, m_stats);
@@ -195,6 +205,7 @@ void ParticleCopyPlan::doHandShake (const Vector<long>& Snds, Vector<long>& Rcvs
 
 void ParticleCopyPlan::doHandShakeLocal (const Vector<long>& Snds, Vector<long>& Rcvs) const
 {
+#ifdef BL_USE_MPI
     const int SeqNum = ParallelDescriptor::SeqNum();
     const int num_rcvs = m_neighbor_procs.size();
     Vector<MPI_Status>  stats(num_rcvs);
@@ -226,11 +237,46 @@ void ParticleCopyPlan::doHandShakeLocal (const Vector<long>& Snds, Vector<long>&
     {
         ParallelDescriptor::Waitall(rreqs, stats);
     }
+#endif
 }
 
 void ParticleCopyPlan::doHandShakeGlobal (const Vector<long>& Snds, Vector<long>& Rcvs) const
 {
-    amrex::Abort("Not implemented.");
+#ifdef BL_USE_MPI
+    const int SeqNum = ParallelDescriptor::SeqNum();
+    const int NProcs = ParallelDescriptor::NProcs();
+
+    Vector<long> snd_connectivity(NProcs, 0);
+    Vector<int > rcv_connectivity(NProcs, 1);
+    for (int i = 0; i < NProcs; ++i) { if (Snds[i] > 0) snd_connectivity[i] = 1; }
+
+    long num_rcvs = 0;
+    MPI_Reduce_scatter(snd_connectivity.data(), &num_rcvs, rcv_connectivity.data(), 
+                       MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+
+    Vector<MPI_Status>  stats(num_rcvs);
+    Vector<MPI_Request> rreqs(num_rcvs);
+
+    Vector<std::size_t> num_bytes_rcv(num_rcvs);
+    for (int i = 0; i < num_rcvs; ++i)
+        MPI_Irecv( &num_bytes_rcv[i], 1, MPI_UNSIGNED_LONG, MPI_ANY_SOURCE,
+                   SeqNum, MPI_COMM_WORLD, &rreqs[i] );
+        
+    for (int i = 0; i < NProcs; ++i)
+    {
+        if (Snds[i] == 0) continue;
+        const long Cnt = 1;
+        ParallelDescriptor::Send(&Snds[i], Cnt, i, SeqNum);
+    }
+
+    MPI_Waitall(num_rcvs, rreqs.data(), stats.data());
+
+    for (int i = 0; i < num_rcvs; ++i)
+    {
+        const auto Who = stats[i].MPI_SOURCE;
+        Rcvs[Who] = num_bytes_rcv[i];
+    }
+#endif
 }
 
 void amrex::communicateParticlesFinish (const ParticleCopyPlan& plan)
