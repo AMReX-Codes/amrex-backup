@@ -62,8 +62,8 @@ AMREX_FORCE_INLINE
 void For (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
           std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1, std::move(f1));
-    For(box2, std::move(f2));
+    For(box1, std::forward<L1>(f1));
+    For(box2, std::forward<L2>(f2));
 }
 
 template <typename L1, typename L2, typename L3>
@@ -71,9 +71,9 @@ AMREX_FORCE_INLINE
 void For (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
           std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1, std::move(f1));
-    For(box2, std::move(f2));
-    For(box3, std::move(f3));
+    For(box1, std::forward<L1>(f1));
+    For(box2, std::forward<L2>(f2));
+    For(box3, std::forward<L3>(f3));
 }
 
 template <typename T1, typename T2, typename L1, typename L2,
@@ -84,8 +84,8 @@ void For (Box const& box1, T1 ncomp1, L1&& f1,
           Box const& box2, T2 ncomp2, L2&& f2,
           std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1, ncomp1, std::move(f1));
-    For(box2, ncomp2, std::move(f2));
+    For(box1, ncomp1, std::forward<L1>(f1));
+    For(box2, ncomp2, std::forward<L2>(f2));
 }
 
 template <typename T1, typename T2, typename T3, typename L1, typename L2, typename L3,
@@ -98,9 +98,9 @@ void For (Box const& box1, T1 ncomp1, L1&& f1,
           Box const& box3, T3 ncomp3, L3&& f3,
           std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1, ncomp1, std::move(f1));
-    For(box2, ncomp2, std::move(f2));
-    For(box3, ncomp3, std::move(f3));
+    For(box1, ncomp1, std::forward<L1>(f1));
+    For(box2, ncomp2, std::forward<L2>(f2));
+    For(box3, ncomp3, std::forward<L3>(f3));
 }
 
 template <typename L1, typename L2>
@@ -108,8 +108,8 @@ AMREX_FORCE_INLINE
 void ParallelFor (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    ParallelFor(box1, std::move(f1));
-    ParallelFor(box2, std::move(f2));
+    ParallelFor(box1, std::forward<L1>(f1));
+    ParallelFor(box2, std::forward<L2>(f2));
 }
 
 template <typename L1, typename L2, typename L3>
@@ -117,9 +117,9 @@ AMREX_FORCE_INLINE
 void ParallelFor (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    ParallelFor(box1, std::move(f1));
-    ParallelFor(box2, std::move(f2));
-    ParallelFor(box3, std::move(f3));
+    ParallelFor(box1, std::forward<L1>(f1));
+    ParallelFor(box2, std::forward<L2>(f2));
+    ParallelFor(box3, std::forward<L3>(f3));
 }
 
 template <typename T1, typename T2, typename L1, typename L2,
@@ -130,8 +130,8 @@ void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
                   Box const& box2, T2 ncomp2, L2&& f2,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    ParallelFor(box1, ncomp1, std::move(f1));
-    ParallelFor(box2, ncomp2, std::move(f2));
+    ParallelFor(box1, ncomp1, std::forward<L1>(f1));
+    ParallelFor(box2, ncomp2, std::forward<L2>(f2));
 }
 
 template <typename T1, typename T2, typename T3, typename L1, typename L2, typename L3,
@@ -144,9 +144,9 @@ void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
                   Box const& box3, T3 ncomp3, L3&& f3,
                   std::size_t shared_mem_bytes=0) noexcept
 {
-    ParallelFor(box1, ncomp1, std::move(f1));
-    ParallelFor(box2, ncomp2, std::move(f2));
-    ParallelFor(box3, ncomp3, std::move(f3));
+    ParallelFor(box1, ncomp1, std::forward<L1>(f1));
+    ParallelFor(box2, ncomp2, std::forward<L2>(f2));
+    ParallelFor(box3, ncomp3, std::forward<L3>(f3));
 }
 
 template <typename N, typename T, typename L1, typename L2,
