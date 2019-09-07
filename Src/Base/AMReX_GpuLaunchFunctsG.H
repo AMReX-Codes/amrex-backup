@@ -18,7 +18,7 @@ void launch (T const& n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 }
 
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
-void For (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
     const auto ec = Gpu::ExecutionConfig(n);
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);
@@ -33,61 +33,136 @@ void For (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 }
 
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
-void ParallelFor (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (T n, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(n,std::forward<L>(f),shared_mem_bytes);
+    ParallelFor(n,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename L>
-void For (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells = box.numPts();
-    const auto lo  = amrex::lbound(box);
-    const auto len = amrex::length(box);
+    const auto lo  = amrex::lboundn(box);
+    const auto len = amrex::lengthn(box);
     const auto ec = Gpu::ExecutionConfig(ncells);
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);
     amrex::launch_global<<<ec.numBlocks, ec.numThreads, sm, amrex::Gpu::gpuStream()>>>(
     [=] AMREX_GPU_DEVICE () noexcept {
         for (int icell = blockDim.x*blockIdx.x+threadIdx.x, stride = blockDim.x*gridDim.x;
              icell < ncells; icell += stride) {
-            int k =  icell /   (len.x*len.y);
-            int j = (icell - k*(len.x*len.y)) /   len.x;
-            int i = (icell - k*(len.x*len.y)) - j*len.x;
-            i += lo.x;
-            j += lo.y;
-            k += lo.z;
-            f(i,j,k);
+#if (AMREX_SPACEDIM == 1)
+            int i0 = icell+lo.i0;
+#elif (AMREX_SPACEDIM == 2)
+            int i1 = icell / len.i0;
+            int i0 = icell - i1*len.i0;
+#elif (AMREX_SPACEDIM == 3)
+            int i2 = icell / (len.i0*len.i1);
+            int i1 = (icell - i2*(len.i0*len.i1)) / len.i0;
+            int i0 = (icell - i2*(len.i0*len.i1)) - i1*len.i0;
+#elif (AMREX_SPACEDIM == 4)
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int i3 = icell / stride3;
+            int i2 = (icell - i3*stride3) / stride2;
+            int i1 = (icell - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i3*stride3 - i2*stride2 - i1*len.i0;
+#elif (AMREX_SPACEDIM == 5)
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int stride4 = stride3*len.i3;
+            int i4 = icell / stride4;
+            int i3 = (icell - i4*stride4) / stride3;
+            int i2 = (icell - i4*stride4 - i3*stride3) / stride2;
+            int i1 = (icell - i4*stride4 - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i4*stride4 - i3*stride3 - i2*stride2 - i1*len.i0;
+#else
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int stride4 = stride3*len.i3;
+            int stride5 = stride4*len.i4;
+            int i5 = icell / stride5;
+            int i4 = (icell - i5*stride5) / stride4;
+            int i3 = (icell - i5*stride5 - i4*stride4) / stride3;
+            int i2 = (icell - i5*stride5 - i4*stride4 - i3*stride3) / stride2;
+            int i1 = (icell - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2 - i1*len.i0;
+#endif
+            detail::call_f( f, AMREX_D6_DECL(i0+lo.i0,
+                                             i1+lo.i1,
+                                             i2+lo.i2,
+                                             i3+lo.i3,
+                                             i4+lo.i4,
+                                             i5+lo.i5) );
         }
     });
     AMREX_GPU_ERROR_CHECK();
 }
 
 template <typename L>
-void ParallelFor (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (Box const& box, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box,std::forward<L>(f),shared_mem_bytes);
+    ParallelFor(box,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
-void For (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells = box.numPts();
-    const auto lo  = amrex::lbound(box);
-    const auto len = amrex::length(box);
+    const auto lo  = amrex::lboundn(box);
+    const auto len = amrex::lengthn(box);
     const auto ec = Gpu::ExecutionConfig(ncells);
     std::size_t sm = std::max(ec.sharedMem, shared_mem_bytes);
     amrex::launch_global<<<ec.numBlocks, ec.numThreads, sm, amrex::Gpu::gpuStream()>>>(
     [=] AMREX_GPU_DEVICE () noexcept {
         for (int icell = blockDim.x*blockIdx.x+threadIdx.x, stride = blockDim.x*gridDim.x;
              icell < ncells; icell += stride) {
-            int k =  icell /   (len.x*len.y);
-            int j = (icell - k*(len.x*len.y)) /   len.x;
-            int i = (icell - k*(len.x*len.y)) - j*len.x;
-            i += lo.x;
-            j += lo.y;
-            k += lo.z;
+#if (AMREX_SPACEDIM == 1)
+            int i0 = icell+lo.i0;
+#elif (AMREX_SPACEDIM == 2)
+            int i1 = icell / len.i0;
+            int i0 = icell - i1*len.i0;
+#elif (AMREX_SPACEDIM == 3)
+            int i2 = icell / (len.i0*len.i1);
+            int i1 = (icell - i2*(len.i0*len.i1)) / len.i0;
+            int i0 = (icell - i2*(len.i0*len.i1)) - i1*len.i0;
+#elif (AMREX_SPACEDIM == 4)
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int i3 = icell / stride3;
+            int i2 = (icell - i3*stride3) / stride2;
+            int i1 = (icell - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i3*stride3 - i2*stride2 - i1*len.i0;
+#elif (AMREX_SPACEDIM == 5)
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int stride4 = stride3*len.i3;
+            int i4 = icell / stride4;
+            int i3 = (icell - i4*stride4) / stride3;
+            int i2 = (icell - i4*stride4 - i3*stride3) / stride2;
+            int i1 = (icell - i4*stride4 - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i4*stride4 - i3*stride3 - i2*stride2 - i1*len.i0;
+#else
+            int stride2 = len.i0*len.i1;
+            int stride3 = stride2*len.i2;
+            int stride4 = stride3*len.i3;
+            int stride5 = stride4*len.i4;
+            int i5 = icell / stride5;
+            int i4 = (icell - i5*stride5) / stride4;
+            int i3 = (icell - i5*stride5 - i4*stride4) / stride3;
+            int i2 = (icell - i5*stride5 - i4*stride4 - i3*stride3) / stride2;
+            int i1 = (icell - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2) / len.i0;
+            int i0 =  icell - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2 - i1*len.i0;
+#endif
+            AMREX_D6_TERM(i0 += lo.i0;,
+                          i1 += lo.i1;,
+                          i2 += lo.i2;,
+                          i3 += lo.i3;,
+                          i4 += lo.i4;,
+                          i5 += lo.i5;);
             for (T n = 0; n < ncomp; ++n) {
-                f(i,j,k,n);
+                detail::call_f( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5), n );
             }
         }
     });
@@ -95,14 +170,15 @@ void For (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexce
 }
 
 template <typename T, typename L, typename M=amrex::EnableIf_t<std::is_integral<T>::value> >
-void ParallelFor (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (Box const& box, T ncomp, L&& f, std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box,ncomp,std::forward<L>(f),shared_mem_bytes);
+    ParallelFor(box,ncomp,std::forward<L>(f),shared_mem_bytes);
 }
 
 template <typename L1, typename L2>
-void For (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
-          std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
+                  std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
@@ -141,8 +217,8 @@ void For (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
 }
 
 template <typename L1, typename L2, typename L3>
-void For (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
-          std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
+                  std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
@@ -195,9 +271,9 @@ void For (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L
 template <typename T1, typename T2, typename L1, typename L2,
           typename M1=amrex::EnableIf_t<std::is_integral<T1>::value>,
           typename M2=amrex::EnableIf_t<std::is_integral<T2>::value> >
-void For (Box const& box1, T1 ncomp1, L1&& f1,
-          Box const& box2, T2 ncomp2, L2&& f2,
-          std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
+                  Box const& box2, T2 ncomp2, L2&& f2,
+                  std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
@@ -243,10 +319,10 @@ template <typename T1, typename T2, typename T3, typename L1, typename L2, typen
           typename M1=amrex::EnableIf_t<std::is_integral<T1>::value>,
           typename M2=amrex::EnableIf_t<std::is_integral<T2>::value>,
           typename M3=amrex::EnableIf_t<std::is_integral<T3>::value> >
-void For (Box const& box1, T1 ncomp1, L1&& f1,
-          Box const& box2, T2 ncomp2, L2&& f2,
-          Box const& box3, T3 ncomp3, L3&& f3,
-          std::size_t shared_mem_bytes=0) noexcept
+void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
+                  Box const& box2, T2 ncomp2, L2&& f2,
+                  Box const& box3, T3 ncomp3, L3&& f3,
+                  std::size_t shared_mem_bytes=0) noexcept
 {
     int ncells1 = box1.numPts();
     int ncells2 = box2.numPts();
@@ -303,40 +379,45 @@ void For (Box const& box1, T1 ncomp1, L1&& f1,
 }
 
 template <typename L1, typename L2>
-void ParallelFor (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
-                  std::size_t shared_mem_bytes=0) noexcept
+void For (Box const& box1, Box const& box2, L1&& f1, L2&& f2,
+          std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,std::forward<L1>(f1),std::forward<L2>(f2),shared_mem_bytes);
+    ParallelFor(box1,box2,std::forward<L1>(f1),std::forward<L2>(f2),shared_mem_bytes);
 }
 
 template <typename L1, typename L2, typename L3>
-void ParallelFor (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
-                  std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (Box const& box1, Box const& box2, Box const& box3, L1&& f1, L2&& f2, L3&& f3,
+          std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,box3,std::forward<L1>(f1),std::forward<L2>(f2),std::forward<L3>(f3),shared_mem_bytes);
+    ParallelFor(box1,box2,box3,std::forward<L1>(f1),std::forward<L2>(f2),std::forward<L3>(f3),shared_mem_bytes);
 }
 
 template <typename T1, typename T2, typename L1, typename L2,
           typename M1=amrex::EnableIf_t<std::is_integral<T1>::value>,
           typename M2=amrex::EnableIf_t<std::is_integral<T2>::value> >
-void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
-                  Box const& box2, T2 ncomp2, L2&& f2,
-                  std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (Box const& box1, T1 ncomp1, L1&& f1,
+             Box const& box2, T2 ncomp2, L2&& f2,
+             std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,ncomp1,ncomp2,std::forward<L1>(f1),std::forward<L2>(f2),shared_mem_bytes);
+    ParallelFor(box1,box2,ncomp1,ncomp2,std::forward<L1>(f1),std::forward<L2>(f2),shared_mem_bytes);
 }
 
 template <typename T1, typename T2, typename T3, typename L1, typename L2, typename L3,
           typename M1=amrex::EnableIf_t<std::is_integral<T1>::value>,
           typename M2=amrex::EnableIf_t<std::is_integral<T2>::value>,
           typename M3=amrex::EnableIf_t<std::is_integral<T3>::value> >
-void ParallelFor (Box const& box1, T1 ncomp1, L1&& f1,
-                  Box const& box2, T2 ncomp2, L2&& f2,
-                  Box const& box3, T3 ncomp3, L3&& f3,
-                  std::size_t shared_mem_bytes=0) noexcept
+AMREX_FORCE_INLINE
+void For (Box const& box1, T1 ncomp1, L1&& f1,
+          Box const& box2, T2 ncomp2, L2&& f2,
+          Box const& box3, T3 ncomp3, L3&& f3,
+          std::size_t shared_mem_bytes=0) noexcept
 {
-    For(box1,box2,box3,ncomp1,ncomp2,ncomp3,
-        std::forward<L1>(f1),std::forward<L2>(f2),std::forward<L3>(f3),shared_mem_bytes);
+    ParallelFor(box1,box2,box3,ncomp1,ncomp2,ncomp3,
+                std::forward<L1>(f1),
+                std::forward<L2>(f2),
+                std::forward<L3>(f3),shared_mem_bytes);
 }
 
 template <typename T, typename L1, typename L2>

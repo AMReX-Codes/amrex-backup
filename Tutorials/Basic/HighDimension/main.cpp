@@ -6,7 +6,7 @@
 
 using namespace amrex;
 
-void test_5d ()
+void test_5d_fab ()
 {
     Box bx(IntVect(4),IntVect(7),Dimension::five);
     int nc = 1;
@@ -15,15 +15,17 @@ void test_5d ()
 
     auto a = fab.arraynd();
     amrex::ParallelFor(bx,
-    [=] (IntVect const& iv) noexcept
+    [=] AMREX_GPU_DEVICE (IntVect const& iv) noexcept
     {
         a(iv) = 5.;
     });
 
+    Gpu::synchronize(); // ParalleFor is async to host
+
     f5(fab.dataPtr(), fab.loVect(), fab.hiVect(), fab.nComp());
 }
 
-void test_4d ()
+void test_4d_fab ()
 {
     Box bx(IntVect(AMREX_D6_DECL(0,0,0,0,-5,-6)),
            IntVect(AMREX_D6_DECL(7,15,7,15,-1,-1)),
@@ -34,15 +36,17 @@ void test_4d ()
 
     auto a = fab.arraynd();
     amrex::ParallelFor(bx, nc,
-    [=] (IntVect const& iv, int n) noexcept
+    [=] AMREX_GPU_DEVICE (IntVect const& iv, int n) noexcept
     {
         a(iv,n) = 4.;
     });
 
+    Gpu::synchronize(); // ParalleFor is async to host
+
     f4(fab.dataPtr(), fab.loVect(), fab.hiVect(), fab.nComp());
 }
 
-void test_3d ()
+void test_3d_fab ()
 {
     Box bx(IntVect(4),IntVect(7),Dimension::three);
     int nc = 1;
@@ -52,12 +56,16 @@ void test_3d ()
     f3(fab.dataPtr(), fab.loVect(), fab.hiVect());
 
     auto a = fab.arraynd();
-    long atot = 0.0;
+    Gpu::DeviceScalar<long> stot(0);
+    long* ptot = stot.dataPtr();
+    // For GPU, this is not the most efficient way.
+    // It's here for testing only.
     amrex::For(bx,
-    [=,&atot] (IntVect const& iv) noexcept
+    [=] AMREX_GPU_DEVICE (IntVect const& iv) noexcept
     {
-        atot += static_cast<long>(a(iv));
+        Gpu::Atomic::Add(ptot, static_cast<long>(a(iv)));
     });
+    long atot = stot.dataValue();  // For is async to host, dataValue() has synced.
 
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(atot==bx.numPts() && atot==64,
                                      "test_3d failed");
@@ -65,9 +73,15 @@ void test_3d ()
 
 void main_main ()
 {
-    test_5d();
-    test_4d();
-    test_3d();
+#if (AMREX_SPACEDIM >= 5)
+    test_5d_fab();
+#endif
+#if (AMREX_SPACEDIM >= 4)
+    test_4d_fab();
+#endif
+#if (AMREX_SPACEDIM >= 3)
+    test_3d_fab();
+#endif
 }
 
 int main(int argc, char* argv[])

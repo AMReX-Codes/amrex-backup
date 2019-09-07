@@ -5,6 +5,119 @@
 
 namespace amrex {
 
+namespace detail {
+
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(0,0,0))
+    {
+#if (AMREX_SPACEDIM == 1)
+        f(i0,0,0);
+#elif (AMREX_SPACEDIM == 2)
+        f(i0,i1,0);
+#elif (AMREX_SPACEDIM == 3)
+        f(i0,i1,i2);
+#else
+        amrex::Abort("Not supposed to get here for AMREX_SPACEDIM > 3");
+#endif
+    }
+
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                 int n)
+        noexcept -> decltype(f(0,0,0,0))
+    {
+#if (AMREX_SPACEDIM == 1)
+        f(i0,0,0,n);
+#elif (AMREX_SPACEDIM == 2)
+        f(i0,i1,0,n);
+#elif (AMREX_SPACEDIM == 3)
+        f(i0,i1,i2,n);
+#else
+        amrex::Abort("Not supposed to get here for AMREX_SPACEDIM > 3");
+#endif
+    }
+
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(IntVect()))
+    {
+        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+    }
+
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                 int n)
+        noexcept -> decltype(f(IntVect(),0))
+    {
+        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+    }
+
+    // pure host versions
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(0,0,0))
+    {
+#if (AMREX_SPACEDIM == 1)
+        f(i0,0,0);
+#elif (AMREX_SPACEDIM == 2)
+        f(i0,i1,0);
+#elif (AMREX_SPACEDIM == 3)
+        f(i0,i1,i2);
+#else
+        amrex::Abort("Not supposed to get here for AMREX_SPACEDIM > 3");
+#endif
+    }
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                      int n)
+        noexcept -> decltype(f(0,0,0,0))
+    {
+#if (AMREX_SPACEDIM == 1)
+        f(i0,0,0,n);
+#elif (AMREX_SPACEDIM == 2)
+        f(i0,i1,0,n);
+#elif (AMREX_SPACEDIM == 3)
+        f(i0,i1,i2,n);
+#else
+        amrex::Abort("Not supposed to get here for AMREX_SPACEDIM > 3");
+#endif
+    }
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(IntVect()))
+    {
+        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+    }
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                      int n)
+        noexcept -> decltype(f(IntVect(),0))
+    {
+        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+    }
+}
+
 template <class F>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void Loop (Dim3 lo, Dim3 hi, F&& f) noexcept
@@ -55,68 +168,7 @@ void LoopConcurrent (Dim3 lo, Dim3 hi, int ncomp, F&& f) noexcept
 
 template <class F>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto Loop (Box const& bx, F&& f) noexcept
-    -> decltype(f(0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k);
-    }}}
-}
-
-template <class F>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto Loop (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(0,0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int n = 0; n < ncomp; ++n) {
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k,n);
-    }}}}
-}
-
-template <class F>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto LoopConcurrent (Box const& bx, F&& f) noexcept
-    -> decltype(f(0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    AMREX_PRAGMA_SIMD
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k);
-    }}}
-}
-
-template <class F>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto LoopConcurrent (Box const& bx, int ncomp, F&& f) noexcept
-    ->decltype(f(0,0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int n = 0; n < ncomp; ++n) {
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    AMREX_PRAGMA_SIMD
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k,n);
-    }}}}
-}
-
-template <class F>
-AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto Loop (Box const& bx, F&& f) noexcept
-    -> decltype(f(IntVect()))
+void Loop (Box const& bx, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -136,14 +188,13 @@ auto Loop (Box const& bx, F&& f) noexcept
     for (int i1 = lo.i1; i1 <= hi.i1; ++i1) {
 #endif
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+        detail::call_f( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5) );
     AMREX_D6_TERM(},},},},},})
 }
 
 template <class F>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto Loop (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(IntVect(),0))
+void Loop (Box const& bx, int ncomp, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -164,15 +215,14 @@ auto Loop (Box const& bx, int ncomp, F&& f) noexcept
     for (int i1 = lo.i1; i1 <= hi.i1; ++i1) {
 #endif
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+        detail::call_f( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5), n );
     AMREX_D6_TERM(},},},},},})
     }
 }
 
 template <class F>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto LoopConcurrent (Box const& bx, F&& f) noexcept
-    -> decltype(f(IntVect()))
+void LoopConcurrent (Box const& bx, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -193,14 +243,13 @@ auto LoopConcurrent (Box const& bx, F&& f) noexcept
 #endif
     AMREX_PRAGMA_SIMD
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+        detail::call_f( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5) );
     AMREX_D6_TERM(},},},},},})
 }
 
 template <class F>
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-auto LoopConcurrent (Box const& bx, int ncomp, F&& f) noexcept
-    ->decltype(f(IntVect(),0))
+void LoopConcurrent (Box const& bx, int ncomp, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -222,7 +271,7 @@ auto LoopConcurrent (Box const& bx, int ncomp, F&& f) noexcept
 #endif
     AMREX_PRAGMA_SIMD
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+        detail::call_f( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5), n );
     AMREX_D6_TERM(},},},},},})
     }
 }
@@ -282,68 +331,7 @@ void LoopConcurrentOnCpu (Dim3 lo, Dim3 hi, int ncomp, F&& f) noexcept
 
 template <class F>
 AMREX_FORCE_INLINE
-auto LoopOnCpu (Box const& bx, F&& f) noexcept
-    -> decltype(f(0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k);
-    }}}
-}
-
-template <class F>
-AMREX_FORCE_INLINE
-auto LoopOnCpu (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(0,0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int n = 0; n < ncomp; ++n) {
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k,n);
-    }}}}
-}
-
-template <class F>
-AMREX_FORCE_INLINE
-auto LoopConcurrentOnCpu (Box const& bx, F&& f) noexcept
-    -> decltype(f(0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    AMREX_PRAGMA_SIMD
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k);
-    }}}
-}
-
-template <class F>
-AMREX_FORCE_INLINE
-auto LoopConcurrentOnCpu (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(0,0,0,0))
-{
-    const auto lo = amrex::lbound(bx);
-    const auto hi = amrex::ubound(bx);
-    for (int n = 0; n < ncomp; ++n) {
-    for (int k = lo.z; k <= hi.z; ++k) {
-    for (int j = lo.y; j <= hi.y; ++j) {
-    AMREX_PRAGMA_SIMD
-    for (int i = lo.x; i <= hi.x; ++i) {
-        f(i,j,k,n);
-    }}}}
-}
-
-template <class F>
-AMREX_FORCE_INLINE
-auto LoopOnCpu (Box const& bx, F&& f) noexcept
-    -> decltype(f(IntVect()))
+void LoopOnCpu (Box const& bx, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -363,14 +351,13 @@ auto LoopOnCpu (Box const& bx, F&& f) noexcept
     for (int i1 = lo.i1; i1 <= hi.i1; ++i1) {
 #endif
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+        detail::call_f_host( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5) );
     AMREX_D6_TERM(},},},},},})
 }
 
 template <class F>
 AMREX_FORCE_INLINE
-auto LoopOnCpu (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(IntVect(),0))
+void LoopOnCpu (Box const& bx, int ncomp, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -391,15 +378,14 @@ auto LoopOnCpu (Box const& bx, int ncomp, F&& f) noexcept
     for (int i1 = lo.i1; i1 <= hi.i1; ++i1) {
 #endif
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+        detail::call_f_host( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5), n );
     AMREX_D6_TERM(},},},},},})
     }
 }
 
 template <class F>
 AMREX_FORCE_INLINE
-auto LoopConcurrentOnCpu (Box const& bx, F&& f) noexcept
-    -> decltype(f(IntVect()))
+void LoopConcurrentOnCpu (Box const& bx, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -420,14 +406,13 @@ auto LoopConcurrentOnCpu (Box const& bx, F&& f) noexcept
 #endif
     AMREX_PRAGMA_SIMD
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)));
+        detail::call_f_host( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5) );
     AMREX_D6_TERM(},},},},},})
 }
 
 template <class F>
 AMREX_FORCE_INLINE
-auto LoopConcurrentOnCpu (Box const& bx, int ncomp, F&& f) noexcept
-    -> decltype(f(IntVect(),0))
+void LoopConcurrentOnCpu (Box const& bx, int ncomp, F&& f) noexcept
 {
     const auto lo = amrex::lboundn(bx);
     const auto hi = amrex::uboundn(bx);
@@ -449,7 +434,7 @@ auto LoopConcurrentOnCpu (Box const& bx, int ncomp, F&& f) noexcept
 #endif
     AMREX_PRAGMA_SIMD
     for (int i0 = lo.i0; i0 <= hi.i0; ++i0) {
-        f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+        detail::call_f_host( f, AMREX_D6_DECL(i0,i1,i2,i3,i4,i5), n );
     AMREX_D6_TERM(},},},},},})
     }
 }

@@ -36,15 +36,52 @@ AMREX_GPU_HOST_DEVICE
 AMREX_FORCE_INLINE Box at (Box const& b, long offset) noexcept
 {
 #ifdef AMREX_DEVICE_COMPILE
-    auto len = b.length3d();
-    long k = offset / (len[0]*len[1]);
-    long j = (offset - k*(len[0]*len[1])) / len[0];
-    long i = (offset - k*(len[0]*len[1])) - j*len[0];
-    IntVect iv{AMREX_D_DECL(static_cast<int>(i),
-                            static_cast<int>(j),
-                            static_cast<int>(k))};
-    iv += b.smallEnd();
-    return Box(iv,iv,b.type());
+    auto len = b.lengthnd();
+    auto lo = b.loVectnd();
+#if (AMREX_SPACEDIM == 1)
+    long i0 = offset;
+#elif (AMREX_SPACEDIM == 2)
+    long i1 = offset / len[0];
+    long i0 = offset - i1*len[0];
+#elif (AMREX_SPACEDIM == 3)
+    long i2 = offset / (len[0]*len[1]);
+    long i1 = (offset - i2*(len[0]*len[1])) / len[0];
+    long i0 = (offset - i2*(len[0]*len[1])) - i1*len[0];
+#elif (AMREX_SPACEDIM == 4)
+    long stride2 = len[0]*len[1];
+    long stride3 = stride2*len[2];
+    long i3 = offset / stride3;
+    long i2 = (offset - i3*stride3) / stride2;
+    long i1 = (offset - i3*stride3 - i2*stride2) / len[0];
+    long i0 =  offset - i3*stride3 - i2*stride2 - i1*len[0];
+#elif (AMREX_SPACEDIM == 5)
+    long stride2 = len[0]*len[1];
+    long stride3 = stride2*len[2];
+    long stride4 = stride3*len[3];
+    long i4 = offset / stride4;
+    long i3 = (offset - i4*stride4) / stride3;
+    long i2 = (offset - i4*stride4 - i3*stride3) / stride2;
+    long i1 = (offset - i4*stride4 - i3*stride3 - i2*stride2) / len[0];
+    long i0 =  offset - i4*stride4 - i3*stride3 - i2*stride2 - i1*len[0];
+#else
+    long stride2 = len[0]*len[1];
+    long stride3 = stride2*len[2];
+    long stride4 = stride3*len[3];
+    long stride5 = stride4*len[4];
+    long i5 = offset / stride5;
+    long i4 = (offset - i5*stride5) / stride4;
+    long i3 = (offset - i5*stride5 - i4*stride4) / stride3;
+    long i2 = (offset - i5*stride5 - i4*stride4 - i3*stride3) / stride2;
+    long i1 = (offset - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2) / len[0];
+    long i0 =  offset - i5*stride5 - i4*stride4 - i3*stride3 - i2*stride2 - i1*len[0];
+#endif
+    IntVect iv{AMREX_D6_DECL(static_cast<int>(i0) + lo[0],
+                             static_cast<int>(i1) + lo[1],
+                             static_cast<int>(i2) + lo[2],
+                             static_cast<int>(i3) + lo[3],
+                             static_cast<int>(i4) + lo[4],
+                             static_cast<int>(i5) + lo[5])};
+    return Box(iv,iv,b.type(),b.dimension());
 #else
     return b;
 #endif

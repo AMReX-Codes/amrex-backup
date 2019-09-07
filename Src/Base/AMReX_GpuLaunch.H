@@ -93,15 +93,7 @@ namespace Gpu {
     Box getThreadBox (const Box& bx, long offset) noexcept
     {
 #ifdef AMREX_DEVICE_COMPILE
-        const auto len = bx.length3d();
-        long k = offset / (len[0]*len[1]);
-        long j = (offset - k*(len[0]*len[1])) / len[0];
-        long i = (offset - k*(len[0]*len[1])) - j*len[0];
-        IntVect iv{AMREX_D_DECL(static_cast<int>(i),
-                                static_cast<int>(j),
-                                static_cast<int>(k))};
-        iv += bx.smallEnd();
-        return (bx & Box(iv,iv,bx.type()));
+        return bx & amrex::Gpu::range_detail::at(bx,offset);
 #else
         return bx;
 #endif
@@ -118,12 +110,6 @@ namespace Gpu {
             // If we change this, we must make sure it doesn't break say getGridSize, which
             // assumes the decomposition is 1D.  FabArrayUtility Reduce* as well.
             Gpu::Device::n_threads_and_blocks( ((box.numPts()+AMREX_GPU_NCELLS_PER_THREAD-1)/AMREX_GPU_NCELLS_PER_THREAD), numBlocks, numThreads );
-#if 0
-            Box b = amrex::surroundingNodes(box);
-            b -= box.smallEnd();
-            b.coarsen(IntVect(AMREX_D_DECL(1,AMREX_GPU_Y_STRIDE,AMREX_GPU_Z_STRIDE)));
-            Gpu::Device::c_threads_and_blocks(b.loVect(), b.hiVect(), numBlocks, numThreads);
-#endif
         }
         ExecutionConfig (const Box& box, int comps) noexcept {
             const Box& b = amrex::surroundingNodes(box);
