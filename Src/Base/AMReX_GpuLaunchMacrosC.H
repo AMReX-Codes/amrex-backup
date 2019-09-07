@@ -129,6 +129,27 @@
         }}}} \
     }
 
+#define AMREX_GPU_FOR_IV_IMPL(box,iv,block) \
+    amrex::LoopOnCpu(box, [=] (amrex::IntVect const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_FOR_IVC_IMPL(box,iv,n,block) \
+    amrex::LoopOnCpu(box, [=] (amrex::IntVect const& iv, int n) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_PARALLEL_FOR_IV_IMPL(box,iv,block) \
+    amrex::LoopConcurrentOnCpu(box, [=] (amrex::IntVect const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_PARALLEL_FOR_IVC_IMPL(box,iv,n,block) \
+    amrex::LoopConcurrentOnCpu(box, [=] (amrex::IntVect const& iv, int n) noexcept \
+        block \
+    );
+
+
 #define AMREX_GPU_HOST_DEVICE_FOR_1D(...) AMREX_GPU_FOR_1D_IMPL(__VA_ARGS__);
 #define AMREX_GPU_DEVICE_FOR_1D(...)      AMREX_GPU_FOR_1D_IMPL(__VA_ARGS__);
 
@@ -141,6 +162,15 @@
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_1D(...)      AMREX_GPU_PARALLEL_FOR_1D_IMPL(__VA_ARGS__);
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_3D(...)      AMREX_GPU_PARALLEL_FOR_3D_IMPL(__VA_ARGS__);
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_4D(...)      AMREX_GPU_PARALLEL_FOR_4D_IMPL(__VA_ARGS__);
+
+#define AMREX_GPU_HOST_DEVICE_FOR_IV(...)  AMREX_GPU_FOR_IV_IMPL(__VA_ARGS__);
+#define AMREX_GPU_DEVICE_FOR_IV(...)       AMREX_GPU_FOR_IV_IMPL(__VA_ARGS__);
+
+#define AMREX_GPU_HOST_DEVICE_FOR_IVC(...)  AMREX_GPU_FOR_IVC_IMPL(__VA_ARGS__);
+#define AMREX_GPU_DEVICE_FOR_IVC(...)       AMREX_GPU_FOR_IVC_IMPL(__VA_ARGS__);
+
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_IV(...)  AMREX_GPU_PARALLEL_FOR_IV_IMPL(__VA_ARGS__)
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_IVC(...) AMREX_GPU_PARALLEL_FOR_IVC_IMPL(__VA_ARGS__)
 
 #define AMREX_GPU_LAUNCH_HOST_DEVICE(strategy, ...) amrex::launch_host(__VA_ARGS__);
 #define AMREX_GPU_LAUNCH_DEVICE(strategy, ...) amrex::launch_host(__VA_ARGS__);

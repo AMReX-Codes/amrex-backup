@@ -332,8 +332,8 @@
             for (int amrex_i_k = amrex_i_lo[2] + blockIdx.z * blockDim.z + threadIdx.z; amrex_i_k <= amrex_i_hi[2]; amrex_i_k += blockDim.z * gridDim.z) { \
             for (int amrex_i_j = amrex_i_lo[1] + blockIdx.y * blockDim.y + threadIdx.y; amrex_i_j <= amrex_i_hi[1]; amrex_i_j += blockDim.y * gridDim.y) { \
             for (int amrex_i_i = amrex_i_lo[0] + blockIdx.x * blockDim.x + threadIdx.x; amrex_i_i <= amrex_i_hi[0]; amrex_i_i += blockDim.x * gridDim.x) { \
-                amrex::Box tbb(IntVect(AMREX_D_DECL(amrex_i_i,amrex_i_j,amrex_i_k)), \
-                               IntVect(AMREX_D_DECL(amrex_i_i,amrex_i_j,amrex_i_k)), \
+                amrex::Box tbb(amrex::IntVect(AMREX_D_DECL(amrex_i_i,amrex_i_j,amrex_i_k)), \
+                               amrex::IntVect(AMREX_D_DECL(amrex_i_i,amrex_i_j,amrex_i_k)), \
                                bbb.type()); \
                 block \
             }}} \
@@ -384,157 +384,101 @@
 // FOR_1D
 
 #define AMREX_GPU_HOST_DEVICE_FOR_1D(n,i,block) \
-    if (amrex::Gpu::inLaunchRegion()) \
-    { \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(n); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int i = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     i < n; i += amrex_i_stride) { \
-                block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    } \
-    else { \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(n, [=] AMREX_GPU_DEVICE (decltype(n) i) noexcept \
+            block \
+        ); \
+    } else { \
         AMREX_PRAGMA_SIMD \
-        for (auto i = decltype(n){0}; i < n; ++i) block     \
+        for (auto i = decltype(n){0}; i < n; ++i) block \
     }
 
 #define AMREX_GPU_DEVICE_FOR_1D(n,i,block) \
-    { \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(n); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int i = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     i < n; i += amrex_i_stride) { \
-                block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    }
+    amrex::ParallelFor(n, [=] AMREX_GPU_DEVICE (decltype(n) i) noexcept \
+        block \
+    );
 
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_1D(...) AMREX_GPU_DEVICE_FOR_1D(__VA_ARGS__)
 
 // FOR_3D
 
 #define AMREX_GPU_HOST_DEVICE_FOR_3D(box,i,j,k,block) \
-    if (amrex::Gpu::inLaunchRegion()) \
-    { \
-        int amrex_i_ncells = box.numPts();          \
-        const auto amrex_i_lo  = amrex::lbound(box); \
-        const auto amrex_i_len = amrex::length(box); \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(amrex_i_ncells); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int amrex_i_icell = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     amrex_i_icell < amrex_i_ncells; amrex_i_icell += amrex_i_stride) { \
-                int k =  amrex_i_icell /   (amrex_i_len.x*amrex_i_len.y); \
-                int j = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) /   amrex_i_len.x; \
-                int i = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) - j*amrex_i_len.x; \
-                i += amrex_i_lo.x; \
-                j += amrex_i_lo.y; \
-                k += amrex_i_lo.z; \
-                block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    } \
-    else { \
-        const auto amrex_i_lo = amrex::lbound(box); \
-        const auto amrex_i_hi = amrex::ubound(box); \
-        for (int k = amrex_i_lo.z; k <= amrex_i_hi.z; ++k) { \
-        for (int j = amrex_i_lo.y; j <= amrex_i_hi.y; ++j) { \
-        AMREX_PRAGMA_SIMD \
-        for (int i = amrex_i_lo.x; i <= amrex_i_hi.x; ++i) { \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept \
             block \
-        }}} \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, [=] (int i, int j, int k) noexcept \
+            block \
+       ); \
     }
 
 #define AMREX_GPU_DEVICE_FOR_3D(box,i,j,k,block) \
-    { \
-        int amrex_i_ncells = box.numPts(); \
-        const auto amrex_i_lo  = amrex::lbound(box); \
-        const auto amrex_i_len = amrex::length(box); \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(amrex_i_ncells); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int amrex_i_icell = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     amrex_i_icell < amrex_i_ncells; amrex_i_icell += amrex_i_stride) { \
-                int k =  amrex_i_icell /   (amrex_i_len.x*amrex_i_len.y); \
-                int j = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) /   amrex_i_len.x; \
-                int i = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) - j*amrex_i_len.x; \
-                i += amrex_i_lo.x; \
-                j += amrex_i_lo.y; \
-                k += amrex_i_lo.z; \
-                block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    }
+    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept \
+        block \
+    );
 
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_3D(...) AMREX_GPU_DEVICE_FOR_3D(__VA_ARGS__)
 
 // FOR_4D
 
-#define AMREX_GPU_HOST_DEVICE_FOR_4D(box,ancomp,i,j,k,n,block) \
-    if (amrex::Gpu::inLaunchRegion()) \
-    { \
-        int amrex_i_nc = ancomp; \
-        int amrex_i_ncells = box.numPts();          \
-        const auto amrex_i_lo  = amrex::lbound(box); \
-        const auto amrex_i_len = amrex::length(box); \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(amrex_i_ncells); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int amrex_i_icell = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     amrex_i_icell < amrex_i_ncells; amrex_i_icell += amrex_i_stride) { \
-                int k =  amrex_i_icell /   (amrex_i_len.x*amrex_i_len.y); \
-                int j = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) /   amrex_i_len.x; \
-                int i = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) - j*amrex_i_len.x; \
-                i += amrex_i_lo.x; \
-                j += amrex_i_lo.y; \
-                k += amrex_i_lo.z; \
-                for (int n = 0; n < amrex_i_nc; ++n) block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    } \
-    else { \
-        const auto amrex_i_lo = amrex::lbound(box); \
-        const auto amrex_i_hi = amrex::ubound(box); \
-        for (int n = 0; n < ancomp; ++n) { \
-        for (int k = amrex_i_lo.z; k <= amrex_i_hi.z; ++k) { \
-        for (int j = amrex_i_lo.y; j <= amrex_i_hi.y; ++j) { \
-        AMREX_PRAGMA_SIMD \
-        for (int i = amrex_i_lo.x; i <= amrex_i_hi.x; ++i) { \
+#define AMREX_GPU_HOST_DEVICE_FOR_4D(box,ncomp,i,j,k,n,block) \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept \
             block \
-        }}}} \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, ncomp, [=] (int i, int j, int k, int n) noexcept \
+            block \
+       ); \
     }
 
 #define AMREX_GPU_DEVICE_FOR_4D(box,ancomp,i,j,k,n,block) \
-    { \
-        int amrex_i_nc = ancomp; \
-        int amrex_i_ncells = box.numPts(); \
-        const auto amrex_i_lo  = amrex::lbound(box); \
-        const auto amrex_i_len = amrex::length(box); \
-        const auto amrex_i_ec = amrex::Gpu::ExecutionConfig(amrex_i_ncells); \
-        amrex::launch_global<<<amrex_i_ec.numBlocks, amrex_i_ec.numThreads, amrex_i_ec.sharedMem, amrex::Gpu::gpuStream()>>>( \
-        [=] AMREX_GPU_DEVICE () noexcept { \
-            for (int amrex_i_icell = blockDim.x*blockIdx.x+threadIdx.x, amrex_i_stride = blockDim.x*gridDim.x; \
-                     amrex_i_icell < amrex_i_ncells; amrex_i_icell += amrex_i_stride) { \
-                int k =  amrex_i_icell /   (amrex_i_len.x*amrex_i_len.y); \
-                int j = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) /   amrex_i_len.x; \
-                int i = (amrex_i_icell - k*(amrex_i_len.x*amrex_i_len.y)) - j*amrex_i_len.x; \
-                i += amrex_i_lo.x; \
-                j += amrex_i_lo.y; \
-                k += amrex_i_lo.z; \
-                for (int n = 0; n < amrex_i_nc; ++n) block \
-            } \
-        }); \
-        AMREX_GPU_ERROR_CHECK(); \
-    }
+    amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept \
+        block \
+    );
 
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_4D(...) AMREX_GPU_DEVICE_FOR_4D(__VA_ARGS__)
+
+// FOR_IV
+
+#define AMREX_GPU_HOST_DEVICE_FOR_IV(box,iv,block) \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv) noexcept \
+            block \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, [=] (amrex::IntVect const& iv) noexcept \
+            block \
+       ); \
+    }
+
+#define AMREX_GPU_DEVICE_FOR_IV(box,iv,block) \
+    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_IV(...) AMREX_GPU_DEVICE_FOR_IV(__VA_ARGS__)
+
+// FOR_IVC
+
+// We make a copy of ancomp
+#define AMREX_GPU_HOST_DEVICE_FOR_IVC(box,ncomp,iv,n,block) \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv, int n) noexcept \
+            block \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, ncomp, [=] (amrex::IntVect const& iv, int n) noexcept \
+            block \
+       ); \
+    }
+
+#define AMREX_GPU_DEVICE_FOR_IVC(box,ncomp,iv,n,block) \
+    amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv, int n) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_IVC(...) AMREX_GPU_DEVICE_FOR_IVC(__VA_ARGS__)
 
 #endif

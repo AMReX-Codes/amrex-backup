@@ -132,11 +132,11 @@ namespace Gpu {
 
 
 #ifdef AMREX_USE_GPU
-#include <AMReX_GpuLaunchMacrosG.H>
 #include <AMReX_GpuLaunchFunctsG.H>
+#include <AMReX_GpuLaunchMacrosG.H>
 #else
-#include <AMReX_GpuLaunchMacrosC.H>
 #include <AMReX_GpuLaunchFunctsC.H>
+#include <AMReX_GpuLaunchMacrosC.H>
 #endif
 
 #define AMREX_LAUNCH_HOST_DEVICE_LAMBDA_BOXIV(...) AMREX_GPU_LAUNCH_HOST_DEVICE_LAMBDA_BOXIV(__VA_ARGS__)
@@ -171,14 +171,20 @@ namespace Gpu {
 #define AMREX_FOR_1D(...)      AMREX_GPU_DEVICE_FOR_1D(__VA_ARGS__)
 #define AMREX_FOR_3D(...)      AMREX_GPU_DEVICE_FOR_3D(__VA_ARGS__)
 #define AMREX_FOR_4D(...)      AMREX_GPU_DEVICE_FOR_4D(__VA_ARGS__)
+#define AMREX_FOR_IV(...)      AMREX_GPU_DEVICE_FOR_IV(__VA_ARGS__)
+#define AMREX_FOR_IVC(...)     AMREX_GPU_DEVICE_FOR_IVC(__VA_ARGS__)
 
 #define AMREX_PARALLEL_FOR_1D(...)      AMREX_GPU_DEVICE_PARALLEL_FOR_1D(__VA_ARGS__)
 #define AMREX_PARALLEL_FOR_3D(...)      AMREX_GPU_DEVICE_PARALLEL_FOR_3D(__VA_ARGS__)
 #define AMREX_PARALLEL_FOR_4D(...)      AMREX_GPU_DEVICE_PARALLEL_FOR_4D(__VA_ARGS__)
+#define AMREX_PARALLEL_FOR_IV(...)      AMREX_GPU_DEVICE_PARALLEL_FOR_IV(__VA_ARGS__)
+#define AMREX_PARALLEL_FOR_IVC(...)     AMREX_GPU_DEVICE_PARALLEL_FOR_IVC(__VA_ARGS__)
 
 #define AMREX_HOST_DEVICE_FOR_1D(...) AMREX_GPU_HOST_DEVICE_FOR_1D(__VA_ARGS__)
 #define AMREX_HOST_DEVICE_FOR_3D(...) AMREX_GPU_HOST_DEVICE_FOR_3D(__VA_ARGS__)
 #define AMREX_HOST_DEVICE_FOR_4D(...) AMREX_GPU_HOST_DEVICE_FOR_4D(__VA_ARGS__)
+#define AMREX_HOST_DEVICE_FOR_IV(...) AMREX_GPU_HOST_DEVICE_FOR_IV(__VA_ARGS__)
+#define AMREX_HOST_DEVICE_FOR_IVC(...) AMREX_GPU_HOST_DEVICE_FOR_IVC(__VA_ARGS__)
 
 #ifdef AMREX_USE_GPU
 
@@ -208,6 +214,32 @@ namespace Gpu {
         ); \
     }
 
+#define AMREX_HOST_DEVICE_FOR_IV_FLAG(flag,box,iv,block) \
+    if (flag) \
+    { \
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv) noexcept \
+            block \
+        ); \
+    } \
+    else { \
+        amrex::LoopOnCpu(box, [=] (amrex::IntVect const& iv) noexcept \
+            block \
+        ); \
+    }
+
+#define AMREX_HOST_DEVICE_FOR_IVC_FLAG(flag,box,nc,iv,n,block) \
+    if (flag) \
+    { \
+        amrex::ParallelFor(box, nc, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv, int n) noexcept \
+            block \
+        ); \
+    } \
+    else { \
+        amrex::LoopOnCpu(box, nc, [=] (amrex::IntVect const& iv, int n) noexcept \
+            block \
+        ); \
+    }
+
 #define AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(flag,box,tbox,block) \
     if (flag) { \
         AMREX_LAUNCH_DEVICE_LAMBDA(box,tbox,block); \
@@ -225,6 +257,16 @@ namespace Gpu {
 
 #define AMREX_HOST_DEVICE_FOR_4D_FLAG(flag,box,nc,i,j,k,n,block) \
     amrex::LoopOnCpu(box, nc, [=] (int i, int j, int k, int n) noexcept \
+        block \
+    );
+
+#define AMREX_HOST_DEVICE_FOR_IV_FLAG(flag,box,iv,block) \
+    amrex::LoopOnCpu(box, [=] (IntVect const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_HOST_DEVICE_FOR_IVC_FLAG(flag,box,nc,iv,n,block) \
+    amrex::LoopOnCpu(box, nc, [=] (IntVect const& iv, int n) noexcept \
         block \
     );
 
