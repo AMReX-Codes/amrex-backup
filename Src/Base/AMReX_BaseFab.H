@@ -1871,7 +1871,7 @@ BaseFab<T>::copyToMem (const Box& srcbox,
 
     if (srcbox.ok())
     {
-        ArrayN<T> const& d = makeArrayN<T>(dst, srcbox, numcomp);
+        ArrayN<T> const& d = makeArrayN<T>((T*)dst, srcbox, numcomp);
         ArrayN<T const> const& s = amrex::shift(this->const_arraynd(), srccomp);
 
         amrex::LoopConcurrent(srcbox, numcomp,
@@ -1901,7 +1901,7 @@ BaseFab<T>::copyFromMem (const Box&  dstbox,
     if (dstbox.ok())
     {
         ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
-        ArrayN<T const> const& s = makeArrayN<T const>(src, dstbox, numcomp);
+        ArrayN<T const> const& s = makeArrayN<T const>((T const*)src,dstbox, numcomp);
 
         amrex::LoopConcurrent(dstbox, numcomp,
         [=] (IntVect const& iv, int n) noexcept
@@ -1930,7 +1930,7 @@ BaseFab<T>::addFromMem (const Box&  dstbox,
     if (dstbox.ok())
     {
         ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
-        ArrayN<T const> const& s = makeArrayN<T const>(src, dstbox, numcomp);
+        ArrayN<T const> const& s = makeArrayN<T const>((T const*)src, dstbox, numcomp);
 
         amrex::LoopConcurrent(dstbox, numcomp,
         [=] (IntVect const& iv, int n) noexcept

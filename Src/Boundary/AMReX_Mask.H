@@ -248,22 +248,14 @@ Mask::And (const Mask& src,
            int         destcomp,
            int         numcomp) noexcept
 {
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<int> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<int const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = dp(i,j,k,n) ? sp(i,j,k,n) : 0;
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = d(iv,n) ? s(iv,n) : 0;
+    });
 
     return *this;
 }
@@ -305,22 +297,14 @@ Mask::Or (const Mask& src,
           int         destcomp,
           int         numcomp) noexcept
 {
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<int> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<int const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = dp(i,j,k,n) ? 1: sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = d(iv,n) ? 1: s(iv,n);
+    });
 
     return *this;
 }

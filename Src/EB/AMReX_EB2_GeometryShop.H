@@ -321,20 +321,14 @@ public:
         const Real* AMREX_RESTRICT dx = geom.CellSize();
 
         const Box& bx = levelset.box();
-        const auto len = amrex::length(bx);
-        const auto lo  = amrex::lbound(bx);
-        const auto dp  = levelset.view(lo);
-        
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                for (int i = 0; i < len.x; ++i) {
-                    RealArray xyz {AMREX_D_DECL(problo[0]+(i+lo.x)*dx[0],
-                                                problo[1]+(j+lo.y)*dx[1],
-                                                problo[2]+(k+lo.z)*dx[2])};
-                    dp(i,j,k,0) = m_f(xyz);
-                }
-            }
-        }
+        const auto& a = levelset.array();
+        amrex::LoopOnCpu(bx, [=] (int i, int j, int k) noexcept
+        {
+            RealArray xyz {AMREX_D_DECL(problo[0]+i*dx[0],
+                                        problo[1]+j*dx[1],
+                                        problo[2]+k*dx[2])};
+            a(i,j,k) = m_f(xyz);
+        });
     }
 
     template <class U=F, typename std::enable_if<IsGPUable<U>::value>::type* FOO = nullptr >
