@@ -59,25 +59,6 @@ namespace amrex
     void BaseFab_Initialize ();
     void BaseFab_Finalize ();
 
-template <typename T>
-struct FabView
-{
-    T* AMREX_RESTRICT p;
-    int jstride;
-    int kstride;
-    long nstride;
-#ifdef AMREX_DEBUG
-    int iend, jend, kend, nend;
-#endif
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE T& operator() (int i, int j, int k, int n=0) const noexcept {
-#ifdef AMREX_DEBUG
-        AMREX_ASSERT(i<iend && j<jend && k<kend && n<nend);
-#endif
-        return *(p + (i+j*jstride+k*kstride+n*nstride));
-    }
-};
-
 struct SrcComp {
     AMREX_GPU_HOST_DEVICE
     explicit SrcComp (int ai) noexcept : i(ai) {}
@@ -252,6 +233,18 @@ public:
     AMREX_GPU_HOST_DEVICE
     explicit BaseFab (Array4<T const> const& a, IndexType t) noexcept;
 
+    AMREX_GPU_HOST_DEVICE
+    explicit BaseFab (ArrayN<T> const& a) noexcept;
+
+    AMREX_GPU_HOST_DEVICE
+    explicit BaseFab (ArrayN<T> const& a, IndexType t) noexcept;
+
+    AMREX_GPU_HOST_DEVICE
+    explicit BaseFab (ArrayN<T const> const& a) noexcept;
+
+    AMREX_GPU_HOST_DEVICE
+    explicit BaseFab (ArrayN<T const> const& a, IndexType t) noexcept;
+
     //! The destructor deletes the array memory.
     AMREX_GPU_HOST_DEVICE
     ~BaseFab () noexcept;
@@ -411,7 +404,11 @@ public:
     AMREX_GPU_HOST_DEVICE
     const T* dataPtr (const IntVect& iv, int n = 0) const noexcept;
 
-    void setPtr (T* p, long sz) noexcept { AMREX_ASSERT(this->dptr == 0 && this->truesize == 0); this->dptr = p; this->truesize = sz; }
+    void setPtr (T* p, long sz) noexcept {
+        AMREX_ASSERT(this->dptr == 0 && this->truesize == 0);
+        this->dptr = p;
+        this->truesize = sz;
+    }
 
     void prefetchToHost () const noexcept;
     void prefetchToDevice () const noexcept;
@@ -456,176 +453,6 @@ public:
     ArrayN<T const> const_arraynd () const noexcept
     {
         return makeArrayN<T const>(this->dptr, this->domain, this->nvar);
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T const> view (int n = 0) const noexcept
-    {
-        return view(this->domain.loVect3d(),n);
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T> view (int n = 0) noexcept
-    {
-        return view(this->domain.loVect3d(),n);
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T const> view (const IntVect& iv, int n = 0) const noexcept
-    {
-#if (AMREX_SPACEDIM == 1)
-        return view(GpuArray<int,3>{iv[0],    0,    0}, n);
-#elif (AMREX_SPACEDIM == 2)
-        return view(GpuArray<int,3>{iv[0],iv[1],    0}, n);
-#else
-        return view(GpuArray<int,3>{iv[0],iv[1],iv[2]}, n);
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T> view (const IntVect& iv, int n = 0) noexcept
-    {
-#if (AMREX_SPACEDIM == 1)
-        return view(GpuArray<int,3>{iv[0],    0,    0}, n);
-#elif (AMREX_SPACEDIM == 2)
-        return view(GpuArray<int,3>{iv[0],iv[1],    0}, n);
-#else
-        return view(GpuArray<int,3>{iv[0],iv[1],iv[2]}, n);
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T const> view (const Box& subbox, int n = 0) const noexcept
-    {
-        return view(subbox.loVect3d(),n);
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T> view (const Box& subbox, int n = 0) noexcept
-    {
-        return view(subbox.loVect3d(),n);
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T const> view (const GpuArray<int,3>& slo, int n = 0) const noexcept
-    {
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(std::numeric_limits<int>::max()));
-#else
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(INT_MAX));
-#endif
-        const auto& len = this->domain.length3d();
-        int jstride = len[0];
-        int kstride = jstride*len[1];
-        long nstride = kstride*len[2];
-        const auto& dlo = this->domain.loVect3d();
-        T const* p = this->dptr + ((slo[0]-dlo[0])
-                                +  (slo[1]-dlo[1])*jstride
-                                +  (slo[2]-dlo[2])*kstride
-                                +                n*nstride);
-#ifdef AMREX_DEBUG
-        return FabView<T const>{p, jstride, kstride, nstride,
-                len[0]-(slo[0]-dlo[0]),
-                len[1]-(slo[1]-dlo[1]),
-                len[2]-(slo[2]-dlo[2]),
-                this->nvar-n};
-#else
-        return FabView<T const>{p, jstride, kstride, nstride};
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T> view (const GpuArray<int,3>& slo, int n = 0) noexcept
-    {
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(std::numeric_limits<int>::max()));
-#else
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(INT_MAX));
-#endif
-        const auto& len = this->domain.length3d();
-        int jstride = len[0];
-        int kstride = jstride*len[1];
-        long nstride = kstride*len[2];
-        const auto& dlo = this->domain.loVect3d();
-        T* p = this->dptr + ((slo[0]-dlo[0])
-                          +  (slo[1]-dlo[1])*jstride
-                          +  (slo[2]-dlo[2])*kstride
-                          +                n*nstride);
-#ifdef AMREX_DEBUG
-        return FabView<T>{p, jstride, kstride, nstride,
-                len[0]-(slo[0]-dlo[0]),
-                len[1]-(slo[1]-dlo[1]),
-                len[2]-(slo[2]-dlo[2]),
-                this->nvar-n};
-#else
-        return FabView<T>{p, jstride, kstride, nstride};
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T const> view (const Dim3& slo, int n = 0) const noexcept
-    {
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(std::numeric_limits<int>::max()));
-#else
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(INT_MAX));
-#endif
-        const auto len = amrex::length(this->domain);
-        const auto dlo = amrex::lbound(this->domain);
-        int jstride = len.x;
-        int kstride = jstride*len.y;
-        long nstride = kstride*len.z;
-        T const* p = this->dptr + ((slo.x-dlo.x)
-                                +  (slo.y-dlo.y)*jstride
-                                +  (slo.z-dlo.z)*kstride
-                                +              n*nstride);
-#ifdef AMREX_DEBUG
-        return FabView<T const>{p, jstride, kstride, nstride,
-                len.x-(slo.x-dlo.x),
-                len.y-(slo.y-dlo.y),
-                len.z-(slo.z-dlo.z),
-                this->nvar-n};
-#else
-        return FabView<T const>{p, jstride, kstride, nstride};
-#endif
-    }
-
-    AMREX_GPU_HOST_DEVICE
-    AMREX_FORCE_INLINE
-    FabView<T> view (const Dim3& slo, int n = 0) noexcept
-    {
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(std::numeric_limits<int>::max()));
-#else
-        AMREX_ASSERT(this->domain.numPts() < static_cast<long>(INT_MAX));
-#endif
-        const auto len = amrex::length(this->domain);
-        const auto dlo = amrex::lbound(this->domain);
-        int jstride = len.x;
-        int kstride = jstride*len.y;
-        long nstride = kstride*len.z;
-        T* p = this->dptr + ((slo.x-dlo.x)
-                          +  (slo.y-dlo.y)*jstride
-                          +  (slo.z-dlo.z)*kstride
-                          +              n*nstride);
-#ifdef AMREX_DEBUG
-        return FabView<T>{p, jstride, kstride, nstride,
-                len.x-(slo.x-dlo.x),
-                len.y-(slo.y-dlo.y),
-                len.z-(slo.z-dlo.z),
-                this->nvar-n};
-#else
-        return FabView<T>{p, jstride, kstride, nstride};
-#endif
     }
 
     //! Returns true if the data for the FAB has been allocated.
@@ -915,28 +742,23 @@ public:
     * mask is resized by this function.
     * The number of cells marked with 1 returned.
     */
-    AMREX_GPU_HOST_DEVICE
     int maskLT (BaseFab<int>& mask,
                 T             val,
                 int           comp = 0) const noexcept;
     //! Same as above except mark cells with value less than or equal to val.
-    AMREX_GPU_HOST_DEVICE
     int maskLE (BaseFab<int>& mask,
                 T             val,
                 int           comp = 0) const noexcept;
 
     //! Same as above except mark cells with value equal to val.
-    AMREX_GPU_HOST_DEVICE
     int maskEQ (BaseFab<int>& mask,
                 T             val,
                 int           comp = 0) const noexcept;
     //! Same as above except mark cells with value greater than val.
-    AMREX_GPU_HOST_DEVICE
     int maskGT (BaseFab<int>& mask,
                 T             val,
                 int           comp = 0) const noexcept;
     //! Same as above except mark cells with value greater than or equal to val.
-    AMREX_GPU_HOST_DEVICE
     int maskGE (BaseFab<int>& mask,
                 T             val,
                 int           comp = 0) const noexcept;
@@ -1728,22 +1550,15 @@ BaseFab<T>::copy (const BaseFab<T>& src,
     AMREX_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     AMREX_ASSERT(destcomp >= 0 && destcomp+numcomp <= this->nvar);
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp,
+    [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = s(iv,n);
+    });
 
     return *this;
 }
@@ -1869,6 +1684,46 @@ BaseFab<T>::BaseFab (Array4<T const> const& a, IndexType t) noexcept
       domain(IntVect(AMREX_D6_DECL(a.begin.x,a.begin.y,a.begin.z,0,0,0)),
              IntVect(AMREX_D6_DECL(a.end.x-1,a.end.y-1,a.end.z-1,0,0,0)), t),
       nvar(a.ncomp), truesize(a.ncomp*a.nstride)
+{}
+
+template<class T>
+BaseFab<T>::BaseFab (ArrayN<T> const& a) noexcept
+    : dptr(a.p),
+      domain(IntVect(AMREX_D6_DECL(a.begin.i0,a.begin.i1,a.begin.i2,
+                                   a.begin.i3,a.begin.i4,a.begin.i5)),
+             IntVect(AMREX_D6_DECL(a.end.i0-1,a.end.i1-1,a.end.i2-1,
+                                   a.end.i3-1,a.end.i4-1,a.end.i5-1))),
+      nvar(a.ncomp), truesize(a.ncomp*a.stride[AMREX_SPACEDIM-1])
+{}
+
+template<class T>
+BaseFab<T>::BaseFab (ArrayN<T> const& a, IndexType t) noexcept
+    : dptr(a.p),
+      domain(IntVect(AMREX_D6_DECL(a.begin.i0,a.begin.i1,a.begin.i2,
+                                   a.begin.i3,a.begin.i4,a.begin.i5)),
+             IntVect(AMREX_D6_DECL(a.end.i0-1,a.end.i1-1,a.end.i2-1,
+                                   a.end.i3-1,a.end.i4-1,a.end.i5-1)), t),
+      nvar(a.ncomp), truesize(a.ncomp*a.stride[AMREX_SPACEDIM-1])
+{}
+
+template<class T>
+BaseFab<T>::BaseFab (ArrayN<T const> const& a) noexcept
+    : dptr(const_cast<T*>(a.p)),
+      domain(IntVect(AMREX_D6_DECL(a.begin.i0,a.begin.i1,a.begin.i2,
+                                   a.begin.i3,a.begin.i4,a.begin.i5)),
+             IntVect(AMREX_D6_DECL(a.end.i0-1,a.end.i1-1,a.end.i2-1,
+                                   a.end.i3-1,a.end.i4-1,a.end.i5-1))),
+      nvar(a.ncomp), truesize(a.ncomp*a.stride[AMREX_SPACEDIM-1])
+{}
+
+template<class T>
+BaseFab<T>::BaseFab (ArrayN<T const> const& a, IndexType t) noexcept
+    : dptr(const_cast<T*>(a.p)),
+      domain(IntVect(AMREX_D6_DECL(a.begin.i0,a.begin.i1,a.begin.i2,
+                                   a.begin.i3,a.begin.i4,a.begin.i5)),
+             IntVect(AMREX_D6_DECL(a.end.i0-1,a.end.i1-1,a.end.i2-1,
+                                   a.end.i3-1,a.end.i4-1,a.end.i5-1)), t),
+      nvar(a.ncomp), truesize(a.ncomp*a.stride[AMREX_SPACEDIM-1])
 {}
 
 template <class T>
@@ -2016,25 +1871,16 @@ BaseFab<T>::copyToMem (const Box& srcbox,
 
     if (srcbox.ok())
     {
-        T* AMREX_RESTRICT dp = static_cast<T*>(dst);
+        ArrayN<T> const& d = makeArrayN<T>(dst, srcbox, numcomp);
+        ArrayN<T const> const& s = amrex::shift(this->const_arraynd(), srccomp);
 
-        const auto len = amrex::length(srcbox);
-        const auto lo  = amrex::lbound(srcbox);
-        const auto sp  = view(lo, srccomp);
+        amrex::LoopConcurrent(srcbox, numcomp,
+        [=] (IntVect const& iv, int n) noexcept
+        {
+            d(iv,n) = s(iv,n);
+        });
 
-        std::size_t offset = 0;
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    AMREX_PRAGMA_SIMD
-                    for (int i = 0; i < len.x; ++i) {
-                        dp[offset+i] = sp(i,j,k,n);
-                    }
-                    offset += len.x;
-                }
-            }
-        }
-        return sizeof(T)*offset;
+        return sizeof(T) * d.size();
     }
     else
     {
@@ -2054,25 +1900,16 @@ BaseFab<T>::copyFromMem (const Box&  dstbox,
 
     if (dstbox.ok())
     {
-        T const* AMREX_RESTRICT sp = static_cast<T const*>(src);
+        ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
+        ArrayN<T const> const& s = makeArrayN<T const>(src, dstbox, numcomp);
 
-        const auto len = amrex::length(dstbox);
-        const auto lo  = amrex::lbound(dstbox);
-        const auto dp  = view(lo, dstcomp);
+        amrex::LoopConcurrent(dstbox, numcomp,
+        [=] (IntVect const& iv, int n) noexcept
+        {
+            d(iv,n) = s(iv,n);
+        });
 
-        std::size_t offset = 0;
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    AMREX_PRAGMA_SIMD
-                    for (int i = 0; i < len.x; ++i) {
-                        dp(i,j,k,n) = sp[offset+i];
-                    }
-                    offset += len.x;
-                }
-            }
-        }
-        return sizeof(T)*offset;
+        return sizeof(T) * s.size();
     }
     else
     {
@@ -2092,25 +1929,16 @@ BaseFab<T>::addFromMem (const Box&  dstbox,
 
     if (dstbox.ok())
     {
-        T const* AMREX_RESTRICT sp = static_cast<T const*>(src);
+        ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
+        ArrayN<T const> const& s = makeArrayN<T const>(src, dstbox, numcomp);
 
-        const auto len = amrex::length(dstbox);
-        const auto lo  = amrex::lbound(dstbox);
-        const auto dp  = view(lo, dstcomp);
+        amrex::LoopConcurrent(dstbox, numcomp,
+        [=] (IntVect const& iv, int n) noexcept
+        {
+            d(iv,n) += s(iv,n);
+        });
 
-        std::size_t offset = 0;
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    AMREX_PRAGMA_SIMD
-                    for (int i = 0; i < len.x; ++i) {
-                        dp(i,j,k,n) += sp[offset+i];
-                    }
-                    offset += len.x;
-                }
-            }
-        }
-        return sizeof(T)*offset;
+        return sizeof(T) * s.size();
     }
     else
     {
@@ -2145,20 +1973,12 @@ BaseFab<T>::abs (const Box& subbox,
                  int        comp,
                  int        numcomp) noexcept
 {
-    const auto len = amrex::length(subbox);
-    const auto lo  = amrex::lbound(subbox);
-    const auto dp  = view(lo, comp);
-
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = std::abs(dp(i,j,k,n));
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), comp);
+    amrex::LoopConcurrent(subbox, numcomp,
+    [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = std::abs(d(iv,n));
+    });
 }
 
 template <class T>
@@ -2171,23 +1991,17 @@ BaseFab<T>::norminfmask (const Box& subbox, const BaseFab<int>& mask,
 
     Real r = 0.0;
 
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   =      view(lo, scomp);
-    const auto mp   = mask.view(lo);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(),scomp);
+    ArrayN<int const> const& m = mask.const_arraynd();
 
-    for (int n = 0; n < ncomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                for (int i = 0; i < len.x; ++i) {
-                    if (mp(i,j,k,0)) {
-                        Real t = static_cast<Real>(std::abs(dp(i,j,k,n)));
-                        r = (r > t) ? r : t;
-                    }
-                }
-            }
+    amrex::Loop(subbox, ncomp,
+    [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        if (m(iv)) {
+            Real t = static_cast<Real>(std::abs(a(iv,n)));
+            r = (r > t) ? r : t;
         }
-    }
+    });
 
     return r;
 }
@@ -2213,46 +2027,33 @@ BaseFab<T>::norm (const Box& subbox,
 
     Real nrm = 0.;
 
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(),comp);
 
     if (p == 0)
     {
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    for (int i = 0; i < len.x; ++i) {
-                        Real t = static_cast<Real>(std::abs(dp(i,j,k,n)));
-                        nrm = (nrm > t) ? nrm : t;
-                    }
-                }
-            }
-        }
+        amrex::Loop(subbox, numcomp,
+        [=,&nrm] (IntVect const& iv, int n) noexcept
+        {
+            Real t = static_cast<Real>(std::abs(a(iv,n)));
+            nrm = (nrm > t) ? nrm : t;
+        });
     }
     else if (p == 1)
     {
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    for (int i = 0; i < len.x; ++i) {
-                        nrm += std::abs(dp(i,j,k,n));
-                    }
-                }
-            }
-        }
+        amrex::Loop(subbox, numcomp,
+        [=,&nrm] (IntVect const& iv, int n) noexcept
+        {
+            nrm += std::abs(a(iv,n));
+        });
     }
     else if (p == 2)
     {
-        for (int n = 0; n < numcomp; ++n) {
-            for         (int k = 0; k < len.z; ++k) {
-                for     (int j = 0; j < len.y; ++j) {
-                    for (int i = 0; i < len.x; ++i) {
-                        nrm += dp(i,j,k,n)*dp(i,j,k,n);
-                    }
-                }
-            }
-        }
+        amrex::Loop(subbox, numcomp,
+        [=,&nrm] (IntVect const& iv, int n) noexcept
+        {
+            Real t = static_cast<Real>(std::abs(a(iv,n)));
+            nrm += t*t;
+        });
         nrm = std::sqrt(nrm);
     }
     else
@@ -2274,24 +2075,17 @@ template <class T>
 T
 BaseFab<T>::min (const Box& subbox, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
     T r = std::numeric_limits<T>::max();
 #else
-    T r = *dp.p;
+    T r = a(subbox.smallEnd());
 #endif
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                T t = dp(i,j,k,0);
-                r = (r < t) ? r : t;
-            }
-        }
-    }
-
+    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    {
+        T t = a(iv);
+        r = (r < t) ? r : t;
+    });
     return r;
 }
 
@@ -2306,25 +2100,17 @@ template <class T>
 T
 BaseFab<T>::max (const Box& subbox, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
     T r = std::numeric_limits<T>::lowest();
 #else
-    T r = *dp.p;
+    T r = a(subbox.smallEnd());
 #endif
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                T t = dp(i,j,k,0);
-                r = (r > t) ? r : t;
-            }
-        }
-    }
-
+    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    {
+        T t = a(iv);
+        r = (r > t) ? r : t;
+    });
     return r;
 }
 
@@ -2339,25 +2125,17 @@ template <class T>
 T
 BaseFab<T>::maxabs (const Box& subbox, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
     T r = std::numeric_limits<T>::lowest();
 #else
-    T r = *dp.p;
+    T r = std::abs(a(subbox.smallEnd()));
 #endif
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                T t = std::abs(dp(i,j,k,0));
-                r = (r > t) ? r : t;
-            }
-        }
-    }
-
+    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    {
+        T t = std::abs(a(iv));
+        r = (r > t) ? r : t;
+    });
     return r;
 }
 
@@ -2373,80 +2151,51 @@ template <class T>
 IntVect
 BaseFab<T>::minIndex (const Box& subbox, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
+    IntVect r;
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-    AMREX_D_DECL(int imin, jmin, kmin);
     T min_val = std::numeric_limits<T>::max();
 #else
-    AMREX_D_DECL(int imin=0, jmin=0, kmin=0);
-    T min_val = *dp.p;
+    r = subbox.smallEnd();
+    T min_val = a(r);
 #endif
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) < min_val) {
-                    min_val = dp(i,j,k,0);
-                    AMREX_D_TERM(imin = i;,  jmin = j;,  kmin = k;)
-                }
-            }
+    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    {
+        if (a(iv) < min_val) {
+            min_val = a(iv);
+            r = iv;
         }
-    }
-
-    return IntVect(AMREX_D6_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z,0,0,0));
+    });
+    return r;
 }
 
 template <class T>
 IntVect
 BaseFab<T>::indexFromValue (Real value, const Box& subbox, int comp) const noexcept
 {
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-    AMREX_D_DECL(int imin = std::numeric_limits<int>::lowest(),
-                     jmin = std::numeric_limits<int>::lowest(),
-                     kmin = std::numeric_limits<int>::lowest());
-#else
-    AMREX_D_DECL(int imin = INT_MIN, jmin = INT_MIN, kmin = INT_MIN);
-#endif
-
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) == value) {
-                    AMREX_D_TERM(imin = i;,  jmin = j;,  kmin = k;)
-                }
-            }
+    IntVect r = IntVect::TheMinVector();
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
+    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    {
+        if (a(iv) == value) {
+            r = iv;
         }
-    }
-
-    return IntVect(AMREX_D6_DECL(imin+lo.x,jmin+lo.y,kmin+lo.z,0,0,0));
+    });
+    return r;
 }
 
 template <class T>
 void
 BaseFab<T>::minIndex (const Box& subbox, Real& min_val, IntVect& min_idx, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) < min_val) {
-                    min_val = dp(i,j,k,0);
-                    min_idx = IntVect(AMREX_D_DECL(i,j,k));
-                }
-            }
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
+    amrex::Loop(subbox, [=,&min_val,&min_idx] (IntVect const& iv) noexcept
+    {
+        if (a(iv) < min_val) {
+            min_val = a(iv);
+            min_idx = iv;
         }
-    }
-    AMREX_D_TERM(min_idx[0] += lo.x;, min_idx[1] += lo.y;, min_idx[2] += lo.z);
+    });
 }
 
 template <class T>
@@ -2458,202 +2207,151 @@ BaseFab<T>::maxIndex (int comp) const noexcept
 
 template <class T>
 IntVect
-BaseFab<T>::maxIndex (const Box& subbox,
-                      int        comp) const noexcept
+BaseFab<T>::maxIndex (const Box& subbox, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    IntVect r;
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-    AMREX_D_DECL(int imax, jmax, kmax);
     T max_val = std::numeric_limits<T>::lowest();
 #else
-    AMREX_D_DECL(int imax=0, jmax=0, kmax=0);
-    T max_val = *dp.p;
+    r = subbox.smallEnd();
+    T max_val = a(r);
 #endif
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) > max_val) {
-                    max_val = dp(i,j,k,0);
-                    AMREX_D_TERM(imax = i;, jmax = j;, kmax = k;)
-                }
-            }
+    amrex::Loop(subbox, [=,&max_val,&r] (IntVect const& iv) noexcept
+    {
+        if (a(iv) > max_val) {
+            max_val = a(iv);
+            r = iv;
         }
-    }
-
-    return IntVect(AMREX_D6_DECL(imax+lo.x,jmax+lo.y,kmax+lo.z,0,0,0));
+    });
+    return r;
 }
 
 template <class T>
 void
 BaseFab<T>::maxIndex (const Box& subbox, Real& max_val, IntVect& max_idx, int comp) const noexcept
 {
-    const auto len  = amrex::length(subbox);
-    const auto lo   = amrex::lbound(subbox);
-    const auto dp   = view(lo, comp);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) > max_val) {
-                    max_val = dp(i,j,k,0);
-                    max_idx = IntVect(AMREX_D_DECL(i,j,k));
-                }
-            }
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    amrex::Loop(subbox, [=,&max_val,&max_idx] (IntVect const& iv) noexcept
+    {
+        if (a(iv) > max_val) {
+            max_val = a(iv);
+            max_idx = iv;
         }
-    }
-    AMREX_D_TERM(max_idx[0] += lo.x;, max_idx[1] += lo.y;, max_idx[2] += lo.z);
+    });
 }
 
 template <class T>
 int
-BaseFab<T>::maskLT (BaseFab<int>& mask,
-                    T             val,
-                    int           comp) const noexcept
+BaseFab<T>::maskLT (BaseFab<int>& mask, T val, int comp) const noexcept
 {
     mask.resize(this->domain,1);
-    mask.setVal(0);
+
+    ArrayN<int> const& m = mask.arraynd();
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
 
     int cnt = 0;
-
-    const auto len  = amrex::length(this->domain);
-    const auto lo   = amrex::lbound(this->domain);
-    const auto dp   =      view(lo, comp);
-    const auto mp   = mask.view(lo);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) < val) {
-                    mp(i,j,k,0) = 1;
-                    ++cnt;
-                }
-            }
+    amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
+    {
+        if (a(iv) < val) {
+            m(iv) = 1;
+            ++cnt;
+        } else {
+            m(iv) = 0;
         }
-    }
+    });
 
     return cnt;
 }
 
 template <class T>
 int
-BaseFab<T>::maskLE (BaseFab<int>& mask,
-                    T             val,
-                    int           comp) const noexcept
+BaseFab<T>::maskLE (BaseFab<int>& mask, T val, int comp) const noexcept
 {
     mask.resize(this->domain,1);
-    mask.setVal(0);
+
+    ArrayN<int> const& m = mask.arraynd();
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
 
     int cnt = 0;
-
-    const auto len  = amrex::length(this->domain);
-    const auto lo   = amrex::lbound(this->domain);
-    const auto dp   =      view(lo, comp);
-    const auto mp   = mask.view(lo);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) <= val) {
-                    mp(i,j,k,0) = 1;
-                    ++cnt;
-                }
-            }
+    amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
+    {
+        if (a(iv) <= val) {
+            m(iv) = 1;
+            ++cnt;
+        } else {
+            m(iv) = 0;
         }
-    }
+    });
 
     return cnt;
 }
 
 template <class T>
 int
-BaseFab<T>::maskEQ (BaseFab<int>& mask,
-                    T             val,
-                    int           comp) const noexcept
+BaseFab<T>::maskEQ (BaseFab<int>& mask, T val, int comp) const noexcept
 {
     mask.resize(this->domain,1);
-    mask.setVal(0);
+
+    ArrayN<int> const& m = mask.arraynd();
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
 
     int cnt = 0;
-
-    const auto len  = amrex::length(this->domain);
-    const auto lo   = amrex::lbound(this->domain);
-    const auto dp   =      view(lo, comp);
-    const auto mp   = mask.view(lo);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) == val) {
-                    mp(i,j,k,0) = 1;
-                    ++cnt;
-                }
-            }
+    amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
+    {
+        if (a(iv) == val) {
+            m(iv) = 1;
+            ++cnt;
+        } else {
+            m(iv) = 0;
         }
-    }
+    });
 
     return cnt;
 }
 
 template <class T>
 int
-BaseFab<T>::maskGT (BaseFab<int>& mask,
-                    T             val,
-                    int           comp) const noexcept
+BaseFab<T>::maskGT (BaseFab<int>& mask, T val, int comp) const noexcept
 {
     mask.resize(this->domain,1);
-    mask.setVal(0);
+
+    ArrayN<int> const& m = mask.arraynd();
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
 
     int cnt = 0;
-
-    const auto len  = amrex::length(this->domain);
-    const auto lo   = amrex::lbound(this->domain);
-    const auto dp   =      view(lo, comp);
-    const auto mp   = mask.view(lo);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) > val) {
-                    mp(i,j,k,0) = 1;
-                    ++cnt;
-                }
-            }
+    amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
+    {
+        if (a(iv) > val) {
+            m(iv) = 1;
+            ++cnt;
+        } else {
+            m(iv) = 0;
         }
-    }
+    });
 
     return cnt;
 }
 
 template <class T>
 int
-BaseFab<T>::maskGE (BaseFab<int>& mask,
-                    T             val,
-                    int           comp) const noexcept
+BaseFab<T>::maskGE (BaseFab<int>& mask, T val, int comp) const noexcept
 {
     mask.resize(this->domain,1);
-    mask.setVal(0);
+
+    ArrayN<int> const& m = mask.arraynd();
+    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
 
     int cnt = 0;
-
-    const auto len  = amrex::length(this->domain);
-    const auto lo   = amrex::lbound(this->domain);
-    const auto dp   =      view(lo, comp);
-    const auto mp   = mask.view(lo);
-
-    for         (int k = 0; k < len.z; ++k) {
-        for     (int j = 0; j < len.y; ++j) {
-            for (int i = 0; i < len.x; ++i) {
-                if (dp(i,j,k,0) >= val) {
-                    mp(i,j,k,0) = 1;
-                    ++cnt;
-                }
-            }
+    amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
+    {
+        if (a(iv) >= val) {
+            m(iv) = 1;
+            ++cnt;
+        } else {
+            m(iv) = 0;
         }
-    }
+    });
 
     return cnt;
 }
@@ -2681,22 +2379,14 @@ BaseFab<T>::saxpy (T a, const BaseFab<T>& x,
     BL_ASSERT( srccomp >= 0 &&  srccomp+numcomp <= x.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <=   nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =   view(dlo, destcomp);
-    const auto sp  = x.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(x.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) += a * sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) += a * s(iv,n);
+    });
 
     return *this;
 }
@@ -2724,22 +2414,14 @@ BaseFab<T>::xpay (T a, const BaseFab<T>& x,
     BL_ASSERT( srccomp >= 0 &&  srccomp+numcomp <= x.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <=   nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =   view(dlo, destcomp);
-    const auto sp  = x.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(x.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = sp(i,j,k,n) + a * dp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = s(iv,n) + a * d(iv,n);
+    });
 
     return *this;
 }
@@ -2756,22 +2438,14 @@ BaseFab<T>::addproduct (const Box& destbox, int destcomp, int numcomp,
     BL_ASSERT(   comp2 >= 0 &&    comp2+numcomp <= src2.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <=      nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto lo  = amrex::lbound(destbox);
-    const auto dp  =      view(lo, destcomp);
-    const auto sp1 = src1.view(lo, comp1);
-    const auto sp2 = src2.view(lo, comp2);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    ArrayN<T const> const& s1 = amrex::shift(src1.const_arraynd(), comp1);
+    ArrayN<T const> const& s2 = amrex::shift(src2.const_arraynd(), comp2);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) += sp1(i,j,k,n) * sp2(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) += s1(iv,n) * s2(iv,n);
+    });
 
     return *this;
 }
@@ -2795,24 +2469,16 @@ BaseFab<T>::linComb (const BaseFab<T>& f1, const Box& b1, int comp1,
     BL_ASSERT(comp2 >= 0 && comp2+numcomp <= f2.nComp());
     BL_ASSERT(comp  >= 0 && comp +numcomp <=    nComp());
 
-    const auto len = amrex::length(b);
-    const auto dlo = amrex::lbound(b);
-    const auto slo1 = amrex::lbound(b1);
-    const auto slo2 = amrex::lbound(b2);
-    const auto dp  =    view(dlo,   comp);
-    const auto sp1 = f1.view(slo1, comp1);
-    const auto sp2 = f2.view(slo2, comp2);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), comp);
+    IntVect const& o1 = b1.smallEnd() - b.smallEnd();
+    IntVect const& o2 = b2.smallEnd() - b.smallEnd();
+    ArrayN<T const> const& s1 = amrex::shift(f1.const_arraynd(), o1, comp1);
+    ArrayN<T const> const& s2 = amrex::shift(f2.const_arraynd(), o2, comp2);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = alpha*sp1(i,j,k,n) + beta*sp2(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(b, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = alpha*s1(iv,n) + beta*s2(iv,n);
+    });
 
     return *this;
 }
@@ -2832,24 +2498,14 @@ BaseFab<T>::dot (const Box& xbx, int xcomp,
 
     T r = 0;
 
-    const auto len = amrex::length(xbx);
-    const auto xlo = amrex::lbound(xbx);
-    const auto ylo = amrex::lbound(ybx);
-    const auto xp  =   view(xlo, xcomp);
-    const auto yp  = y.view(ylo, ycomp);
+    ArrayN<T const> const& xa = amrex::shift(this->const_arraynd(), xcomp);
+    IntVect const& off = ybx.smallEnd() - xbx.smallEnd();
+    ArrayN<T const> const& ya = amrex::shift(y.const_arraynd(), off, ycomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                T const * const AMREX_RESTRICT xpr = &(xp(0,j,k,n));
-                T const * const AMREX_RESTRICT ypr = &(yp(0,j,k,n));
-                for (int i = 0; i < len.x; ++i) {
-//                    r += xp(i,j,k,n) * yp(i,j,k,n);
-                    r += xpr[i] * ypr[i];
-                }
-            }
-        }
-    }
+    amrex::Loop(xbx, numcomp, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        r += xa(iv,n) * ya(iv,n);
+    });
 
     return r;
 }
@@ -2869,23 +2525,15 @@ BaseFab<T>::dotmask (const BaseFab<int>& mask, const Box& xbx, int xcomp,
 
     T r = 0;
 
-    const auto len = amrex::length(xbx);
-    const auto xlo = amrex::lbound(xbx);
-    const auto ylo = amrex::lbound(ybx);
-    const auto xp  =      view(xlo, xcomp);
-    const auto yp  =    y.view(ylo, ycomp);
-    const auto mp  = mask.view(xlo);
+    ArrayN<int const> const& ma = mask.const_arraynd();
+    ArrayN<T const> const& xa = amrex::shift(this->const_arraynd(), xcomp);
+    IntVect const& off = ybx.smallEnd() - xbx.smallEnd();
+    ArrayN<T const> const& ya = amrex::shift(y.const_arraynd(), off, ycomp);    
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                for (int i = 0; i < len.x; ++i) {
-                    int m = static_cast<int>(static_cast<bool>(mp(i,j,k,0)));
-                    r += xp(i,j,k,n) * yp(i,j,k,n) * m;
-                }
-            }
-        }
-    }
+    amrex::Loop(xbx, numcomp, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        if (ma(iv)) r += xa(iv,n) * ya(iv,n);
+    });
 
     return r;
 }
@@ -2955,10 +2603,8 @@ BaseFab<T>::plus (const BaseFab<T>& src, int srccomp, int destcomp, int numcomp)
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::atomicAdd (const BaseFab<T>& src,
-                                 int               srccomp,
-                                 int               destcomp,
-                                 int               numcomp) noexcept
+BaseFab<T>::atomicAdd (const BaseFab<T>& src, int srccomp, int destcomp,
+                       int numcomp) noexcept
 {
     Box ovlp(this->domain);
     ovlp &= src.domain;
@@ -2967,22 +2613,16 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::plus (const BaseFab<T>& src,
-                  const Box&        subbox,
-                  int               srccomp,
-                  int               destcomp,
-                  int               numcomp) noexcept
+BaseFab<T>::plus (const BaseFab<T>& src, const Box& subbox, int srccomp,
+                  int destcomp, int numcomp) noexcept
 {
     return this->plus(src, subbox, SrcComp{srccomp}, DestComp{destcomp}, NumComps{numcomp});
 }
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::atomicAdd (const BaseFab<T>& src,
-                       const Box&        subbox,
-                       int               srccomp,
-                       int               destcomp,
-                       int               numcomp) noexcept
+BaseFab<T>::atomicAdd (const BaseFab<T>& src, const Box& subbox, int srccomp,
+                       int destcomp, int numcomp) noexcept
 {
     Box ovlp(this->domain);
     ovlp &= src.domain;
@@ -2992,12 +2632,8 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::plus (const BaseFab<T>& src,
-                  const Box&        srcbox,
-                  const Box&        destbox,
-                  int               srccomp,
-                  int               destcomp,
-                  int               numcomp) noexcept
+BaseFab<T>::plus (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                  int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3006,34 +2642,22 @@ BaseFab<T>::plus (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) += sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) += s(iv,n);
+    });
 
     return *this;
 }
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::atomicAdd (const BaseFab<T>& src,
-                       const Box&        srcbox,
-                       const Box&        destbox,
-                       int               srccomp,
-                       int               destcomp,
-                       int               numcomp) noexcept
+BaseFab<T>::atomicAdd (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                       int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3042,36 +2666,23 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-#ifdef _OPENMP
-                T       * dp1d = &(dp(0,j,k,n));
-                T const * sp1d = &(sp(0,j,k,n));
-#else
-                T       * AMREX_RESTRICT dp1d = &(dp(0,j,k,n));
-                T const * AMREX_RESTRICT sp1d = &(sp(0,j,k,n));
-                AMREX_PRAGMA_SIMD
-#endif
-                for (int i = 0; i < len.x; ++i) {
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        T * p = d.ptr(iv,n);
+        T q = s(iv,n);
 #ifndef AMREX_DEVICE_COMPILE
 #ifdef _OPENMP
 #pragma omp atomic update
 #endif
-                    dp1d[i] += sp1d[i];
+        *p += s;
 #else
-                    amrex::Gpu::Atomic::Add(&(dp1d[i]), sp1d[i]);
+        amrex::Gpu::Atomic::Add(p,q);
 #endif
-                }
-            }
-        }
-    }
+    });
 
     return *this;
 }
@@ -3092,12 +2703,8 @@ BaseFab<T>::minus (const BaseFab<T>& src, const Box& subbox, int srccomp, int de
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::minus (const BaseFab<T>& src,
-                   const Box&        srcbox,
-                   const Box&        destbox,
-                   int               srccomp,
-                   int               destcomp,
-                   int               numcomp) noexcept
+BaseFab<T>::minus (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                   int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3106,22 +2713,14 @@ BaseFab<T>::minus (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) -= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) -= s(iv,n);
+    });
 
     return *this;
 }
@@ -3156,12 +2755,8 @@ BaseFab<T>::mult (const BaseFab<T>& src, const Box& subbox, int srccomp, int des
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::mult (const BaseFab<T>& src,
-                  const Box&        srcbox,
-                  const Box&        destbox,
-                  int               srccomp,
-                  int               destcomp,
-                  int               numcomp) noexcept
+BaseFab<T>::mult (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                  int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3170,22 +2765,14 @@ BaseFab<T>::mult (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) *= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) *= s(iv,n);
+    });
 
     return *this;
 }
@@ -3220,12 +2807,8 @@ BaseFab<T>::divide (const BaseFab<T>& src, const Box& subbox, int srccomp, int d
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::divide (const BaseFab<T>& src,
-                    const Box&        srcbox,
-                    const Box&        destbox,
-                    int               srccomp,
-                    int               destcomp,
-                    int               numcomp) noexcept
+BaseFab<T>::divide (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                    int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3234,22 +2817,14 @@ BaseFab<T>::divide (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) /= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) /= s(iv,n);
+    });
 
     return *this;
 }
@@ -3265,10 +2840,8 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src) noexcept
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::protected_divide (const BaseFab<T>& src,
-                              int               srccomp,
-                              int               destcomp,
-                              int               numcomp) noexcept
+BaseFab<T>::protected_divide (const BaseFab<T>& src, int srccomp, int destcomp,
+                              int numcomp) noexcept
 {
     Box ovlp(this->domain);
     ovlp &= src.domain;
@@ -3277,11 +2850,8 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::protected_divide (const BaseFab<T>& src,
-                              const Box&        subbox,
-                              int               srccomp,
-                              int               destcomp,
-                              int               numcomp) noexcept
+BaseFab<T>::protected_divide (const BaseFab<T>& src, const Box& subbox, int srccomp,
+                              int destcomp, int numcomp) noexcept
 {
     Box ovlp(this->domain);
     ovlp &= src.domain;
@@ -3291,12 +2861,8 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::protected_divide (const BaseFab<T>& src,
-                              const Box&        srcbox,
-                              const Box&        destbox,
-                              int               srccomp,
-                              int               destcomp,
-                              int               numcomp) noexcept
+BaseFab<T>::protected_divide (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
+                              int srccomp, int destcomp, int numcomp) noexcept
 {
     BL_ASSERT(destbox.ok());
     BL_ASSERT(src.box().contains(srcbox));
@@ -3305,24 +2871,14 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src,
     BL_ASSERT(srccomp >= 0 && srccomp+numcomp <= src.nComp());
     BL_ASSERT(destcomp >= 0 && destcomp+numcomp <= nComp());
 
-    const auto len = amrex::length(destbox);
-    const auto dlo = amrex::lbound(destbox);
-    const auto slo = amrex::lbound(srcbox);
-    const auto dp  =     view(dlo, destcomp);
-    const auto sp  = src.view(slo, srccomp);
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
+    IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
 
-    for (int n = 0; n < numcomp; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    if (sp(i,j,k,n) != 0) {
-                        dp(i,j,k,n) /=  sp(i,j,k,n);
-                    }
-                }
-            }
-        }
-    }
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
+    {
+        if (s(iv,n) != 0) d(iv,n) += s(iv,n);
+    });
 
     return *this;
 }
@@ -3340,18 +2896,10 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::linInterp (const BaseFab<T>& f1,
-                       const Box&        b1,
-                       int               comp1,
-                       const BaseFab<T>& f2,
-                       const Box&        b2,
-                       int               comp2,
-                       Real              t1,
-                       Real              t2,
-                       Real              t,
-                       const Box&        b,
-                       int               comp,
-                       int               numcomp) noexcept
+BaseFab<T>::linInterp (const BaseFab<T>& f1, const Box& b1, int comp1,
+                       const BaseFab<T>& f2, const Box& b2, int comp2,
+                       Real t1, Real t2, Real t, const Box& b,
+                       int comp, int numcomp) noexcept
 {
     Real alpha = (t2-t)/(t2-t1);
     Real beta = (t-t1)/(t2-t1);
@@ -3360,16 +2908,10 @@ BaseFab<T>::linInterp (const BaseFab<T>& f1,
 
 template <class T>
 BaseFab<T>&
-BaseFab<T>::linInterp (const BaseFab<T>& f1,
-                       int               comp1,
-                       const BaseFab<T>& f2,
-                       int               comp2,
-                       Real              t1,
-                       Real              t2,
-                       Real              t,
-                       const Box&        b,
-                       int               comp,
-                       int               numcomp) noexcept
+BaseFab<T>::linInterp (const BaseFab<T>& f1, int comp1,
+                       const BaseFab<T>& f2, int comp2,
+                       Real t1, Real t2, Real t, const Box& b,
+                       int comp, int numcomp) noexcept
 {
   Real tol = 1.0e-16;
   if(std::abs(t2-t1) > tol)
@@ -3403,20 +2945,11 @@ BaseFab<T>::setVal (T x, Box bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     AMREX_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = x;
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = x;
+    });
 }
 
 template <class T>
@@ -3428,25 +2961,17 @@ BaseFab<T>::setValIf (T val, const BaseFab<int>& mask) noexcept
 
 template <class T>
 void
-BaseFab<T>::setValIf (T val, Box bx, const BaseFab<int>& mask, DestComp dcomp, NumComps ncomp) noexcept
+BaseFab<T>::setValIf (T val, Box bx, const BaseFab<int>& mask, DestComp dcomp,
+                      NumComps ncomp) noexcept
 {
     AMREX_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-    const auto mp  = mask.view(lo);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    if (mp(i,j,k,0)) { dp(i,j,k,n) = val; }
-                }
-            }
-        }
-    }
+    ArrayN<int const> const& m = mask.const_arraynd();
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        if (m(iv)) d(iv,n) = val;
+    });
 }
 
 template <class T>
@@ -3458,25 +2983,17 @@ BaseFab<T>::setValIfNot (T val, const BaseFab<int>& mask) noexcept
 
 template <class T>
 void
-BaseFab<T>::setValIfNot (T val, Box bx, const BaseFab<int>& mask, DestComp dcomp, NumComps ncomp) noexcept
+BaseFab<T>::setValIfNot (T val, Box bx, const BaseFab<int>& mask, DestComp dcomp,
+                         NumComps ncomp) noexcept
 {
     AMREX_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-    const auto mp  = mask.view(lo);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    if (!mp(i,j,k,0)) { dp(i,j,k,n) = val; }
-                }
-            }
-        }
-    }
+    ArrayN<int const> const& m = mask.const_arraynd();
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        if (!m(iv)) d(iv,n) = val;
+    });
 }
 
 template <class T>
@@ -3508,21 +3025,12 @@ BaseFab<T>::copy (const BaseFab<T>& src, Box bx,
 
     bx &= src.domain;
 
-    const auto len = amrex::length(bx);
-    const auto  lo = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) = s(iv,n);
+    });
 
     return *this;
 }
@@ -3547,20 +3055,11 @@ BaseFab<T>::plus (T val, Box bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) += val;
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) += val;
+    });
 
     return *this;
 }
@@ -3590,21 +3089,12 @@ BaseFab<T>::plus (const BaseFab<T>& src, Box bx,
 
     bx &= src.domain;
 
-    const auto len = amrex::length(bx);
-    const auto  lo = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) += sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) += s(iv,n);
+    });
 
     return *this;
 }
@@ -3629,20 +3119,11 @@ BaseFab<T>::minus (T val, Box bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) -= val;
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) -= val;
+    });
 
     return *this;
 }
@@ -3672,21 +3153,12 @@ BaseFab<T>::minus (const BaseFab<T>& src, Box bx,
 
     bx &= src.domain;
 
-    const auto len = amrex::length(bx);
-    const auto  lo = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) -= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) -= s(iv,n);
+    });
 
     return *this;
 }
@@ -3711,20 +3183,11 @@ BaseFab<T>::mult (T val, Box bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) *= val;
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) *= val;
+    });
 
     return *this;
 }
@@ -3754,21 +3217,12 @@ BaseFab<T>::mult (const BaseFab<T>& src, Box bx,
 
     bx &= src.domain;
 
-    const auto len = amrex::length(bx);
-    const auto  lo = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) *= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) *= s(iv,n);
+    });
 
     return *this;
 }
@@ -3793,20 +3247,11 @@ BaseFab<T>::divide (T val, Box bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) /= val;
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) /= val;
+    });
 
     return *this;
 }
@@ -3836,21 +3281,12 @@ BaseFab<T>::divide (const BaseFab<T>& src, Box bx,
 
     bx &= src.domain;
 
-    const auto len = amrex::length(bx);
-    const auto  lo = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) /= sp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        d(iv,n) /= s(iv,n);
+    });
 
     return *this;
 }
@@ -3868,20 +3304,11 @@ BaseFab<T>::negate (const Box& bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                   dp(i,j,k,n) = -dp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) -= a(iv,n);
+    });
 
     return *this;
 }
@@ -3899,20 +3326,11 @@ BaseFab<T>::invert (T r, const Box& bx, DestComp dcomp, NumComps ncomp) noexcept
 {
     BL_ASSERT(dcomp.i >= 0 && dcomp.i + ncomp.n <= this->nvar);
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                AMREX_PRAGMA_SIMD
-                for (int i = 0; i < len.x; ++i) {
-                    dp(i,j,k,n) = r / dp(i,j,k,n);
-                }
-            }
-        }
-    }
+    ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
+    {
+        a(iv,n) = r / a(iv,n);
+    });
 
     return *this;
 }
@@ -3925,27 +3343,19 @@ BaseFab<T>::sum (const Box& bx, DestComp dcomp, NumComps ncomp) const noexcept
 
     T r = 0;
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  = view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                T const * const AMREX_RESTRICT dpr = &(dp(0,j,k,n));
-                for (int i = 0; i < len.x; ++i) {
-                    r += dpr[i];
-                }
-            }
-        }
-    }
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), dcomp.i);
+    amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        r += a(iv,n);
+    });
 
     return r;
 }
 
 template <class T>
 T
-BaseFab<T>::dot (const BaseFab<T>& src, const Box& bx, SrcComp scomp, DestComp dcomp, NumComps ncomp) const noexcept
+BaseFab<T>::dot (const BaseFab<T>& src, const Box& bx, SrcComp scomp, DestComp dcomp,
+                 NumComps ncomp) const noexcept
 {
     AMREX_ASSERT(this->domain.sameType(src.domain));
     AMREX_ASSERT(scomp.i >= 0 && scomp.i+ncomp.n <= src.nvar);
@@ -3953,22 +3363,12 @@ BaseFab<T>::dot (const BaseFab<T>& src, const Box& bx, SrcComp scomp, DestComp d
 
     T r = 0;
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-    const auto sp  = src.view(lo, scomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                T const * const AMREX_RESTRICT dpr = &(dp(0,j,k,n));
-                T const * const AMREX_RESTRICT spr = &(sp(0,j,k,n));
-                for (int i = 0; i < len.x; ++i) {
-                    r += dpr[i] * spr[i];
-                }
-            }
-        }
-    }
+    ArrayN<T const> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        r += d(iv,n) * s(iv,n);
+    });
 
     return r;
 }
@@ -3989,20 +3389,12 @@ BaseFab<T>::dot (const Box& bx, DestComp dcomp, NumComps ncomp) const noexcept
 
     T r = 0;
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  =     view(lo, dcomp.i);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                T const * const AMREX_RESTRICT dpr = &(dp(0,j,k,n));
-                for (int i = 0; i < len.x; ++i) {
-                    r += dpr[i] * dpr[i];
-                }
-            }
-        }
-    }
+    ArrayN<T const> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        T t = d(iv,n);
+        r += t*t;
+    });
 
     return r;
 }
@@ -4019,25 +3411,13 @@ BaseFab<T>::dotmask (const BaseFab<T>& src, const Box& bx, const BaseFab<int>& m
 
     T r = 0;
 
-    const auto len = amrex::length(bx);
-    const auto lo  = amrex::lbound(bx);
-    const auto dp  =      view(lo, dcomp.i);
-    const auto sp  =  src.view(lo, scomp.i);
-    const auto mp  = mask.view(lo);
-
-    for (int n = 0; n < ncomp.n; ++n) {
-        for         (int k = 0; k < len.z; ++k) {
-            for     (int j = 0; j < len.y; ++j) {
-                T const * const AMREX_RESTRICT dpr = &(dp(0,j,k,n));
-                T const * const AMREX_RESTRICT spr = &(sp(0,j,k,n));
-                int const * const AMREX_RESTRICT mpr = &(mp(0,j,k));
-                for (int i = 0; i < len.x; ++i) {
-                    int m = static_cast<int>(static_cast<bool>(mpr[i]));
-                    r += dpr[i] * spr[i] * m;
-                }
-            }
-        }
-    }
+    ArrayN<int const> const& m = mask.const_arraynd();
+    ArrayN<T const> const& d = amrex::shift(this->const_arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
+    amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
+    {
+        if (m(iv)) r += d(iv,n) * s(iv,n);
+    });
 
     return r;
 }
