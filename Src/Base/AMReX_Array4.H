@@ -211,6 +211,28 @@ namespace amrex {
     }
 
     template <typename T>
+    AMREX_GPU_HOST_DEVICE
+    Array4<T> shift (Array4<T> const& src, int comp) noexcept
+    {
+        Array4<T> r = src;
+        r.p += comp*src.nstride;
+        r.ncomp -= comp;
+        return r;
+    }
+
+    template <typename T>
+    AMREX_GPU_HOST_DEVICE
+    Array4<T> shift (Array4<T> const& src, IntVect const& off, int comp) noexcept
+    {
+        Array4<T> r = src;
+        r.p += comp*src.nstride;
+        r.ncomp -= comp;
+        AMREX_D_TERM(r.begin.x += off[0];, r.begin.y += off[1];, r.begin.z += off[2];);
+        AMREX_D_TERM(  r.end.x += off[0];,   r.end.y += off[1];,   r.end.z += off[2];);
+        return r;
+    }
+
+    template <typename T>
     std::ostream& operator<< (std::ostream& os, const Array4<T>& a) {
         os << "((" << lbound(a) << ',' << ubound(a) << ")," << a.ncomp << ')';
         return os;
