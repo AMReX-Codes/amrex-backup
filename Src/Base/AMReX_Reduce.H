@@ -189,8 +189,8 @@ namespace Reduce { namespace detail {
     auto call_f (F const& f, int i, int j, int k, IndexType t)
         noexcept -> decltype(f(Box()))
     {
-        return f(Box(IntVect(AMREX_D_DECL(i,j,k)),
-                     IntVect(AMREX_D_DECL(i,j,k)),
+        return f(Box(IntVect(AMREX_D6_DECL(i,j,k,0,0,0)),
+                     IntVect(AMREX_D6_DECL(i,j,k,0,0,0)),
                      t));
     }
 }}

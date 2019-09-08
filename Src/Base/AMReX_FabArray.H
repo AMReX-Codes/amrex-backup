@@ -318,6 +318,24 @@ public:
     template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
     Array4<typename FabArray<FAB>::value_type const> const_array (int K) const noexcept;
 
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type const> arraynd (const MFIter& mfi) const noexcept;
+    //
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type> arraynd (const MFIter& mfi) noexcept;
+    //
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type const> arraynd (int K) const noexcept;
+    //
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type> arraynd (int K) noexcept;
+
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type const> const_arraynd (const MFIter& mfi) const noexcept;
+    //
+    template <class F=FAB, class = typename std::enable_if<IsBaseFab<F>::value>::type >
+    ArrayN<typename FabArray<FAB>::value_type const> const_arraynd (int K) const noexcept;
+
     //! Explicitly set the Kth FAB in the FabArray to point to elem.
     void setFab (int K, FAB* elem);
 
@@ -977,6 +995,54 @@ Array4<typename FabArray<FAB>::value_type const>
 FabArray<FAB>::const_array (int K) const noexcept
 {
     return fabPtr(K)->const_array();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::arraynd (const MFIter& mfi) const noexcept
+{
+    return fabPtr(mfi)->const_arraynd();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type>
+FabArray<FAB>::arraynd (const MFIter& mfi) noexcept
+{
+    return fabPtr(mfi)->arraynd();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::arraynd (int K) const noexcept
+{
+    return fabPtr(K)->const_arraynd();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type>
+FabArray<FAB>::arraynd (int K) noexcept
+{
+    return fabPtr(K)->arraynd();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::const_arraynd (const MFIter& mfi) const noexcept
+{
+    return fabPtr(mfi)->const_arraynd();
+}
+
+template <class FAB>
+template <class,class>
+ArrayN<typename FabArray<FAB>::value_type const>
+FabArray<FAB>::const_arraynd (int K) const noexcept
+{
+    return fabPtr(K)->const_arraynd();
 }
 
 template <class FAB>

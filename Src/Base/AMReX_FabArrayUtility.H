@@ -33,7 +33,7 @@ ReduceSum (FabArray<FAB> const& fa, IntVect const& nghost, F f)
         for (MFIter mfi(fa); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr = fa.array(mfi);
+            const auto& arr = fa.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -88,8 +88,8 @@ ReduceSum (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2,
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -145,9 +145,9 @@ ReduceSum (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2, FabArray<FAB3> 
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
-            const auto& arr3 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
+            const auto& arr3 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -203,7 +203,7 @@ ReduceMin (FabArray<FAB> const& fa, IntVect const& nghost, F f)
         for (MFIter mfi(fa); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr = fa.array(mfi);
+            const auto& arr = fa.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -258,8 +258,8 @@ ReduceMin (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2, IntVect const& 
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -315,7 +315,7 @@ ReduceMax (FabArray<FAB> const& fa, IntVect const& nghost, F f)
         for (MFIter mfi(fa); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr = fa.array(mfi);
+            const auto& arr = fa.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -370,8 +370,8 @@ ReduceMax (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2, IntVect const& 
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -425,7 +425,7 @@ ReduceLogicalAnd (FabArray<FAB> const& fa, IntVect const& nghost, F f)
         for (MFIter mfi(fa); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr = fa.array(mfi);
+            const auto& arr = fa.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -481,8 +481,8 @@ ReduceLogicalAnd (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2,
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -537,7 +537,7 @@ ReduceLogicalOr (FabArray<FAB> const& fa, IntVect const& nghost, F f)
         for (MFIter mfi(fa); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr = fa.array(mfi);
+            const auto& arr = fa.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {
@@ -593,8 +593,8 @@ ReduceLogicalOr (FabArray<FAB1> const& fa1, FabArray<FAB2> const& fa2,
         for (MFIter mfi(fa1); mfi.isValid(); ++mfi)
         {
             const Box& bx = amrex::grow(mfi.validbox(),nghost);
-            const auto& arr1 = fa1.array(mfi);
-            const auto& arr2 = fa2.array(mfi);
+            const auto& arr1 = fa1.arraynd(mfi);
+            const auto& arr2 = fa2.arraynd(mfi);
             reduce_op.eval(bx, reduce_data,
             [=] AMREX_GPU_DEVICE (Box const& b) -> ReduceTuple
             {

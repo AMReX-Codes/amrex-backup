@@ -237,6 +237,18 @@ public:
     AMREX_GPU_HOST_DEVICE
     explicit FArrayBox (Array4<Real const> const& a, IndexType t) noexcept : BaseFab<Real>(a,t) {}
 
+    AMREX_GPU_HOST_DEVICE
+    explicit FArrayBox (ArrayN<Real> const& a) noexcept : BaseFab<Real>(a) {}
+
+    AMREX_GPU_HOST_DEVICE
+    explicit FArrayBox (ArrayN<Real> const& a, IndexType t) noexcept : BaseFab<Real>(a,t) {}
+
+    AMREX_GPU_HOST_DEVICE
+    explicit FArrayBox (ArrayN<Real const> const& a) noexcept : BaseFab<Real>(a) {}
+
+    AMREX_GPU_HOST_DEVICE
+    explicit FArrayBox (ArrayN<Real const> const& a, IndexType t) noexcept : BaseFab<Real>(a,t) {}
+
     //!  The destructor.
     AMREX_GPU_HOST_DEVICE
     ~FArrayBox () noexcept {}
