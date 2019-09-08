@@ -1554,8 +1554,7 @@ BaseFab<T>::copy (const BaseFab<T>& src,
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
     ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
-    amrex::LoopConcurrent(destbox, numcomp,
-    [=] (IntVect const& iv, int n) noexcept
+    amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) = s(iv,n);
     });
@@ -1874,8 +1873,7 @@ BaseFab<T>::copyToMem (const Box& srcbox,
         ArrayN<T> const& d = makeArrayN<T>((T*)dst, srcbox, numcomp);
         ArrayN<T const> const& s = amrex::shift(this->const_arraynd(), srccomp);
 
-        amrex::LoopConcurrent(srcbox, numcomp,
-        [=] (IntVect const& iv, int n) noexcept
+        amrex::LoopConcurrent(srcbox, numcomp, [=] (IntVect const& iv, int n) noexcept
         {
             d(iv,n) = s(iv,n);
         });
@@ -1901,10 +1899,9 @@ BaseFab<T>::copyFromMem (const Box&  dstbox,
     if (dstbox.ok())
     {
         ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
-        ArrayN<T const> const& s = makeArrayN<T const>((T const*)src,dstbox, numcomp);
+        ArrayN<T const> const& s = makeArrayN<T const>((T const*)src, dstbox, numcomp);
 
-        amrex::LoopConcurrent(dstbox, numcomp,
-        [=] (IntVect const& iv, int n) noexcept
+        amrex::LoopConcurrent(dstbox, numcomp, [=] (IntVect const& iv, int n) noexcept
         {
             d(iv,n) = s(iv,n);
         });
@@ -1932,8 +1929,7 @@ BaseFab<T>::addFromMem (const Box&  dstbox,
         ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
         ArrayN<T const> const& s = makeArrayN<T const>((T const*)src, dstbox, numcomp);
 
-        amrex::LoopConcurrent(dstbox, numcomp,
-        [=] (IntVect const& iv, int n) noexcept
+        amrex::LoopConcurrent(dstbox, numcomp, [=] (IntVect const& iv, int n) noexcept
         {
             d(iv,n) += s(iv,n);
         });
@@ -1974,8 +1970,7 @@ BaseFab<T>::abs (const Box& subbox,
                  int        numcomp) noexcept
 {
     ArrayN<T> const& d = amrex::shift(this->arraynd(), comp);
-    amrex::LoopConcurrent(subbox, numcomp,
-    [=] (IntVect const& iv, int n) noexcept
+    amrex::LoopConcurrent(subbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) = std::abs(d(iv,n));
     });
@@ -1994,8 +1989,7 @@ BaseFab<T>::norminfmask (const Box& subbox, const BaseFab<int>& mask,
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(),scomp);
     ArrayN<int const> const& m = mask.const_arraynd();
 
-    amrex::Loop(subbox, ncomp,
-    [=,&r] (IntVect const& iv, int n) noexcept
+    amrex::Loop(subbox, ncomp, [=,&r] (IntVect const& iv, int n) noexcept
     {
         if (m(iv)) {
             Real t = static_cast<Real>(std::abs(a(iv,n)));
@@ -2031,8 +2025,7 @@ BaseFab<T>::norm (const Box& subbox,
 
     if (p == 0)
     {
-        amrex::Loop(subbox, numcomp,
-        [=,&nrm] (IntVect const& iv, int n) noexcept
+        amrex::Loop(subbox, numcomp, [=,&nrm] (IntVect const& iv, int n) noexcept
         {
             Real t = static_cast<Real>(std::abs(a(iv,n)));
             nrm = (nrm > t) ? nrm : t;
@@ -2040,18 +2033,16 @@ BaseFab<T>::norm (const Box& subbox,
     }
     else if (p == 1)
     {
-        amrex::Loop(subbox, numcomp,
-        [=,&nrm] (IntVect const& iv, int n) noexcept
+        amrex::Loop(subbox, numcomp, [=,&nrm] (IntVect const& iv, int n) noexcept
         {
             nrm += std::abs(a(iv,n));
         });
     }
     else if (p == 2)
     {
-        amrex::Loop(subbox, numcomp,
-        [=,&nrm] (IntVect const& iv, int n) noexcept
+        amrex::Loop(subbox, numcomp, [=,&nrm] (IntVect const& iv, int n) noexcept
         {
-            Real t = static_cast<Real>(std::abs(a(iv,n)));
+            Real t = a(iv,n);
             nrm += t*t;
         });
         nrm = std::sqrt(nrm);
@@ -2126,11 +2117,7 @@ T
 BaseFab<T>::maxabs (const Box& subbox, int comp) const noexcept
 {
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-    T r = std::numeric_limits<T>::lowest();
-#else
-    T r = std::abs(a(subbox.smallEnd()));
-#endif
+    T r = 0;
     amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
     {
         T t = std::abs(a(iv));
@@ -2209,7 +2196,7 @@ template <class T>
 IntVect
 BaseFab<T>::maxIndex (const Box& subbox, int comp) const noexcept
 {
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
     IntVect r;
 #if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
     T max_val = std::numeric_limits<T>::lowest();
@@ -2231,7 +2218,7 @@ template <class T>
 void
 BaseFab<T>::maxIndex (const Box& subbox, Real& max_val, IntVect& max_idx, int comp) const noexcept
 {
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
     amrex::Loop(subbox, [=,&max_val,&max_idx] (IntVect const& iv) noexcept
     {
         if (a(iv) > max_val) {
@@ -2248,7 +2235,7 @@ BaseFab<T>::maskLT (BaseFab<int>& mask, T val, int comp) const noexcept
     mask.resize(this->domain,1);
 
     ArrayN<int> const& m = mask.arraynd();
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
     amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
@@ -2271,7 +2258,7 @@ BaseFab<T>::maskLE (BaseFab<int>& mask, T val, int comp) const noexcept
     mask.resize(this->domain,1);
 
     ArrayN<int> const& m = mask.arraynd();
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
     amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
@@ -2294,7 +2281,7 @@ BaseFab<T>::maskEQ (BaseFab<int>& mask, T val, int comp) const noexcept
     mask.resize(this->domain,1);
 
     ArrayN<int> const& m = mask.arraynd();
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
     amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
@@ -2317,7 +2304,7 @@ BaseFab<T>::maskGT (BaseFab<int>& mask, T val, int comp) const noexcept
     mask.resize(this->domain,1);
 
     ArrayN<int> const& m = mask.arraynd();
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
     amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
@@ -2340,7 +2327,7 @@ BaseFab<T>::maskGE (BaseFab<int>& mask, T val, int comp) const noexcept
     mask.resize(this->domain,1);
 
     ArrayN<int> const& m = mask.arraynd();
-    ArrayN<T const> const& a = amrex::shift(this->arraynd(), comp);
+    ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
     amrex::Loop(this->domain, [=,&cnt] (IntVect const& iv) noexcept
@@ -2668,11 +2655,11 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src, const Box& srcbox, const Box& dest
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
-    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
     amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
-        T * p = d.ptr(iv,n);
+        T * AMREX_RESTRICT p = d.ptr(iv,n);
         T q = s(iv,n);
 #ifndef AMREX_DEVICE_COMPILE
 #ifdef _OPENMP
@@ -2683,7 +2670,6 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src, const Box& srcbox, const Box& dest
         amrex::Gpu::Atomic::Add(p,q);
 #endif
     });
-
     return *this;
 }
 
@@ -2715,7 +2701,7 @@ BaseFab<T>::minus (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
-    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
     amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
@@ -2767,7 +2753,7 @@ BaseFab<T>::mult (const BaseFab<T>& src, const Box& srcbox, const Box& destbox,
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
-    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
     amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
@@ -2819,7 +2805,7 @@ BaseFab<T>::divide (const BaseFab<T>& src, const Box& srcbox, const Box& destbox
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
-    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
     amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
@@ -2873,11 +2859,11 @@ BaseFab<T>::protected_divide (const BaseFab<T>& src, const Box& srcbox, const Bo
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), destcomp);
     IntVect const& off = srcbox.smallEnd() - destbox.smallEnd();
-    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), srcbox, srccomp);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), off, srccomp);
 
     amrex::LoopConcurrent(destbox, numcomp, [=] (IntVect const& iv, int n) noexcept
     {
-        if (s(iv,n) != 0) d(iv,n) += s(iv,n);
+        if (s(iv,n) != 0) d(iv,n) /= s(iv,n);
     });
 
     return *this;
@@ -3026,7 +3012,7 @@ BaseFab<T>::copy (const BaseFab<T>& src, Box bx,
     bx &= src.domain;
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) = s(iv,n);
@@ -3090,7 +3076,7 @@ BaseFab<T>::plus (const BaseFab<T>& src, Box bx,
     bx &= src.domain;
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) += s(iv,n);
@@ -3154,7 +3140,7 @@ BaseFab<T>::minus (const BaseFab<T>& src, Box bx,
     bx &= src.domain;
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) -= s(iv,n);
@@ -3218,7 +3204,7 @@ BaseFab<T>::mult (const BaseFab<T>& src, Box bx,
     bx &= src.domain;
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) *= s(iv,n);
@@ -3282,7 +3268,7 @@ BaseFab<T>::divide (const BaseFab<T>& src, Box bx,
     bx &= src.domain;
 
     ArrayN<T> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
         d(iv,n) /= s(iv,n);
@@ -3363,8 +3349,8 @@ BaseFab<T>::dot (const BaseFab<T>& src, const Box& bx, SrcComp scomp, DestComp d
 
     T r = 0;
 
-    ArrayN<T const> const& d = amrex::shift(this->arraynd(), dcomp.i);
-    ArrayN<T const> const& s = amrex::shift(src.arraynd(), scomp.i);
+    ArrayN<T const> const& d = amrex::shift(this->const_arraynd(), dcomp.i);
+    ArrayN<T const> const& s = amrex::shift(src.const_arraynd(), scomp.i);
     amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
     {
         r += d(iv,n) * s(iv,n);
@@ -3389,7 +3375,7 @@ BaseFab<T>::dot (const Box& bx, DestComp dcomp, NumComps ncomp) const noexcept
 
     T r = 0;
 
-    ArrayN<T const> const& d = amrex::shift(this->arraynd(), dcomp.i);
+    ArrayN<T const> const& d = amrex::shift(this->const_arraynd(), dcomp.i);
     amrex::Loop(bx, ncomp.n, [=,&r] (IntVect const& iv, int n) noexcept
     {
         T t = d(iv,n);
