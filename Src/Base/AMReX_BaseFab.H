@@ -2665,7 +2665,7 @@ BaseFab<T>::atomicAdd (const BaseFab<T>& src, const Box& srcbox, const Box& dest
 #ifdef _OPENMP
 #pragma omp atomic update
 #endif
-        *p += s;
+        *p += q;
 #else
         amrex::Gpu::Atomic::Add(p,q);
 #endif
