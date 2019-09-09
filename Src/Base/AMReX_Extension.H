@@ -52,7 +52,11 @@
 //#define AMREX_PRAGMA_SIMD _Pragma("omp simd")
 
 #elif defined(__INTEL_COMPILER)
+#if (__INTEL_COMPILER >= 1900 && __INTEL_COMPILER < 2000) // Intel 19 bug
+#define AMREX_PRAGMA_SIMD
+#else
 #define AMREX_PRAGMA_SIMD _Pragma("ivdep")
+#endif
 
 #elif defined(_CRAYC)
 #define AMREX_PRAGMA_SIMD _Pragma("ivdep")
