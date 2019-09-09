@@ -17,6 +17,7 @@ inline std::ostream& operator<< (std::ostream& os, const Dim3& d) {
 
 #if (AMREX_SPACEDIM == 1)
 struct DimN { int i0; };
+struct LDimN { long i0; };
 struct XDimN { Real x0; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 <<')';
@@ -24,6 +25,7 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
 }
 #elif (AMREX_SPACEDIM == 2)
 struct DimN { int i0; int i1; };
+struct LDimN { long i0; long i1; };
 struct XDimN { Real x0; Real x1; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 <<')';
@@ -31,6 +33,7 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
 }
 #elif (AMREX_SPACEDIM == 3)
 struct DimN { int i0; int i1; int i2; };
+struct LDimN { long i0; long i1; long i2; };
 struct XDimN { Real x0; Real x1; Real x2; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 << ',' << d.i2 <<')';
@@ -38,6 +41,7 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
 }
 #elif (AMREX_SPACEDIM == 4)
 struct DimN { int i0; int i1; int i2; int i3; };
+struct LDimN { long i0; long i1; long i2; long i3; };
 struct XDimN { Real x0; Real x1; Real x2; Real x3; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 << ',' << d.i2 << ',' << d.i3 <<')';
@@ -45,6 +49,7 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
 }
 #elif (AMREX_SPACEDIM == 5)
 struct DimN { int i0; int i1; int i2; int i3; int i4; };
+struct LDimN { long i0; long i1; long i2; long i3; long i4; };
 struct XDimN { Real x0; Real x1; Real x2; Real x3; Real x4; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 << ',' << d.i2
@@ -53,6 +58,7 @@ inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
 }
 #elif (AMREX_SPACEDIM == 6)
 struct DimN { int i0; int i1; int i2; int i3; int i4; int i5; };
+struct LDimN { long i0; long i1; long i2; long i3; long i4; long i5; };
 struct XDimN { Real x0; Real x1; Real x2; Real x3; Real x4; Real x5; };
 inline std::ostream& operator<< (std::ostream& os, const DimN& d) {
     os << '(' << d.i0 << ',' << d.i1 << ',' << d.i2

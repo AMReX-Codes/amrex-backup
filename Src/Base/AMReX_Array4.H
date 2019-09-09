@@ -138,6 +138,54 @@ namespace amrex {
 #endif
         }
 
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        U& operator() (DimN const& iv) const noexcept {
+#if (AMREX_SPACEDIM == 1)
+            return this->operator()(iv.i0,0,0);
+#elif (AMREX_SPACEDIM == 2)
+            return this->operator()(iv.i0,iv.i1,0);
+#else
+            return this->operator()(iv.i0,iv.i1,iv.i2);
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        U& operator() (DimN const& iv, int n) const noexcept {
+#if (AMREX_SPACEDIM == 1)
+            return this->operator()(iv.i0,0,0,n);
+#elif (AMREX_SPACEDIM == 2)
+            return this->operator()(iv.i0,iv.i1,0,n);
+#else
+            return this->operator()(iv.i0,iv.i1,iv.i2,n);
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        T* ptr (DimN const& iv) const noexcept {
+#if (AMREX_SPACEDIM == 1)
+            return this->ptr(iv.i0,0,0);
+#elif (AMREX_SPACEDIM == 2)
+            return this->ptr(iv.i0,iv.i1,0);
+#else
+            return this->ptr(iv.i0,iv.i1,iv.i2);
+#endif
+        }
+
+        template <class U=T, class = typename std::enable_if<!std::is_void<U>::value>::type >
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        T* ptr (DimN const& iv, int n) const noexcept {
+#if (AMREX_SPACEDIM == 1)
+            return this->ptr(iv.i0,0,0,n);
+#elif (AMREX_SPACEDIM == 2)
+            return this->ptr(iv.i0,iv.i1,0,n);
+#else
+            return this->ptr(iv.i0,iv.i1,iv.i2,n);
+#endif
+        }
+
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
         T* dataPtr () const noexcept {
             return this->p;

@@ -462,7 +462,6 @@
 
 // FOR_IVC
 
-// We make a copy of ancomp
 #define AMREX_GPU_HOST_DEVICE_FOR_IVC(box,ncomp,iv,n,block) \
     if (amrex::Gpu::inLaunchRegion()) { \
         amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (amrex::IntVect const& iv, int n) noexcept \
@@ -480,5 +479,46 @@
     );
 
 #define AMREX_GPU_DEVICE_PARALLEL_FOR_IVC(...) AMREX_GPU_DEVICE_FOR_IVC(__VA_ARGS__)
+
+// FOR_DIMN
+
+#define AMREX_GPU_HOST_DEVICE_FOR_DIMN(box,iv,block) \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv) noexcept \
+            block \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, [=] (amrex::DimN const& iv) noexcept \
+            block \
+       ); \
+    }
+
+#define AMREX_GPU_DEVICE_FOR_DIMN(box,iv,block) \
+    amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_DIMN(...) AMREX_GPU_DEVICE_FOR_DIMN(__VA_ARGS__)
+
+// FOR_DIMNC
+
+#define AMREX_GPU_HOST_DEVICE_FOR_DIMNC(box,ncomp,iv,n,block) \
+    if (amrex::Gpu::inLaunchRegion()) { \
+        amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv, int n) noexcept \
+            block \
+        ); \
+    } else { \
+       amrex::LoopConcurrentOnCpu(box, ncomp, [=] (amrex::DimN const& iv, int n) noexcept \
+            block \
+       ); \
+    }
+
+#define AMREX_GPU_DEVICE_FOR_DIMNC(box,ncomp,iv,n,block) \
+    amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv, int n) noexcept \
+        block \
+    );
+
+#define AMREX_GPU_DEVICE_PARALLEL_FOR_DIMNC(...) AMREX_GPU_DEVICE_FOR_DIMNC(__VA_ARGS__)
+
 
 #endif

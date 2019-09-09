@@ -240,6 +240,32 @@ namespace Gpu {
         ); \
     }
 
+#define AMREX_HOST_DEVICE_FOR_DIMN_FLAG(flag,box,iv,block) \
+    if (flag) \
+    { \
+        amrex::ParallelFor(box, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv) noexcept \
+            block \
+        ); \
+    } \
+    else { \
+        amrex::LoopOnCpu(box, [=] (amrex::DimN const& iv) noexcept \
+            block \
+        ); \
+    }
+
+#define AMREX_HOST_DEVICE_FOR_DIMNC_FLAG(flag,box,nc,iv,n,block) \
+    if (flag) \
+    { \
+        amrex::ParallelFor(box, nc, [=] AMREX_GPU_DEVICE (amrex::DimN const& iv, int n) noexcept \
+            block \
+        ); \
+    } \
+    else { \
+        amrex::LoopOnCpu(box, nc, [=] (amrex::DimN const& iv, int n) noexcept \
+            block \
+        ); \
+    }
+
 #define AMREX_LAUNCH_HOST_DEVICE_LAMBDA_FLAG(flag,box,tbox,block) \
     if (flag) { \
         AMREX_LAUNCH_DEVICE_LAMBDA(box,tbox,block); \
@@ -261,12 +287,22 @@ namespace Gpu {
     );
 
 #define AMREX_HOST_DEVICE_FOR_IV_FLAG(flag,box,iv,block) \
-    amrex::LoopOnCpu(box, [=] (IntVect const& iv) noexcept \
+    amrex::LoopOnCpu(box, [=] (amrex::IntVect const& iv) noexcept \
         block \
     );
 
 #define AMREX_HOST_DEVICE_FOR_IVC_FLAG(flag,box,nc,iv,n,block) \
-    amrex::LoopOnCpu(box, nc, [=] (IntVect const& iv, int n) noexcept \
+    amrex::LoopOnCpu(box, nc, [=] (amrex::IntVect const& iv, int n) noexcept \
+        block \
+    );
+
+#define AMREX_HOST_DEVICE_FOR_DIMN_FLAG(flag,box,iv,block) \
+    amrex::LoopOnCpu(box, [=] (amrex::DimN const& iv) noexcept \
+        block \
+    );
+
+#define AMREX_HOST_DEVICE_FOR_DIMNC_FLAG(flag,box,nc,iv,n,block) \
+    amrex::LoopOnCpu(box, nc, [=] (amrex::DimN const& iv, int n) noexcept \
         block \
     );
 

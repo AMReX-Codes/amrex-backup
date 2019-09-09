@@ -61,6 +61,25 @@ namespace detail {
         f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
     }
 
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(DimN{}))
+    {
+        f(DimN{AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)});
+    }
+
+    template <typename F>
+    AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+    auto call_f (F const& f,
+                 AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                 int n)
+        noexcept -> decltype(f(DimN{},0))
+    {
+        f(DimN{AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)},n);
+    }
+
     // pure host versions
 
     template <typename F>
@@ -115,6 +134,25 @@ namespace detail {
         noexcept -> decltype(f(IntVect(),0))
     {
         f(IntVect(AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)),n);
+    }
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5))
+        noexcept -> decltype(f(DimN{}))
+    {
+        f(DimN{AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)});
+    }
+
+    template <typename F>
+    AMREX_FORCE_INLINE
+    auto call_f_host (F const& f,
+                      AMREX_D6_DECL(int i0,int i1,int i2,int i3,int i4,int i5),
+                      int n)
+        noexcept -> decltype(f(DimN{},0))
+    {
+        f(DimN{AMREX_D6_DECL(i0,i1,i2,i3,i4,i5)},n);
     }
 }
 
