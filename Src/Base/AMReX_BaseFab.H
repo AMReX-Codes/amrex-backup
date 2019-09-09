@@ -3293,7 +3293,7 @@ BaseFab<T>::negate (const Box& bx, DestComp dcomp, NumComps ncomp) noexcept
     ArrayN<T> const& a = amrex::shift(this->arraynd(), dcomp.i);
     amrex::LoopConcurrent(bx, ncomp.n, [=] (IntVect const& iv, int n) noexcept
     {
-        a(iv,n) -= a(iv,n);
+        a(iv,n) = -a(iv,n);
     });
 
     return *this;
