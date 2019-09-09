@@ -2146,7 +2146,7 @@ BaseFab<T>::minIndex (const Box& subbox, int comp) const noexcept
     r = subbox.smallEnd();
     T min_val = a(r);
 #endif
-    amrex::Loop(subbox, [=,&r] (IntVect const& iv) noexcept
+    amrex::Loop(subbox, [=,&r,&min_val] (IntVect const& iv) noexcept
     {
         if (a(iv) < min_val) {
             min_val = a(iv);
