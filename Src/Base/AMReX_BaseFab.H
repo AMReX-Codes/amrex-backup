@@ -2238,7 +2238,7 @@ BaseFab<T>::maskLT (BaseFab<int>& mask, T val, int comp) const noexcept
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
-    amrex::Loop(this->domain, [=,&cnt] (DimN const& iv) noexcept
+    amrex::LoopOnCpu(this->domain, [=,&cnt] (DimN const& iv) noexcept
     {
         if (a(iv) < val) {
             m(iv) = 1;
@@ -2261,7 +2261,7 @@ BaseFab<T>::maskLE (BaseFab<int>& mask, T val, int comp) const noexcept
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
-    amrex::Loop(this->domain, [=,&cnt] (DimN const& iv) noexcept
+    amrex::LoopOnCpu(this->domain, [=,&cnt] (DimN const& iv) noexcept
     {
         if (a(iv) <= val) {
             m(iv) = 1;
@@ -2284,7 +2284,7 @@ BaseFab<T>::maskEQ (BaseFab<int>& mask, T val, int comp) const noexcept
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
-    amrex::Loop(this->domain, [=,&cnt] (DimN const& iv) noexcept
+    amrex::LoopOnCpu(this->domain, [=,&cnt] (DimN const& iv) noexcept
     {
         if (a(iv) == val) {
             m(iv) = 1;
@@ -2307,7 +2307,7 @@ BaseFab<T>::maskGT (BaseFab<int>& mask, T val, int comp) const noexcept
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
-    amrex::Loop(this->domain, [=,&cnt] (DimN const& iv) noexcept
+    amrex::LoopOnCpu(this->domain, [=,&cnt] (DimN const& iv) noexcept
     {
         if (a(iv) > val) {
             m(iv) = 1;
@@ -2330,7 +2330,7 @@ BaseFab<T>::maskGE (BaseFab<int>& mask, T val, int comp) const noexcept
     ArrayN<T const> const& a = amrex::shift(this->const_arraynd(), comp);
 
     int cnt = 0;
-    amrex::Loop(this->domain, [=,&cnt] (DimN const& iv) noexcept
+    amrex::LoopOnCpu(this->domain, [=,&cnt] (DimN const& iv) noexcept
     {
         if (a(iv) >= val) {
             m(iv) = 1;
