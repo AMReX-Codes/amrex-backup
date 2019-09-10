@@ -884,9 +884,8 @@ Box::coarsen (const IntVect& ref_ratio) noexcept
         {
             for (int dir = 0, D=static_cast<int>(dimen); dir < D; dir++)
             {
-                bigend[dir] = amrex::coarsen(bigend[dir],ref_ratio[dir]);
                 int off = btype[dir] && (bigend[dir]%ref_ratio[dir]);
-                bigend[dir] += off;
+                bigend[dir] = amrex::coarsen(bigend[dir],ref_ratio[dir]) + off;
             }
         }
         else
