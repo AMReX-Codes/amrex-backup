@@ -474,7 +474,7 @@ namespace amrex {
         AMREX_GPU_HOST_DEVICE inline
         void index_assert (IntVect const& iv, int n) const
         {
-            index_assert(DimN{AMREX_D6_DECL(iv[0],iv[1],iv[2],iv[3],iv[4],iv[5])});
+            index_assert(DimN{AMREX_D6_DECL(iv[0],iv[1],iv[2],iv[3],iv[4],iv[5])},n);
         }
 #endif
     };
