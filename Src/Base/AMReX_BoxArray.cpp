@@ -277,6 +277,7 @@ BoxArray::BoxArray ()
     m_typ(),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(amrex::maxDim),
     m_ref(std::make_shared<BARef>())
 {}
 
@@ -286,6 +287,7 @@ BoxArray::BoxArray (const Box& bx)
     m_typ(bx.ixType()),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(bx.dimension()),
     m_ref(std::make_shared<BARef>(amrex::enclosedCells(bx)))
 {}
 
@@ -295,6 +297,7 @@ BoxArray::BoxArray (const BoxList& bl)
     m_typ(bl.ixType()),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(bl.dimension()),
     m_ref(std::make_shared<BARef>(bl))
 {
     type_update();
@@ -306,6 +309,7 @@ BoxArray::BoxArray (BoxList&& bl) noexcept
     m_typ(bl.ixType()),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(bl.dimension()),
     m_ref(std::make_shared<BARef>(std::move(bl)))
 {
     type_update();
@@ -317,6 +321,7 @@ BoxArray::BoxArray (size_t n)
     m_typ(),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(amrex::maxDim),
     m_ref(std::make_shared<BARef>(n))
 {}
 
@@ -327,6 +332,7 @@ BoxArray::BoxArray (const Box* bxvec,
     m_typ(bxvec->ixType()),
     m_crse_ratio(IntVect::TheUnitVector()),
     m_simple(true),
+    m_dimen(bxvec->dimension()),
     m_ref(std::make_shared<BARef>(nbox))
 {
     for (int i = 0; i < nbox; i++) {
@@ -340,6 +346,7 @@ BoxArray::BoxArray (const BoxArray& rhs, const BATransformer& trans)
     m_typ(trans.ixType()),
     m_crse_ratio(rhs.m_crse_ratio * trans.crseRatio()),
     m_simple(trans.simple()),
+    m_dimen(rhs.m_dimen),
     m_ref(rhs.m_ref)
 {
     BL_ASSERT(rhs.m_typ.cellCentered());  // rhs must be cell-centered.
@@ -354,6 +361,7 @@ BoxArray::BoxArray (const BoxArray& rhs)
     m_typ(rhs.m_typ),
     m_crse_ratio(rhs.m_crse_ratio),
     m_simple(rhs.m_simple),
+    m_dimen(rhs.m_dimen),
     m_ref(rhs.m_ref)
 {}
 
@@ -364,6 +372,7 @@ BoxArray::operator= (const BoxArray& rhs)
     m_typ = rhs.m_typ;
     m_crse_ratio = rhs.m_crse_ratio;
     m_simple = rhs.m_simple;
+    m_dimen = rhs.m_dimen;
     m_ref = rhs.m_ref;
     return *this;
 }
@@ -376,6 +385,7 @@ BoxArray::define (const Box& bx)
     m_typ = bx.ixType();
     m_crse_ratio = IntVect::TheUnitVector();
     m_simple = true;
+    m_dimen = bx.dimension();
     m_ref->define(amrex::enclosedCells(bx));
 }
 
@@ -387,12 +397,14 @@ BoxArray::define (const BoxList& bl)
     m_crse_ratio = IntVect::TheUnitVector();
     m_simple = true;
     type_update();
+    m_dimen = bl.dimension();
 }
 
 void
 BoxArray::define (BoxList&& bl) noexcept
 {
     clear();
+    m_dimen = bl.dimension();
     m_ref->define(std::move(bl));
     m_crse_ratio = IntVect::TheUnitVector();
     m_simple = true;
@@ -482,11 +494,13 @@ BoxArray::operator== (const BoxArray& rhs) const noexcept
 {
     if (m_simple && rhs.m_simple) {
         return m_typ == rhs.m_typ && m_crse_ratio == rhs.m_crse_ratio &&
+            m_dimen == rhs.m_dimen &&
             (m_ref == rhs.m_ref || m_ref->m_abox == rhs.m_ref->m_abox);
     } else {
         return m_simple == rhs.m_simple
             && m_typ == rhs.m_typ
             && m_crse_ratio == rhs.m_crse_ratio
+            && m_dimen == rhs.m_dimen
             && m_transformer->equal(*rhs.m_transformer)
             && (m_ref == rhs.m_ref || m_ref->m_abox == rhs.m_ref->m_abox);
     }
@@ -517,7 +531,7 @@ BoxArray::operator!= (const Vector<Box>& bv) const noexcept
 bool
 BoxArray::CellEqual (const BoxArray& rhs) const noexcept
 {
-    return m_crse_ratio == rhs.m_crse_ratio
+    return m_crse_ratio == rhs.m_crse_ratio && m_dimen == rhs.m_dimen
         && (m_ref == rhs.m_ref || m_ref->m_abox == rhs.m_ref->m_abox);
 }
 
@@ -808,6 +822,7 @@ BoxArray::set (int        i,
     BL_ASSERT(m_simple && m_crse_ratio == IntVect::TheUnitVector());
     if (i == 0) {
         m_typ = ibox.ixType();
+        m_dimen = ibox.dimension();
         m_transformer->setIxType(m_typ);
     }
     m_ref->m_abox[i] = amrex::enclosedCells(ibox);
@@ -938,7 +953,7 @@ Box
 BoxArray::minimalBox () const
 {
     BL_ASSERT(m_simple);
-    Box minbox;
+    Box minbox(dimension());
     const int N = size();
     if (N > 0)
     {
@@ -987,7 +1002,7 @@ Box
 BoxArray::minimalBox (long& npts_avg_box) const
 {
     BL_ASSERT(m_simple);
-    Box minbox;
+    Box minbox(dimension());
     const int N = size();
     long npts_tot = 0;
     if (N > 0)
@@ -1125,7 +1140,7 @@ BoxArray::intersections (const Box&                         bx,
         const IntVect& sm = amrex::max(gbx.smallEnd()-1, m_ref->bbox.smallEnd());
         const IntVect& bg = amrex::min(gbx.bigEnd(),     m_ref->bbox.bigEnd());
 
-        Box cbx(sm,bg);
+        Box cbx(sm,bg, dimension());
         cbx.normalize();
 
 	if (!cbx.intersects(m_ref->bbox)) return;
@@ -1191,7 +1206,7 @@ BoxArray::complementIn (BoxList& bl, const Box& bx) const
         const IntVect& sm = amrex::max(gbx.smallEnd()-1, m_ref->bbox.smallEnd());
         const IntVect& bg = amrex::min(gbx.bigEnd(),     m_ref->bbox.bigEnd());
 
-        Box cbx(sm,bg);
+        Box cbx(sm,bg,dimension());
         cbx.normalize();
 
 	if (!cbx.intersects(m_ref->bbox)) return;
@@ -1265,7 +1280,7 @@ BoxArray::removeOverlap (bool simplify)
 
     BARef::HashType& BoxHashMap = m_ref->hash;
 
-    const Box EmptyBox;
+    const Box EmptyBox(dimension());
 
     std::vector< std::pair<int,Box> > isects;
     //
@@ -1337,6 +1352,7 @@ BoxArray::type_update ()
     if (!empty())
     {
 	m_typ = m_ref->m_abox[0].ixType();
+        m_dimen = m_ref->m_abox[0].dimension();
         m_transformer->setIxType(m_typ);
 	if (!m_typ.cellCentered())
 	{

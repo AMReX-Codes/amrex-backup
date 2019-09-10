@@ -1525,7 +1525,7 @@ FabArrayBase::buildTileArray (const IntVect& tileSize, TileArray& ta) const
 		    }
 		}
 		
-		Box tbx(small, big, IndexType::TheCellType());
+		Box tbx(small, big, IndexType::TheCellType(), dimension());
 		tbx.shift(bx.smallEnd());
 		
 		ta.tileArray.push_back(tbx);

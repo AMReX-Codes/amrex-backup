@@ -15,6 +15,9 @@ void test_5d_fab ()
     auto a = fab.arraynd();
     amrex::ParallelFor(bx,
     [=] AMREX_GPU_DEVICE (DimN const& iv) noexcept
+    // or [=] AMREX_GPU_DEVICE (IntVect const& iv) noexcept
+    // but intel 19 has a bug that affects using IntVect.
+    // A bug report has been filed by NERSC and Cray.
     {
         a(iv) = 5.;
     });

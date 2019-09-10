@@ -183,6 +183,7 @@ public:
     IndexType ixType () const noexcept { return btype; }
     //! Set the type of the BoxList.  It's an error if the BoxList isn't empty.
     void set (IndexType ixtyp) noexcept { BL_ASSERT(m_lbox.empty()); btype = ixtyp; }
+    Dimension dimension () const noexcept { return dimen; }
     /**
     * \brief Applies surroundingNodes(Box) to each Box in BoxArray.
     * See the documentation of Box for details.
@@ -208,6 +209,7 @@ public:
     void swap (BoxList& rhs) {
 	std::swap(m_lbox, rhs.m_lbox);
 	std::swap(btype, rhs.btype);
+        std::swap(dimen, rhs.dimen);
     }
 
 private:
@@ -218,7 +220,7 @@ private:
     Vector<Box> m_lbox;
     //! The IndexType of Boxes in the BoxList.
     IndexType btype;
-
+    Dimension dimen;
 };
 
 }

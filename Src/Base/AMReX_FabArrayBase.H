@@ -75,6 +75,8 @@ public:
     //! Return index type.
     IndexType ixType () const noexcept { return boxarray.ixType(); }
 
+    Dimension dimension () const noexcept { return boxarray.dimension(); }
+
     //Return whether this FabArray is empty
     bool empty () const noexcept { return boxarray.empty(); }
 

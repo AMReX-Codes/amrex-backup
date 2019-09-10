@@ -69,21 +69,21 @@ BoxList::clear ()
 void
 BoxList::join (const BoxList& blist)
 {
-    BL_ASSERT(ixType() == blist.ixType());
+    BL_ASSERT(ixType() == blist.ixType() && dimension() == blist.dimension());
     m_lbox.insert(std::end(m_lbox), std::begin(blist), std::end(blist));
 }
 
 void
 BoxList::join (const Vector<Box>& barr)
 {
-    BL_ASSERT(barr.size() == 0 || ixType() == barr[0].ixType());
+    BL_ASSERT(barr.size() == 0 || (ixType() == barr[0].ixType() && dimension() == barr[0].dimension()));
     m_lbox.insert(std::end(m_lbox), std::begin(barr), std::end(barr));
 }
 
 void
 BoxList::catenate (BoxList& blist)
 {
-    BL_ASSERT(ixType() == blist.ixType());
+    BL_ASSERT(ixType() == blist.ixType() && dimension() == blist.dimension());
     m_lbox.insert(std::end(m_lbox), std::begin(blist), std::end(blist));
     blist.m_lbox.clear();
 }
@@ -101,7 +101,7 @@ BoxList
 intersect (const BoxList& bl,
            const Box&     b)
 {
-    BL_ASSERT(bl.ixType() == b.ixType());
+    BL_ASSERT(bl.ixType() == b.ixType() && bl.dimension() == b.dimension());
     BoxList newbl(bl);
     newbl.intersect(b);
     return newbl;
@@ -151,40 +151,47 @@ BoxList::operator!= (const BoxList& rhs) const
 BoxList::BoxList ()
     :
     m_lbox(),
-    btype(IndexType::TheCellType())
+    btype(IndexType::TheCellType()),
+    dimen(amrex::maxDim)
 {}
 
 BoxList::BoxList (const Box& bx)
     : 
     m_lbox(1,bx),
-    btype(bx.ixType())
+    btype(bx.ixType()),
+    dimen(bx.dimension())
 {
 }
 
 BoxList::BoxList (IndexType _btype)
     :
     m_lbox(),
-    btype(_btype)
+    btype(_btype),
+    dimen(amrex::maxDim)
 {}
 
 BoxList::BoxList (const BoxArray &ba)
     :
     m_lbox(std::move(ba.boxList().data())),
-    btype(ba.ixType())
+    btype(ba.ixType()),
+    dimen(ba.dimension())
 {
 }
 
 BoxList::BoxList (Vector<Box>&& bxs)
     : m_lbox(std::move(bxs)),
-      btype(IndexType::TheCellType())
+      btype(IndexType::TheCellType()),
+      dimen(amrex::maxDim)
 {
     if (m_lbox.size() > 0) {
         btype = m_lbox[0].ixType();
+        dimen = m_lbox[0].dimension();
     }
 }
 
 BoxList::BoxList(const Box& bx, const IntVect& tilesize)
-    : btype(bx.ixType())
+    : btype(bx.ixType()),
+      dimen(bx.dimension())
 {
     int ntiles = 1;
     IntVect nt;
@@ -210,14 +217,15 @@ BoxList::BoxList(const Box& bx, const IntVect& tilesize)
 	    big[d] = std::min(small[d]+tilesize[d]-1, bx.length(d)-1);
 	}
 
-	Box tbx(small, big, btype);
+	Box tbx(small, big, btype, dimen);
 	tbx.shift(bx.smallEnd());
 	push_back(tbx);
     }
 }
 
 BoxList::BoxList (const Box& bx, int nboxes)
-    : btype(bx.ixType())
+    : btype(bx.ixType()),
+      dimen(bx.dimension())
 {
     AMREX_ASSERT(nboxes > 0);
     AMREX_ASSERT(bx.numPts() >= nboxes);
@@ -227,7 +235,8 @@ BoxList::BoxList (const Box& bx, int nboxes)
 }
 
 BoxList::BoxList (const Box& bx, int nboxes, Direction dir)
-    : btype(bx.ixType())
+    : btype(bx.ixType()),
+      dimen(bx.dimension())
 {
     int idir = static_cast<int>(dir);
 
@@ -258,7 +267,7 @@ BoxList::contains (const BoxList&  bl) const
 {
     if (isEmpty() || bl.isEmpty()) return false;
 
-    BL_ASSERT(ixType() == bl.ixType());
+    BL_ASSERT(ixType() == bl.ixType() && dimension() == bl.dimension());
 
     BoxArray ba(*this);
 
@@ -274,7 +283,7 @@ BoxList::contains (const BoxList&  bl) const
 BoxList&
 BoxList::intersect (const Box& b)
 {
-    BL_ASSERT(ixType() == b.ixType());
+    BL_ASSERT(ixType() == b.ixType() && dimension() == b.dimension());
 
     for (Box& bx : m_lbox)
     {
@@ -297,7 +306,7 @@ BoxList::intersect (const Box& b)
 BoxList&
 BoxList::intersect (const BoxList& bl)
 {
-    BL_ASSERT(ixType() == bl.ixType());
+    BL_ASSERT(ixType() == bl.ixType() && dimension() == bl.dimension());
     *this = amrex::intersect(BoxArray{*this}, bl);
     return *this;
 }
@@ -306,7 +315,7 @@ BoxList
 complementIn (const Box&     b,
               const BoxList& bl)
 {
-    BL_ASSERT(bl.ixType() == b.ixType());
+    BL_ASSERT(bl.ixType() == b.ixType() && bl.dimension() == b.dimension());
     BoxList newb(b.ixType());
     newb.complementIn(b,bl);
     return newb;
@@ -508,7 +517,7 @@ BoxList
 boxDiff (const Box& b1in,
          const Box& b2)
 {
-   BL_ASSERT(b1in.sameType(b2));  
+   BL_ASSERT(b1in.sameType(b2) && b1in.dimension() == b2.dimension());
    BoxList bl_diff(b1in.ixType());
    boxDiff(bl_diff,b1in,b2);
    return bl_diff;
@@ -517,7 +526,7 @@ boxDiff (const Box& b1in,
 void
 boxDiff (BoxList& bl_diff, const Box& b1in, const Box& b2)
 {
-   AMREX_ASSERT(b1in.sameType(b2));
+   AMREX_ASSERT(b1in.sameType(b2) && b1in.dimension() == b2.dimension());
 
    bl_diff.clear();
    bl_diff.set(b2.ixType());
@@ -648,7 +657,7 @@ BoxList::simplify_doit (bool best)
 Box
 BoxList::minimalBox () const
 {
-    Box minbox(IntVect::TheUnitVector(), IntVect::TheZeroVector(), ixType());
+    Box minbox(IntVect::TheUnitVector(), IntVect::TheZeroVector(), ixType(), dimension());
     if ( !isEmpty() )
     {
         const_iterator bli = begin(), End = end();

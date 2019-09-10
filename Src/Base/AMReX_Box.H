@@ -49,7 +49,16 @@ public:
     constexpr Box () noexcept
         : smallend(1),
           bigend(0),
-          btype()
+          btype(),
+          dimen(amrex::maxDim)
+        {}
+
+    AMREX_GPU_HOST_DEVICE
+    constexpr Box (Dimension d) noexcept
+        : smallend(amrex::convert(IntVect(1),d)),
+          bigend(amrex::convert(IntVect(0),d)),
+          btype(),
+          dimen(d)
         {}
 
     //! Construct cell-centered type Box.

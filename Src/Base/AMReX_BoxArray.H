@@ -484,6 +484,8 @@ public:
     //! Return index type of this BoxArray
     IndexType ixType () const noexcept { return m_typ; }
 
+    Dimension dimension () const noexcept { return m_dimen; }
+
     //! Return crse ratio of this BoxArray
     IntVect crseRatio () const noexcept { return m_crse_ratio; }
 
@@ -507,6 +509,8 @@ private:
     IndexType m_typ;
     IntVect   m_crse_ratio;
     bool      m_simple;
+
+    Dimension m_dimen;
 
     //! The data -- a reference-counted pointer to a Ref.
     std::shared_ptr<BARef> m_ref;
