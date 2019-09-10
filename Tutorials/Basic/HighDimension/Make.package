@@ -1,3 +1,3 @@
-CEXE_sources += main.cpp
-CEXE_headers += f_F.H
+CEXE_sources += main.cpp fab_test.cpp multifab_test.cpp
+CEXE_headers += f_F.H fab_test.H multifab_test.H
 F90EXE_sources += f.F90
