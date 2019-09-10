@@ -6,6 +6,7 @@ Tfin = 0.1
 plot_int = 1
 #  Spatial size 64
 n_cell = 128
+n_cell = 64
 max_grid_size = 16
 
 #  Define SDC parameters

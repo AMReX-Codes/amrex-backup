@@ -68,6 +68,7 @@ void main_main ()
     // Manufactured solution parameters
     Real k_freq =3.14159265358979323846;
     Real epsilon = 0.25; // 0.25;
+    pp.query("epsilon",epsilon);
     Real kappa = 2*d*pow(k_freq,2.0); // This choice leads to cancellation analytically. Doesn't matter now.
     
     
@@ -81,6 +82,7 @@ void main_main ()
             is_periodic[idim] = 0;  // Need this?
         }
     }
+    
     // Check that we have external dirichlet conditions in place.
     for (int idim=0; idim < AMREX_SPACEDIM; ++idim) {
         if (!(bc_lo[idim] == EXT_DIR && bc_hi[idim] == EXT_DIR)) {
@@ -291,6 +293,7 @@ void main_main ()
                  BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
                  geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq);
     }
+    BccCoef.FillBoundary();
     
     std::array<MultiFab,AMREX_SPACEDIM> face_bcoef;
    // Product Storage
@@ -301,7 +304,7 @@ void main_main ()
         const BoxArray& bamg = amrex::convert(BccCoef.boxArray(),
                                               IntVect::TheDimensionVector(idim));
         face_bcoef[idim].define(bamg, BccCoef.DistributionMap(), 1, 2);  face_bcoef[idim].setBndry(0);
-        prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,0);
+        prod_stor[idim].define(bamg, acoef.DistributionMap(), 1,2);
         // Apply fortran routine to find face valued b_coeffs using cell centered bcc.
         
         for ( MFIter mfi(BccCoef); mfi.isValid(); ++mfi )
@@ -312,6 +315,8 @@ void main_main ()
                        BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
                        &idim );
         }
+
+        face_bcoef[idim].FillBoundary();
     }
 
 mlabec.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
@@ -482,12 +487,43 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     rhs.setVal(0);
     MultiFab::Saxpy(rhs,aScalarLoc,soln,0,0,1,0);
     MultiFab::Saxpy(rhs,1.0,eval_storage,0,0,1,0);
+
+
+#if 0
+    MultiFab tmp(ba, dm, 1, 2);
+    MultiFab::Copy(tmp,soln,0,0,1,2);
+    mlabec_BCfill.fourthOrderBCFill(tmp,bvalues);
+        
+    for ( MFIter mfi(soln); mfi.isValid(); ++mfi )
+    {
+      const Box& bx = mfi.validbox();
+      SDC_feval_F(BL_TO_FORTRAN_BOX(bx),
+                  BL_TO_FORTRAN_BOX(domain_bx),
+                  BL_TO_FORTRAN_ANYD(tmp[mfi]),
+                  BL_TO_FORTRAN_ANYD(flux[0][mfi]),
+                  BL_TO_FORTRAN_ANYD(flux[1][mfi]),
+#if (AMREX_SPACEDIM == 3)
+                  BL_TO_FORTRAN_ANYD(flux[2][mfi]),
+#endif
+                  BL_TO_FORTRAN_ANYD(rhs[mfi]),
+                  dx,&a,&d,&r,
+                  BL_TO_FORTRAN_ANYD(face_bcoef[0][mfi]),
+                  BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
+                  BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
+                  BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
+                  &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);      
+    }
+    MultiFab::Saxpy(rhs,-1,soln,0,0,1,0);
+    rhs.mult(-1);
+#endif    
     
     ////////////////////////////////////////////////////////////////
     // INITIAL GUESS FOR SOLN
     ////////////////////////////////////////////////////////////////
     
     approx_soln.setVal(0,0); approx_soln.setBndry(0);
+
+    MultiFab::Copy(approx_soln,soln,0,0,1,2);
     
     ////////////////////////////////////////////////////////////////
     // Spatial iterations LOOP
@@ -522,13 +558,13 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                         &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
             
         }
-    
+
         //Rescale resid as it is currently just an evaluation        
         resid.setVal(0.0);
         MultiFab::Saxpy(resid,1.0,eval_storage,0,0,1,0);
         MultiFab::Saxpy(resid,1.0,rhs,0,0,1,0);
         MultiFab::Saxpy(resid,-aScalarLoc,approx_soln,0,0,1,0);
-        
+
         resnorm =  resid.norm0();
         
      /*   if(resnorm <= tol_res){

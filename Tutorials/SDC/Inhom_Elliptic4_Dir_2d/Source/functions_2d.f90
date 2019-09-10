@@ -100,8 +100,8 @@ pi=3.14159265358979323846d0
 
 
         ! x-fluxes
-        !do j = philo(2), phihi(2)
-        do j = lo(2), hi(2)
+        do j = philo(2), phihi(2)
+        !do j = lo(2), hi(2)
            do i = lo(1), hi(1)+1
               ! fluxx(i,j) = ( phi(i,j) - phi(i-1,j) ) / dx(1)
               fluxx(i,j) = ( -phi(i+1,j)  +15.0d0*(phi(i,j) - phi(i-1,j)) + phi(i-2,j) ) /(12.0d0*dx(1))
@@ -110,8 +110,8 @@ pi=3.14159265358979323846d0
         
         ! y-fluxes
         do j = lo(2), hi(2)+1
-           !do i = philo(1), phihi(1)
-           do i = lo(1), hi(1)
+           do i = philo(1), phihi(1)
+           !do i = lo(1), hi(1)
               ! fluxy(i,j) = ( phi(i,j) - phi(i,j-1) ) / dx(2)
               fluxy(i,j) = ( -phi(i,j+1)  +15.0d0*(phi(i,j) - phi(i,j-1)) + phi(i,j-2) ) /(12.0d0*dx(2))
            end do
@@ -122,9 +122,10 @@ pi=3.14159265358979323846d0
         do j = lo(2), hi(2)
             do i = lo(1), hi(1)+1
                ! no dx in one variables!
-               !phi_one = (-5.d0*fluxx(i,j+2)+34.d0*(fluxx(i,j+1)-fluxx(i,j-1))+5.d0*fluxx(i,j-2))/48.d0
-               !face_one =(-5.d0*facex(i,j+2)+34.d0*(facex(i,j+1)-facex(i,j-1))+5.d0*facex(i,j-2))/48.d0
-               prodx(i,j) = fluxx(i,j)*facex(i,j) !+ phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
+               phi_one = (-5.d0*fluxx(i,j+2)+34.d0*(fluxx(i,j+1)-fluxx(i,j-1))+5.d0*fluxx(i,j-2))/48.d0
+               face_one =(-5.d0*facex(i,j+2)+34.d0*(facex(i,j+1)-facex(i,j-1))+5.d0*facex(i,j-2))/48.d0
+               !prodx(i,j) = fluxx(i,j)*facex(i,j) !+ phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
+               prodx(i,j) = fluxx(i,j)*facex(i,j) + phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
             end do
         end do
 
@@ -132,9 +133,10 @@ pi=3.14159265358979323846d0
         do j = lo(2), hi(2)+1
             do i = lo(1), hi(1)
                 ! no dx in one variables!
-                !phi_one = (-5.d0*fluxy(i+2,j)+34.d0*(fluxy(i+1,j)-fluxy(i-1,j))+5.d0*fluxy(i-2,j))/48.d0
-                !face_one =(-5.d0*facey(i+2,j)+34.d0*(facey(i+1,j)-facey(i-1,j))+5.d0*facey(i-2,j))/48.d0
-                prody(i,j) = fluxy(i,j)*facey(i,j) !+ phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
+                phi_one = (-5.d0*fluxy(i+2,j)+34.d0*(fluxy(i+1,j)-fluxy(i-1,j))+5.d0*fluxy(i-2,j))/48.d0
+                face_one =(-5.d0*facey(i+2,j)+34.d0*(facey(i+1,j)-facey(i-1,j))+5.d0*facey(i-2,j))/48.d0
+                !prody(i,j) = fluxy(i,j)*facey(i,j) !+ phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
+                prody(i,j) = fluxy(i,j)*facey(i,j) + phi_one*face_one/12.d0 ! right added term changes from L^2,4,4 to L^4,4,4
             end do
         end do
 

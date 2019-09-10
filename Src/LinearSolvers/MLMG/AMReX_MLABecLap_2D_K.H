@@ -209,7 +209,7 @@ void abec_gsrb (Box const& box, Array4<Real> const& phi,
     }
 }
 
-#if 1
+#if 0
   // GSRB
 AMREX_GPU_HOST_DEVICE AMREX_INLINE
 void abec_gsrb_high (Box const& box, Array4<Real> const& phi,
