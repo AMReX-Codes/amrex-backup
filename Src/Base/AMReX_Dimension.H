@@ -19,6 +19,20 @@ constexpr Dimension operator- (Dimension d, short i) {
     return static_cast<Dimension>(static_cast<short>(d)-i);
 }
 
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Dimension& operator++ (Dimension& d)
+{
+    d = static_cast<Dimension>(static_cast<short>(d)+1);
+    return d;
+}
+
+AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+Dimension& operator-- (Dimension& d)
+{
+    d = static_cast<Dimension>(static_cast<short>(d)-1);
+    return d;
+}
+
 #if (AMREX_SPACEDIM == 1)
 static constexpr Dimension maxDim = Dimension::one;
 #elif (AMREX_SPACEDIM == 2)

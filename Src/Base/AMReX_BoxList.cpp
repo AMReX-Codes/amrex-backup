@@ -170,6 +170,20 @@ BoxList::BoxList (IndexType _btype)
     dimen(amrex::maxDim)
 {}
 
+BoxList::BoxList (Dimension d)
+    :
+    m_lbox(),
+    btype(IndexType::TheCellType()),
+    dimen(d)
+{}
+
+BoxList::BoxList (IndexType t, Dimension d)
+    :
+    m_lbox(),
+    btype(t),
+    dimen(d)
+{}
+
 BoxList::BoxList (const BoxArray &ba)
     :
     m_lbox(std::move(ba.boxList().data())),

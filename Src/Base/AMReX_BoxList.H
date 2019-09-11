@@ -66,6 +66,10 @@ public:
     //! Construct an empty BoxList with IndexType btyp
     explicit BoxList (IndexType btyp);
 
+    explicit BoxList (Dimension d);
+
+    BoxList (IndexType t, Dimension d);
+
     //!  Construct a BoxList from a BoxArray.
     explicit BoxList (const BoxArray& ba);
 

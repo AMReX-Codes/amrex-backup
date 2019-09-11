@@ -843,6 +843,14 @@ public:
         }
     }
 
+    AMREX_GPU_HOST_DEVICE
+    void removeLastDimension () noexcept
+    {
+        --dimen;
+        smallend[static_cast<int>(dimen)] = 0;
+        bigend[static_cast<int>(dimen)] = 0;
+    }
+
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Dim3 lbound (Box const& box) noexcept;
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Dim3 ubound (Box const& box) noexcept;
     AMREX_GPU_HOST_DEVICE friend AMREX_FORCE_INLINE Dim3 begin  (Box const& box) noexcept;

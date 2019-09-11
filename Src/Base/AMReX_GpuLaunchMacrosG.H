@@ -433,7 +433,7 @@
        ); \
     }
 
-#define AMREX_GPU_DEVICE_FOR_4D(box,ancomp,i,j,k,n,block) \
+#define AMREX_GPU_DEVICE_FOR_4D(box,ncomp,i,j,k,n,block) \
     amrex::ParallelFor(box, ncomp, [=] AMREX_GPU_DEVICE (int i, int j, int k, int n) noexcept \
         block \
     );
