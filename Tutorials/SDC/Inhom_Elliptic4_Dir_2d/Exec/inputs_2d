@@ -23,3 +23,6 @@ r=0.0
 # 0 = periodic
 bc_lo = 3 3
 bc_hi = 3 3
+
+# Decide which problem to run
+Nprob=1

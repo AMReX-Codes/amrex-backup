@@ -24,6 +24,7 @@ void main_main ()
     Real d;  // diffusion coef.
     Real r;  // reaction coef. 
     Real test_norm;
+    int Nprob;  // which problem we are running
     // AMREX_SPACEDIM: number of dimensions
     int n_cell, max_grid_size, Nsteps, plot_int;
     Vector<int> bc_lo(AMREX_SPACEDIM,0);
@@ -37,6 +38,7 @@ void main_main ()
     
     // We need to get n_cell from the inputs file - this is the number of cells on each side of 
     //   a square (or cubic) domain.
+    pp.get("Nprob",Nprob);
     pp.get("n_cell",n_cell);
     
     // The domain is broken into boxes of size max_grid_size
@@ -66,6 +68,7 @@ void main_main ()
     pp.query("r",r);
     
     // Manufactured solution parameters
+
     Real k_freq =3.14159265358979323846;
     Real epsilon = 0.25; // 0.25;
     pp.query("epsilon",epsilon);
@@ -136,7 +139,7 @@ void main_main ()
         const Box& bx = mfi.growntilebox();
         init_phi(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq,&Nprob);
     }
     amrex::Print() << "intial norm " << phi_new.norm0() << "\n";
     // Set up BCRec; see Src/Base/AMReX_BC_TYPES.H for supported types
@@ -202,7 +205,7 @@ void main_main ()
 		const Box& bx = mfi.validbox();
 		err_phi(BL_TO_FORTRAN_BOX(bx),
 			BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
+			geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa,&Nprob);
 	      }
 	  }
 	amrex::Print() << "max error in phi " << phi_new.norm0() << "\n";
@@ -291,7 +294,7 @@ void main_main ()
         const Box& bx = mfi.growntilebox();
         init_beta(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq);
+		  geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&epsilon, &k_freq,&Nprob);
     }
     BccCoef.FillBoundary();
     
@@ -313,7 +316,7 @@ void main_main ()
                        BL_TO_FORTRAN_ANYD(BccCoef[mfi]),
                        //  BL_TO_FORTRAN_BOX(bamg[mfi]),
                        BL_TO_FORTRAN_ANYD(face_bcoef[idim][mfi]),
-                       &idim );
+			   &idim ,&Nprob);
         }
 
         face_bcoef[idim].FillBoundary();
@@ -329,7 +332,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     {          const Box& bx = mfi.validbox();
         fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
                          BL_TO_FORTRAN_ANYD(bdry_values[mfi]),
-                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa,&Nprob);
     }        
 /*    for ( MFIter mfi(bdry_values); mfi.isValid(); ++mfi )
     {          const Box& bx = mfi.validbox();
@@ -396,7 +399,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
         const Box& bx = mfi.growntilebox();
         init_phi(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(soln[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq);
+                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq,&Nprob);
     }
     
     mlabec.setScalars(aScalarLoc, d);
@@ -410,7 +413,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     {          const Box& bx = mfi.validbox();
         fill_bdry_values(BL_TO_FORTRAN_BOX(bx),
                          BL_TO_FORTRAN_ANYD(bvalues[mfi]),
-                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa);
+                         geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&time, &epsilon,&k_freq, &kappa,&Nprob);
     }
     
 
@@ -442,7 +445,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                     BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
                     BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
                     BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                    &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
+                    &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal,&Nprob);
         
     }
     
@@ -477,7 +480,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
         const Box& bx = mfi.validbox();
         analytic_diffusion(BL_TO_FORTRAN_BOX(bx),
                  BL_TO_FORTRAN_ANYD(eval_storage[mfi]),
-                 geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq, &epsilon, &d);
+			   geom.CellSize(), geom.ProbLo(), geom.ProbHi(), &k_freq, &epsilon, &d,&Nprob);
         
     }
     
@@ -511,7 +514,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                   BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
                   BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
                   BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                  &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);      
+                  &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal,&Nprob);      
     }
     MultiFab::Saxpy(rhs,-1,soln,0,0,1,0);
     rhs.mult(-1);
@@ -555,7 +558,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                         BL_TO_FORTRAN_ANYD(face_bcoef[1][mfi]),
                         BL_TO_FORTRAN_ANYD(prod_stor[0][mfi]),
                         BL_TO_FORTRAN_ANYD(prod_stor[1][mfi]),
-                        &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal);
+                        &oneInt, &zeroReal, &zeroReal, &zeroReal, &zeroReal,&Nprob);
             
         }
 
@@ -664,7 +667,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
     {
       //amrex::Print() << "time" << time << "\n";
       // Do an SDC step
-      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r ,face_bcoef, prod_stor,time, epsilon, k_freq, kappa, bdry_values, mlabec_BCfill);
+      SDC_advance(phi_old, phi_new,flux, dt, geom, bc, mlmg,mlabec,SDCmats,a,d,r,Nprob ,face_bcoef, prod_stor,time, epsilon, k_freq, kappa, bdry_values, mlabec_BCfill);
        
       
       MultiFab::Copy(phi_old, phi_new, 0, 0, 1, 2);    
@@ -677,7 +680,7 @@ mlabec_BCfill.setBCoeffs(0, amrex::GetArrOfConstPtrs(face_bcoef));
                     const Box& bx = mfi.validbox();
                     err_phi(BL_TO_FORTRAN_BOX(bx),
                         BL_TO_FORTRAN_ANYD(phi_new[mfi]),
-                        geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa);
+			    geom.CellSize(), geom.ProbLo(), geom.ProbHi(),&a,&d,&r,&time, &epsilon,&k_freq, &kappa,&Nprob);
                   }
             
                     // Tell the I/O Processor to write out which step we're doing

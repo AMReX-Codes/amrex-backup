@@ -1,7 +1,7 @@
 
 subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
                          fluxx, fxlo, fxhi, fluxy, fylo, fyhi,f, flo,fhi, &
-                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n,time, epsilon, k_freq, kappa) bind(C, name="SDC_feval_F")
+                         dx,a,d,r,facex, facexlo, facexhi,facey, faceylo, faceyhi,prodx, prodxlo, prodxhi,prody, prodylo, prodyhi,n,time, epsilon, k_freq, kappa,Nprob) bind(C, name="SDC_feval_F")
  ! facex, facexlo, facexhi,facey, faceylo, faceyhi
   !  Compute the rhs terms
 ! Assumes you have 2 ghost cells for flux that way you can do product rule
@@ -17,7 +17,7 @@ subroutine SDC_feval_F(lo, hi, domlo, domhi, phi, philo, phihi, &
   real(amrex_real), intent(inout) :: f   (flo(1):fhi(1),flo(2):fhi(2))
   real(amrex_real), intent(in)    :: dx(2)
   real(amrex_real), intent(in)    :: a,d,r,time, epsilon, k_freq, kappa
-  integer, intent(in) :: n
+  integer, intent(in) :: n,Nprob
  integer facexlo(2), facexhi(2)
 real(amrex_real), intent(in) :: facex( facexlo(1): facexhi(1), facexlo(2): facexhi(2))
  integer faceylo(2), faceyhi(2)
@@ -176,7 +176,7 @@ pi=3.14159265358979323846d0
 
    subroutine SDC_fcomp_reaction_F (lo, hi, domlo, domhi, phi, philo, phihi, &
         rhs, rhslo, rhshi, &
-        f, flo,fhi, dtq,n) bind(C, name="SDC_fcomp_reaction_F")
+        f, flo,fhi, dtq,n,Nprob) bind(C, name="SDC_fcomp_reaction_F")
 
   !  Solve for the reaction term
   use amrex_fort_module, only : amrex_real
@@ -190,7 +190,7 @@ pi=3.14159265358979323846d0
   real(amrex_real), intent(in)    :: rhs  (rhslo(1):rhshi(1),rhslo(2):rhshi(2))  
   real(amrex_real), intent(in)     :: f   (flo(1):fhi(1),flo(2):fhi(2))
   real(amrex_real), intent(in)    :: dtq
-  integer, intent(in)             :: n
+  integer, intent(in)             :: n,Nprob
   
   ! local variables
   integer i,j
@@ -211,7 +211,7 @@ subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
         rhs, rhslo, rhshi, &
         res, reslo, reshi, &
         corr, corrlo, corrhi, &        
-        dtq,dx) bind(C, name="SDC_Lresid_F")
+        dtq,dx,Nprob) bind(C, name="SDC_Lresid_F")
 
   !  Compute the residual for the diffusion operator
   use amrex_fort_module, only : amrex_real
@@ -228,7 +228,7 @@ subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
   real(amrex_real), intent(inout)    :: corr  (corrlo(1):corrhi(1),corrlo(2):corrhi(2))  
   real(amrex_real), intent(in)    :: dtq
   real(amrex_real), intent(in)    :: dx(2)
-  
+  integer, intent(in) :: Nprob
   ! local variables
   integer i,j
   real(amrex_real) Lap
@@ -247,7 +247,7 @@ subroutine SDC_Lresid_F (lo, hi, domlo, domhi, phi, philo, phihi, &
 
 end subroutine SDC_Lresid_F
 
-subroutine cc_to_face_loc(lo, hi, cc_dat, cc_lo, cc_hi, face_dat, face_lo,face_hi, dir) bind(C, name="cc_to_face_loc")
+subroutine cc_to_face_loc(lo, hi, cc_dat, cc_lo, cc_hi, face_dat, face_lo,face_hi, dir,Nprob) bind(C, name="cc_to_face_loc")
 !  move cell centered data to be face centered
 use amrex_fort_module, only : amrex_real
 
@@ -256,6 +256,7 @@ implicit none
 integer, intent(in) :: lo(3), hi(3), cc_lo(3), cc_hi(3), face_lo(3), face_hi(3), dir
 real(amrex_real), intent(inout) :: cc_dat(cc_lo(1):cc_hi(1),cc_lo(2):cc_hi(2),cc_lo(3):cc_hi(3))
 real(amrex_real), intent(inout) :: face_dat(face_lo(1):face_hi(1),face_lo(2):face_hi(2),face_lo(3):face_hi(3))
+integer, intent(in) :: Nprob
 
 integer          :: i,j, k
 
@@ -315,7 +316,7 @@ end subroutine cc_to_face_loc
 
 
 
-subroutine fill_bdry_values(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,time, epsilon, k_freq, kappa)bind(C, name="fill_bdry_values")
+subroutine fill_bdry_values(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,time, epsilon, k_freq, kappa,Nprob)bind(C, name="fill_bdry_values")
 !  Initialize the scalar field phi
 use amrex_fort_module, only : amrex_real
 
@@ -327,6 +328,8 @@ real(amrex_real), intent(in   ) :: dx(2)
 real(amrex_real), intent(in   ) :: prob_lo(2)
 real(amrex_real), intent(in   ) :: prob_hi(2)
 real(amrex_real), intent(in   ) :: k_freq, time, kappa, epsilon
+integer, intent(in) :: Nprob
+
 integer          :: i,j, i_quad, j_quad, face_index
 double precision :: x,y,tupi,t0,d, pi, x_quad, y_quad
 double precision :: gauss_nodeFrac(0:4)
