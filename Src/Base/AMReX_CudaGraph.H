@@ -70,9 +70,10 @@ struct CudaGraph
     {
         static_assert(AMREX_IS_TRIVIALLY_COPYABLE(T), "CudaGraph's T must be trivially copyable");
         m_parms_d = static_cast<T*>( The_Device_Arena()->alloc(sizeof(T)*m_parms.size()) );
-        createRootGraph();
+//        createRootGraph();
     }
     ~CudaGraph() {
+        BL_PROFILE("CudaGraph::~CudaGraph()");
         The_Device_Arena()->free(m_parms_d);
 
         if (graph_is_ready)
