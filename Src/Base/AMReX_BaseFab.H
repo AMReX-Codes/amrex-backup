@@ -1898,8 +1898,8 @@ BaseFab<T>::copyFromMem (const Box&  dstbox,
 
     if (dstbox.ok())
     {
-        ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
         ArrayN<T const> const& s = makeArrayN<T const>((T const*)src, dstbox, numcomp);
+        ArrayN<T> const& d = amrex::shift(this->arraynd(), dstcomp);
 
         amrex::LoopConcurrent(dstbox, numcomp, [=] (DimN const& iv, int n) noexcept
         {

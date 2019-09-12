@@ -300,7 +300,8 @@ public:
     //! Returns true if argument is contained within Box.
     AMREX_GPU_HOST_DEVICE
     bool contains (const IntVect& p) const noexcept {
-        return p.allGE(smallend,dimen) && p.allLE(bigend,dimen);
+        auto q = amrex::convert(p,dimen);
+        return q.allGE(smallend) && q.allLE(bigend,dimen);
     }
 
     /** \brief Returns true if argument is contained within Box.
@@ -310,7 +311,7 @@ public:
     bool contains (const Box& b) const noexcept
     {
 	BL_ASSERT(sameType(b) && sameDimension(b));
-	return b.smallend.allGE(smallend,dimen) && b.bigend.allLE(bigend,dimen);
+	return b.smallend.allGE(smallend) && b.bigend.allLE(bigend);
     }
 
     //! Returns true if argument is strictly contained within Box.

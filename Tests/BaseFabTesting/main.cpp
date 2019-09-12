@@ -793,18 +793,18 @@ int main(int argc, char* argv[])
         }
         timer = second() - timer;
 
+        amrex::Print() << "BaseFab<Real>::copyToMem() test." << std::endl
+                       << "Result: " << buffer.back()  << std::endl
+                       << "Completed in: "                <<  timer << " seconds." << std::endl
+                       << " or, completed at a rate of: " <<         timer/iters << " seconds/op." << std::endl
+                       << "                         or: " << double(iters)/timer << " ops/second." << std::endl << std::endl;
+
         timer = second();
         for (int i=0; i<iters; ++i)
         {
            fab2.copyFromMem(bx2, 0, ncomps, buffer.data());
         }
         timer = second() - timer;
-
-        amrex::Print() << "BaseFab<Real>::copyToMem() test." << std::endl
-                       << "Result: " << fab2(IntVect(1000))  << std::endl
-                       << "Completed in: "                <<  timer << " seconds." << std::endl
-                       << " or, completed at a rate of: " <<         timer/iters << " seconds/op." << std::endl
-                       << "                         or: " << double(iters)/timer << " ops/second." << std::endl << std::endl; 
 
         amrex::Print() << "BaseFab<Real>::copyFromMem() test." << std::endl
                        << "Result: " << fab2(IntVect(1000))  << std::endl
