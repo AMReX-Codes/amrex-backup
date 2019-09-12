@@ -714,7 +714,7 @@ Device::stopGraphStreamRecording(cudaGraph_t rootGraph)
 cudaGraphExec_t
 Device::instantiateGraph(cudaGraph_t graph)
 {
-
+    BL_PROFILE("Device::instantiateGraph()");
     cudaGraphExec_t graphExec;
 
 #ifdef AMREX_DEBUG 
