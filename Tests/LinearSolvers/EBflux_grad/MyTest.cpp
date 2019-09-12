@@ -169,14 +169,16 @@ MyTest::initData ()
             bcoef[ilev][idim].setVal(1.0);
         }
 
-        const Real* dx = geom[ilev].CellSize();
+        const auto dx = geom[ilev].CellSizeArray();
 
         // Initialize Dirichlet boundary
         for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.fabbox();
-            auto const& fab = phi[ilev].array(mfi);
-            amrex::Loop(bx, [=] (int i, int j, int k) noexcept {
+            Array4<Real> const& fab = phi[ilev].array(mfi);
+            amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+            {
                 Real rx = (i+0.5)*dx[0];
                 Real ry = (j+0.5)*dx[1];
                 fab(i,j,k) = std::sqrt(0.5)*(rx + ry);

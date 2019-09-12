@@ -209,7 +209,7 @@ MyTest::initData ()
             bcoef[ilev][idim].setVal(1.0);
         }
 
-        const Real* dx = geom[ilev].CellSize();
+        const auto dx = geom[ilev].CellSizeArray();
 
         if (is_periodic)
         {
@@ -218,8 +218,10 @@ MyTest::initData ()
             for (MFIter mfi(rhs[ilev]); mfi.isValid(); ++mfi)
             {
                 const Box& bx = mfi.fabbox();
-                auto const& fab = rhs[ilev].array(mfi);
-                amrex::Loop(bx, [=] (int i, int j, int k) noexcept {
+                Array4<Real> const& fab = rhs[ilev].array(mfi);
+                amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                {
                     Real rx = (i+0.5)*dx[0];
                     Real ry = (j+0.5)*dx[1];
                     fab(i,j,k) = std::sin(rx*2.*pi + 43.5)*std::sin(ry*2.*pi + 89.);
@@ -237,8 +239,10 @@ MyTest::initData ()
             for (MFIter mfi(phi[ilev]); mfi.isValid(); ++mfi)
             {
                 const Box& bx = mfi.fabbox();
-                auto const& fab = phi[ilev].array(mfi);
-                amrex::Loop(bx, [=] (int i, int j, int k) noexcept {
+                Array4<Real> const& fab = phi[ilev].array(mfi);
+                amrex::ParallelFor(bx,
+                [=] AMREX_GPU_DEVICE (int i, int j, int k) noexcept
+                {
                     Real rx = (i+0.5)*dx[0];
                     Real ry = (j+0.5)*dx[1];
                     fab(i,j,k) = std::sqrt(0.5)*(rx + ry);
