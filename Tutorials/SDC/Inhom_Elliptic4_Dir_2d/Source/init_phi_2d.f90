@@ -130,7 +130,7 @@ end subroutine analytic_diffusion
 
 
 
-subroutine init_beta(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,epsilon, k_freq) bind(C, name="init_beta")
+subroutine init_beta(lo, hi, phi, philo, phihi, dx, prob_lo, prob_hi,epsilon, k_freq,Nprob) bind(C, name="init_beta")
 !  Initialize the scalar field phi
 use amrex_fort_module, only : amrex_real
 
@@ -142,7 +142,7 @@ real(amrex_real), intent(in   ) :: dx(2)
 real(amrex_real), intent(in   ) :: prob_lo(2)
 real(amrex_real), intent(in   ) :: prob_hi(2)
 real(amrex_real), intent(in   ) :: epsilon, k_freq
-
+integer, intent(in) :: Nprob
 integer          :: i,j, i_quad, j_quad
 double precision :: x,y,pi, x_quad, y_quad
 double precision :: gauss_nodeFrac(0:4)
@@ -176,10 +176,15 @@ y = prob_lo(2) + dble(j) * dx(2)
         y_quad = y + dx(2)*gauss_nodeFrac(j_quad)
         !print*, y_quad
             do i_quad = 0,4
-            x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
-                phi(i,j) = phi(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
+               x_quad = x + dx(1)*gauss_nodeFrac(i_quad)
+               select case (Nprob)
+               case(1)
+                  phi(i,j) = phi(i,j)+ gauss_weights(j_quad)*gauss_weights(i_quad)* &
                     (1.d0+epsilon*cos(k_freq*(x_quad))*cos(k_freq*(y_quad)))
-
+               case default
+                  print *,'ooops'
+               end select
+               
             end do
         end do
     end do

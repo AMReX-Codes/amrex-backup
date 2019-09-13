@@ -101,7 +101,6 @@ pi=3.14159265358979323846d0
 
         ! x-fluxes
         do j = philo(2), phihi(2)
-        !do j = lo(2), hi(2)
            do i = lo(1), hi(1)+1
               ! fluxx(i,j) = ( phi(i,j) - phi(i-1,j) ) / dx(1)
               fluxx(i,j) = ( -phi(i+1,j)  +15.0d0*(phi(i,j) - phi(i-1,j)) + phi(i-2,j) ) /(12.0d0*dx(1))
@@ -111,7 +110,6 @@ pi=3.14159265358979323846d0
         ! y-fluxes
         do j = lo(2), hi(2)+1
            do i = philo(1), phihi(1)
-           !do i = lo(1), hi(1)
               ! fluxy(i,j) = ( phi(i,j) - phi(i,j-1) ) / dx(2)
               fluxy(i,j) = ( -phi(i,j+1)  +15.0d0*(phi(i,j) - phi(i,j-1)) + phi(i,j-2) ) /(12.0d0*dx(2))
            end do

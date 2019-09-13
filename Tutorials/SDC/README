@@ -1,0 +1,11 @@
+Test cases for 4th order operator
+
+BCfix_Dir_MISDC_ADR_2d : Time independent homogeneous Dirichlet time dependent (with forcing term)
+
+Dirichlet_MISDC_ADR_2d : Time dependent inhomogeneous Dirichlet time dependent (with forcing term)
+
+Inhom_Elliptic4_Dir_2d : Current working elliptic/parabolic solver with inhomogeneous BC
+
+Elliptic4_Dir_2d : Elliptic/parabolic solver with homogeneous BC
+
+P-MISDC_ADR_2d : Periodic time dependent problem with forcing
