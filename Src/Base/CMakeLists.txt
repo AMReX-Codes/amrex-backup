@@ -4,8 +4,13 @@ target_include_directories(amrex PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_D
 if (ENABLE_MPI)
    find_package(MPI REQUIRED C CXX)
    target_link_libraries(amrex PUBLIC MPI::MPI_C MPI::MPI_CXX) 
-endif ()  
+endif ()
 
+# We need threads 
+set( THREADS_PREFER_PTHREAD_FLAG on)
+find_package(Threads REQUIRED)
+target_link_libraries(amrex PUBLIC Threads::Threads)
+ 
 target_sources( amrex
    PRIVATE 
    # Utility classes ---------------------------------------------------------
@@ -25,8 +30,12 @@ target_sources( amrex
    AMReX_ParmParse.cpp
    AMReX_parmparse_fi.cpp
    AMReX_ParmParse.H
+   AMReX_Functional.H
    AMReX_Utility.H
    AMReX_Utility.cpp
+   AMReX_Reduce.H
+   AMReX_Scan.H
+   AMReX_Partition.H
    AMReX_BLassert.H
    AMReX_ArrayLim.H
    AMReX_REAL.H
@@ -123,6 +132,8 @@ target_sources( amrex
    AMReX_FabArray.H
    AMReX_FACopyDescriptor.H
    AMReX_FabArrayCommI.H
+   AMReX_FBI.H
+   AMReX_PCI.H
    AMReX_FabArrayUtility.H
    AMReX_LayoutData.H
    # Geometry / Coordinate system routines -----------------------------------

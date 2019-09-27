@@ -352,6 +352,11 @@ else
   $(error Unknown compiler $(COMP). Supported compilers are gnu, intel, cray, pgi, ibm, llvm, nag, and nec)
 endif
 
+CXXFLAGS += $(XTRA_CXXFLAGS)
+CFLAGS   += $(XTRA_CFLAGS)
+FFLAGS   += $(XTRA_FFLAGS)
+F90FLAGS += $(XTRA_F90FLAGS)
+
 ifeq ($(MAKECMDGOALS),check_fortran)
   ifneq ($(lowercase_comp),gnu)
     $(error make check_fortran only works with COMP=gnu)
@@ -556,6 +561,7 @@ else ifeq ($(USE_CUDA),TRUE)
 
     ifeq ($(USE_GPU_PRAGMA),TRUE)
         DEFINES += -DAMREX_USE_GPU_PRAGMA
+        GPU_PRAGMA_DEVICE_SUFFIX ?= _device
     endif
 
     GPUSuffix := .CUDA
@@ -566,12 +572,14 @@ else ifeq ($(USE_CUDA),TRUE)
       DEFINES += -DAMREX_CUDA_FORT_GLOBAL='attributes(global)'
       DEFINES += -DAMREX_CUDA_FORT_DEVICE='attributes(device)'
       DEFINES += -DAMREX_CUDA_FORT_HOST='attributes(host)'
+      DEFINES += -DAMREX_CUDA_FORT_HOST_DEVICE='attributes(host) attributes(device)'
     else
       DEFINES += -DAMREX_LAUNCH=""
       DEFINES += -DAMREX_DEVICE=""
       DEFINES += -DAMREX_CUDA_FORT_GLOBAL=""
       DEFINES += -DAMREX_CUDA_FORT_DEVICE=""
       DEFINES += -DAMREX_CUDA_FORT_HOST=""
+      DEFINES += -DAMREX_CUDA_FORT_HOST_DEVICE=""
     endif
 
 else
@@ -580,6 +588,7 @@ else
     DEFINES += -DAMREX_CUDA_FORT_GLOBAL=""
     DEFINES += -DAMREX_CUDA_FORT_DEVICE=""
     DEFINES += -DAMREX_CUDA_FORT_HOST=""
+    DEFINES += -DAMREX_CUDA_FORT_HOST_DEVICE=""
 
     GPUSuffix :=
 endif

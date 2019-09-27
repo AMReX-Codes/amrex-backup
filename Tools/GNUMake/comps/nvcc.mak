@@ -44,7 +44,12 @@ ifeq ($(lowercase_nvcc_host_comp),gnu)
      LIBRARIES += -lgomp
   endif
 else ifeq ($(lowercase_nvcc_host_comp),pgi)
-  CXXFLAGS_FROM_HOST := -ccbin=pgc++ -Xcompiler='$(CXXFLAGS)' --std=c++11
+  # In pgi.make, we use gcc_major_version to handle c++11/c++14 flag.
+  ifeq ($(gcc_major_version),4)
+    CXXFLAGS_FROM_HOST := -ccbin=pgc++ -Xcompiler='$(CXXFLAGS)' --std=c++11
+  else
+    CXXFLAGS_FROM_HOST := -ccbin=pgc++ -Xcompiler='$(CXXFLAGS)' --std=c++14
+  endif
   CFLAGS_FROM_HOST := $(CXXFLAGS_FROM_HOST)
 else
   CXXFLAGS_FROM_HOST := -ccbin=$(CXX) -Xcompiler='$(CXXFLAGS)'
@@ -64,6 +69,8 @@ endif
 ifneq ($(USE_CUDA_FAST_MATH),FALSE)
   NVCC_FLAGS += --use_fast_math
 endif
+
+NVCC_FLAGS += $(XTRA_NVCC_FLAGS)
 
 CXXFLAGS = $(CXXFLAGS_FROM_HOST) $(NVCC_FLAGS) -dc -x cu
 CFLAGS   =   $(CFLAGS_FROM_HOST) $(NVCC_FLAGS) -dc -x cu

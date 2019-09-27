@@ -48,6 +48,7 @@ public:
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
     // Generic graph selection. These should be called by users. 
     static void startGraphRecording(bool first_iter);
+    static void startGraphRecording(bool first_iter, void* h_ptr, void* d_ptr, size_t sz);
     static cudaGraphExec_t stopGraphRecording(bool last_iter);
 
     // Capture graphs per iteration
@@ -57,13 +58,19 @@ public:
 
     // Capture graphs along streams
     static void startGraphStreamRecording();
+    static void startGraphStreamRecording(void* h_ptr, void* d_ptr, size_t sz);
     static cudaGraphExec_t stopGraphStreamRecording();
+    static cudaGraphExec_t stopGraphStreamRecording(cudaGraph_t rootGraph);
+
+    // Likely a temporary function while testing.
+    // Get whether StreamRecord was performed with events and memcpy in the graph or not.
+    static int memcpyInGraph () noexcept { return use_events; }
 
     // Instantiate a created cudaGtaph
     static cudaGraphExec_t instantiateGraph(cudaGraph_t graph);
 
     // Execute an instantiated cudaGraphExec
-    static void executeGraph(cudaGraphExec_t &graphExec);
+    static void executeGraph(const cudaGraphExec_t &graphExec, bool synch = true);
 
     // Set type of graph recording.
     // Currently 2 options, so bool used. Change later if needed. 
@@ -100,6 +107,7 @@ public:
     static void box_threads_and_blocks (const Box& bx, dim3& numBlocks, dim3& numThreads) noexcept;
 
     static std::size_t totalGlobalMem () noexcept { return device_prop.totalGlobalMem; }
+    static std::size_t sharedMemPerBlock () noexcept { return device_prop.sharedMemPerBlock; }
     static int numMultiProcessors () noexcept { return device_prop.multiProcessorCount; }
     static int maxThreadsPerMultiProcessor () noexcept { return device_prop.maxThreadsPerMultiProcessor; }
     static int maxThreadsPerBlock () noexcept { return device_prop.maxThreadsPerBlock; }
@@ -115,6 +123,10 @@ public:
 #else
     static constexpr int warp_size = 64;
 #endif
+#endif
+
+#ifdef AMREX_USE_GPU
+    static int maxBlocksPerLaunch () noexcept { return max_blocks_per_launch; }
 #endif
 
 private:
@@ -135,7 +147,9 @@ private:
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
     static bool graph_per_stream;
     static Vector<cudaGraph_t> cuda_graphs;
+    static bool use_events;
 #endif
+    static int max_blocks_per_launch;
 #endif
 };
 
@@ -185,6 +199,14 @@ dtoh_memcpy (void* p_h, const void* p_d, const std::size_t sz) noexcept
 }
 
 inline void
+dtod_memcpy (void* p_d_dst, const void* p_d_src, const std::size_t sz) noexcept
+{
+    AMREX_HIP_OR_CUDA(
+        AMREX_HIP_SAFE_CALL(hipMemcpy(p_d_dst, p_d_src, sz, hipMemcpyDeviceToDevice));,
+        AMREX_CUDA_SAFE_CALL(cudaMemcpy(p_d_dst, p_d_src, sz, cudaMemcpyDeviceToDevice)); )
+}
+
+inline void
 htod_memcpy_async (void* p_d, const void* p_h, const std::size_t sz) noexcept
 {
     AMREX_HIP_OR_CUDA(
@@ -199,6 +221,20 @@ dtoh_memcpy_async (void* p_h, const void* p_d, const std::size_t sz) noexcept
         AMREX_HIP_SAFE_CALL(hipMemcpyAsync(p_h, p_d, sz, hipMemcpyDeviceToHost, gpuStream()));,
         AMREX_CUDA_SAFE_CALL(cudaMemcpyAsync(p_h, p_d, sz, cudaMemcpyDeviceToHost, gpuStream())); )
 }
+
+inline void
+dtod_memcpy_async (void* p_d_dst, const void* p_d_src, const std::size_t sz) noexcept
+{
+    AMREX_HIP_OR_CUDA(
+        AMREX_HIP_SAFE_CALL(hipMemcpyAsync(p_d_dst, p_d_src, sz, hipMemcpyDeviceToDevice, gpuStream()));,
+        AMREX_CUDA_SAFE_CALL(cudaMemcpyAsync(p_d_dst, p_d_src, sz, cudaMemcpyDeviceToDevice, gpuStream())); )
+}
+
+#ifdef AMREX_USE_GPU
+void callbackAdded ();
+void resetNumCallbacks ();
+int getNumCallbacks ();
+#endif
 
 }}
 
