@@ -7,6 +7,9 @@
 #include <AMReX_BoxArray.H>
 #include <AMReX_BoxList.H>
 #include <AMReX_BLProfiler.H>
+#include <AMReX_Utility.H>
+#include <AMReX_ParallelDescriptor.H>
+#include <AMReX_ParallelReduce.H>
 
 #ifdef _OPENMP
 #include <omp.h>
@@ -98,8 +101,7 @@ BoxList::removeEmpty()
 }
 
 BoxList
-intersect (const BoxList& bl,
-           const Box&     b)
+intersect (const BoxList& bl, const Box& b)
 {
     BL_ASSERT(bl.ixType() == b.ixType());
     BoxList newbl(bl);
@@ -108,8 +110,7 @@ intersect (const BoxList& bl,
 }
 
 BoxList
-refine (const BoxList& bl,
-        int            ratio)
+refine (const BoxList& bl, int ratio)
 {
     BoxList nbl(bl);
     nbl.refine(ratio);
@@ -117,8 +118,7 @@ refine (const BoxList& bl,
 }
 
 BoxList
-coarsen (const BoxList& bl,
-         int            ratio)
+coarsen (const BoxList& bl, int ratio)
 {
     BoxList nbl(bl);
     nbl.coarsen(ratio);
@@ -126,8 +126,7 @@ coarsen (const BoxList& bl,
 }
 
 BoxList
-accrete (const BoxList& bl,
-         int            sz)
+accrete (const BoxList& bl, int sz)
 {
     BoxList nbl(bl);
     nbl.accrete(sz);
@@ -313,16 +312,14 @@ complementIn (const Box&     b,
 }
 
 BoxList&
-BoxList::complementIn (const Box&     b,
-                       const BoxList& bl)
+BoxList::complementIn (const Box& b, const BoxList& bl)
 {
     BoxArray ba(bl);
     return complementIn(b, ba);
 }
 
 BoxList&
-BoxList::complementIn (const Box& b,
-                       BoxList&&  bl)
+BoxList::complementIn (const Box& b, BoxList&&  bl)
 {
     BoxArray ba(std::move(bl));
     return complementIn(b, ba);
@@ -344,22 +341,13 @@ BoxList::complementIn (const Box& b, const BoxArray& ba)
     }
     else
     {
-        long npts_avgbox;
-	Box mbox = ba.minimalBox(npts_avgbox);
+        Box mbox = ba.minimalBox();
         *this = amrex::boxDiff(b, mbox);
         auto mytyp = ixType();
 
 	BoxList bl_mesh(mbox & b);
+        const int block_size = 128;
 
-#if (AMREX_SPACEDIM == 1)
-        Real s_avgbox = npts_avgbox;
-#elif (AMREX_SPACEDIM == 2)
-        Real s_avgbox = std::sqrt(npts_avgbox);
-#elif (AMREX_SPACEDIM == 3)
-        Real s_avgbox = std::cbrt(npts_avgbox);
-#endif
-
-        const int block_size = 4 * std::max(1,static_cast<int>(std::ceil(s_avgbox/4.))*4);
 	bl_mesh.maxSize(block_size);
 	const int N = bl_mesh.size();
 
@@ -401,6 +389,94 @@ BoxList::complementIn (const Box& b, const BoxArray& ba)
                 m_lbox.insert(std::end(m_lbox), std::begin(bl_tmp), std::end(bl_tmp));
             }
         }
+    }
+
+    return *this;
+}
+
+BoxList
+parallelComplementIn (const Box& b, const BoxList& bl)
+{
+    BL_ASSERT(bl.ixType() == b.ixType());
+    BoxList newb(b.ixType());
+    newb.parallelComplementIn(b,bl);
+    return newb;
+}
+
+BoxList&
+BoxList::parallelComplementIn (const Box& b, const BoxList& bl)
+{
+    BoxArray ba(bl);
+    return parallelComplementIn(b, ba);
+}
+
+BoxList&
+BoxList::parallelComplementIn (const Box& b, BoxList&&  bl)
+{
+    BoxArray ba(std::move(bl));
+    return parallelComplementIn(b, ba);
+}
+
+BoxList&
+BoxList::parallelComplementIn (const Box& b, const BoxArray& ba)
+{
+    BL_PROFILE("BoxList::parallelComplementIn");
+
+    if (ba.size() == 0)
+    {
+	clear();
+	push_back(b);
+    }
+    else if (ba.size() == 1)
+    {
+	*this = amrex::boxDiff(b, ba[0]);
+    }
+    else
+    {
+        Box mbox = ba.minimalBox();
+        *this = amrex::boxDiff(b, mbox);
+        auto mytyp = ixType();
+
+	BoxList bl_mesh(mbox & b);
+        const int block_size = 128;
+
+	bl_mesh.maxSize(block_size);
+	const int N = bl_mesh.size();
+
+        Vector<Box> bv;
+        const int myproc = ParallelContext::MyProcSub();
+        const int nprocs = ParallelContext::NProcsSub();
+        for (int i = myproc; i < N; i += nprocs) {
+            BoxList bltmp = ba.complementIn(bl_mesh.m_lbox[i]);
+            for (auto const& b: bltmp) {
+                bv.push_back(b);
+            }
+        }
+
+#if BL_USE_MPI
+        int const nlocal = bv.size();
+        Vector<int> nlocalboxes(nprocs);
+        ParallelAllGather::AllGather<int>(&nlocal, 1, nlocalboxes.data(),
+                                          ParallelContext::CommunicatorSub());
+
+        Vector<int> npartsum(nprocs+1);
+        npartsum[0] = 0;
+        std::partial_sum(nlocalboxes.begin(), nlocalboxes.end(), npartsum.begin()+1);
+        int const nglobal = npartsum.back();
+
+        if (nglobal > 0) {
+            Box const* sp = bv.empty() ? nullptr : bv.data();
+            Vector<Box> gbv(nglobal);
+            BL_MPI_REQUIRE( MPI_Allgatherv(sp, bv.size(),
+                                           ParallelDescriptor::Mpi_typemap<Box>::type(),
+                                           gbv.data(), nlocalboxes.data(), npartsum.data(),
+                                           ParallelDescriptor::Mpi_typemap<Box>::type(),
+                                           ParallelContext::CommunicatorSub()) );
+            std::swap(gbv,bv);
+        }
+#endif
+
+        this->join(bv);
     }
 
     return *this;
@@ -467,8 +543,7 @@ BoxList::accrete (const IntVect& sz)
 }
 
 BoxList&
-BoxList::shift (int dir,
-                int nzones)
+BoxList::shift (int dir, int nzones)
 {
     for (auto& bx : m_lbox)
     {
@@ -478,8 +553,7 @@ BoxList::shift (int dir,
 }
 
 BoxList&
-BoxList::shiftHalf (int dir,
-                    int num_halfs)
+BoxList::shiftHalf (int dir, int num_halfs)
 {
     for (auto& bx : m_lbox)
     {
@@ -503,8 +577,7 @@ BoxList::shiftHalf (const IntVect& iv)
 //
 
 BoxList
-boxDiff (const Box& b1in,
-         const Box& b2)
+boxDiff (const Box& b1in, const Box& b2)
 {
    BL_ASSERT(b1in.sameType(b2));  
    BoxList bl_diff(b1in.ixType());
@@ -773,8 +846,7 @@ BoxList::convert (IndexType typ) noexcept
 }
 
 std::ostream&
-operator<< (std::ostream&  os,
-            const BoxList& blist)
+operator<< (std::ostream&  os, const BoxList& blist)
 {
     BoxList::const_iterator bli = blist.begin(), End = blist.end();
     os << "(BoxList " << blist.size() << ' ' << blist.ixType() << '\n';

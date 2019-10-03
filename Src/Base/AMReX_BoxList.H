@@ -17,6 +17,7 @@ namespace amrex
 
     //! Returns a BoxList defining the complement of BoxList bl in Box b.
     BoxList complementIn (const Box& b, const BoxList& bl);
+    BoxList parallelComplementIn (const Box& b, const BoxList& bl);
 
     //! Returns BoxList defining the compliment of b2 in b1in.
     BoxList boxDiff (const Box& b1in, const Box& b2);
@@ -144,6 +145,9 @@ public:
     BoxList& complementIn (const Box&     b,
                             BoxList&&     bl);
     BoxList& complementIn (const Box& b, const BoxArray& ba);
+    BoxList& parallelComplementIn (const Box& b, const BoxList& bl);
+    BoxList& parallelComplementIn (const Box& b, BoxList&& bl);
+    BoxList& parallelComplementIn (const Box& b, const BoxArray& ba);
     //! Refine each Box in the BoxList by the ratio.
     BoxList& refine (int ratio);
     //! Refine each Box in the BoxList by the ratio.
