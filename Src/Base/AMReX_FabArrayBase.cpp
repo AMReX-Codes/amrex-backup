@@ -5,6 +5,7 @@
 #include <AMReX_Utility.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_FArrayBox.H>
+#include <AMReX_MFIter.H>
 
 #include <AMReX_BArena.H>
 #include <AMReX_CArena.H>
@@ -1077,45 +1078,68 @@ FabArrayBase::FPinfo::FPinfo (const FabArrayBase& srcfa,
       m_nuse     (0)
 { 
     BL_PROFILE("FPinfo::FPinfo()");
+
+    AMREX_ASSERT(dstng.allLE(dstfa.nGrowVect()));
+    AMREX_ASSERT(srcfa.ixType() == dstfa.ixType());
+    AMREX_ASSERT(srcfa.ixType() == dstdomain.ixType());
+
     const BoxArray& srcba = srcfa.boxArray();
-    const BoxArray& dstba = dstfa.boxArray();
-    BL_ASSERT(srcba.ixType() == dstba.ixType());
 
-    const IndexType& boxtype = dstba.ixType();
-    BL_ASSERT(boxtype == dstdomain.ixType());
-     
-    BL_ASSERT(dstng.allLE(dstfa.nGrowVect()));
-
-    const DistributionMapping& dstdm = dstfa.DistributionMap();
-    
-    const int myproc = ParallelDescriptor::MyProc();
-
-    BoxList bl(boxtype);
-    Vector<int> iprocs;
-
-    for (int i = 0, N = dstba.size(); i < N; ++i)
+    Vector<Box> bv;
+    for (MFIter mfi(dstfa); mfi.isValid(); ++mfi)
     {
-        Box bx = dstba[i];
+        int gi = mfi.index();
+        Box bx = mfi.validbox();
         bx.grow(m_dstng);
         bx &= m_dstdomain;
 
         BoxList leftover = srcba.complementIn(bx);
 
-        bool ismybox = (dstdm[i] == myproc);
-        for (BoxList::const_iterator bli = leftover.begin(); bli != leftover.end(); ++bli)
+        for (auto const& b: leftover)
         {
-            bl.push_back(m_coarsener->doit(*bli));
-            if (ismybox) {
-                dst_boxes.push_back(*bli);
-                dst_idxs.push_back(i);
-            }
-            iprocs.push_back(dstdm[i]);
+            bv.push_back(m_coarsener->doit(b));
+            dst_boxes.push_back(b);
+            dst_idxs.push_back(gi);
         }
     }
 
-    if (!iprocs.empty()) {
-        ba_crse_patch.define(bl);
+    int const nlocal = bv.size();
+    int const nprocs = ParallelContext::NProcsSub();
+    Vector<int> nlocalboxes(nprocs);
+    ParallelAllGather::AllGather<int>(&nlocal, 1, nlocalboxes.data(),
+                                      ParallelContext::CommunicatorSub());
+
+    Vector<int> npartsum(nprocs+1);
+    npartsum[0] = 0;
+    std::partial_sum(nlocalboxes.begin(), nlocalboxes.end(), npartsum.begin()+1);
+    int const nglobal = npartsum.back();
+
+    if (nglobal > 0) {
+#if BL_USE_MPI
+        Box const* sp = bv.empty() ? nullptr : bv.data();
+        Vector<Box> gbv(nglobal);
+        BL_MPI_REQUIRE( MPI_Allgatherv(sp, bv.size(),
+                                       ParallelDescriptor::Mpi_typemap<Box>::type(),
+                                       gbv.data(), nlocalboxes.data(), npartsum.data(),
+                                       ParallelDescriptor::Mpi_typemap<Box>::type(),
+                                       ParallelContext::CommunicatorSub()) );
+        BoxList bl(std::move(gbv));
+#else
+        BoxList bl(std::move(bv));
+#endif
+
+        Vector<int> iprocs;
+        iprocs.reserve(nglobal);
+        for (int lrank = 0; lrank < nprocs; ++lrank) {
+            int grank = ParallelContext::local_to_global_rank(lrank);
+            for (int i = npartsum[lrank]; i < npartsum[lrank+1]; ++i) {
+                iprocs.push_back(grank);
+            }
+        }
+
+        ba_crse_patch.define(std::move(bl));
         dm_crse_patch.define(std::move(iprocs));
+
 #ifdef AMREX_USE_EB
         if (index_space)
         {
