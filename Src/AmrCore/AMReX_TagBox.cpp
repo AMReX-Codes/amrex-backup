@@ -576,13 +576,7 @@ TagBoxArray::collate (Vector<IntVect>& TheGlobalCollateSpace) const
                                    ParallelContext::CommunicatorSub()) );
     {
         BL_PROFILE("TagBox::collate-rd");
-//        amrex::RemoveDuplicates(TheGlobalCollateSpace);
-        {
-            BL_PROFILE("collate-sort");
-            std::sort(TheGlobalCollateSpace.begin(), TheGlobalCollateSpace.end());
-        }
-        auto it = std::unique(TheGlobalCollateSpace.begin(), TheGlobalCollateSpace.end());
-        TheGlobalCollateSpace.erase(it, TheGlobalCollateSpace.end());
+        amrex::RemoveDuplicates<IntVect,IntVect::shift_hasher>(TheGlobalCollateSpace);
     }
 #else
     std::swap(TheGlobalCollateSpace, TheLocalCollateSpace);
