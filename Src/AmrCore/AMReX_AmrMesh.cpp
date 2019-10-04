@@ -704,6 +704,7 @@ AmrMesh::MakeNewGrids (int lbase, Real time, int& new_finest, Vector<BoxArray>& 
 
         if (tagvec.size() > 0)
         {
+            BL_PROFILE("AmrMesh::MakeNewGrids:c");
             //
             // Created new level, now generate efficient grids.
             //

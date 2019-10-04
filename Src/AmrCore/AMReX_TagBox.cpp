@@ -2,10 +2,12 @@
 #include <cstdlib>
 #include <cmath>
 #include <climits>
+#include <limits>
 
 #include <AMReX_TagBox.H>
 #include <AMReX_Geometry.H>
 #include <AMReX_ParallelDescriptor.H>
+#include <AMReX_ParallelReduce.H>
 #include <AMReX_BLProfiler.H>
 #include <AMReX_ccse-mpi.H>
 
@@ -545,69 +547,45 @@ TagBoxArray::collate (Vector<IntVect>& TheGlobalCollateSpace) const
         amrex::RemoveDuplicates(TheLocalCollateSpace);
 	count = TheLocalCollateSpace.size();
     }
-    //
-    // The total number of tags system wide that must be collated.
-    // This is really just an estimate of the upper bound due to duplicates.
-    // While we've removed duplicates per MPI process there's still more systemwide.
-    //
-    long numtags = count;
-
-    ParallelDescriptor::ReduceLongSum(numtags);
-
-    if (numtags == 0) {
-	TheGlobalCollateSpace.clear();
-	return;
-    }
-
-    //
-    // This holds all tags after they've been gather'd and unique'ified.
-    //
-    // Each CPU needs an identical copy since they all must go through grid_places() which isn't parallelized.
-
-    TheGlobalCollateSpace.resize(numtags);
 
 #ifdef BL_USE_MPI
-    //
-    // Tell root CPU how many tags each CPU will be sending.
-    //
-    const int IOProcNumber = ParallelDescriptor::IOProcessorNumber();
-    count *= AMREX_SPACEDIM;  // Convert from count of tags to count of integers to expect.
-    const std::vector<long>& countvec = ParallelDescriptor::Gather(count, IOProcNumber);
-    
-    std::vector<long> offset(countvec.size(),0L);
-    if (ParallelDescriptor::IOProcessor())
+    const int myproc = ParallelContext::MyProcSub();
+    const int nprocs = ParallelContext::NProcsSub();
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(count < static_cast<long>(std::numeric_limits<int>::max()),
+                                     "TagBoxArray::collate: int overflow");
+    const int icount = count;
+    Vector<int> nlocalcounts(nprocs);
+    ParallelAllGather::AllGather<int>(&icount, 1, nlocalcounts.data(),
+                                      ParallelContext::CommunicatorSub());
+
+    Vector<int> npartsum(nprocs+1);
+    npartsum[0] = 0;
+    std::partial_sum(nlocalcounts.begin(), nlocalcounts.end(), npartsum.begin()+1);
+    const int nglobal = npartsum.back();
+
+    TheGlobalCollateSpace.clear();
+    if (nglobal == 0) return;
+
+    IntVect const* sp = TheLocalCollateSpace.empty() ? nullptr : TheLocalCollateSpace.data();
+    TheGlobalCollateSpace.resize(nglobal);
+    BL_MPI_REQUIRE( MPI_Allgatherv(sp, TheLocalCollateSpace.size(),
+                                   ParallelDescriptor::Mpi_typemap<IntVect>::type(),
+                                   TheGlobalCollateSpace.data(),
+                                   nlocalcounts.data(), npartsum.data(),
+                                   ParallelDescriptor::Mpi_typemap<IntVect>::type(),
+                                   ParallelContext::CommunicatorSub()) );
     {
-        for (int i = 1, N = offset.size(); i < N; i++) {
-	    offset[i] = offset[i-1] + countvec[i-1];
-	}
+        BL_PROFILE("TagBox::collate-rd");
+//        amrex::RemoveDuplicates(TheGlobalCollateSpace);
+        {
+            BL_PROFILE("collate-sort");
+            std::sort(TheGlobalCollateSpace.begin(), TheGlobalCollateSpace.end());
+        }
+        auto it = std::unique(TheGlobalCollateSpace.begin(), TheGlobalCollateSpace.end());
+        TheGlobalCollateSpace.erase(it, TheGlobalCollateSpace.end());
     }
-    //
-    // Gather all the tags to IOProcNumber into TheGlobalCollateSpace.
-    //
-    BL_ASSERT(sizeof(IntVect) == AMREX_SPACEDIM * sizeof(int));
-    const int* psend = (count > 0) ? TheLocalCollateSpace[0].getVect() : 0;
-    int* precv = TheGlobalCollateSpace[0].getVect();
-    ParallelDescriptor::Gatherv(psend, count,
-				precv, countvec, offset, IOProcNumber); 
-
-    if (ParallelDescriptor::IOProcessor())
-    {
-        amrex::RemoveDuplicates(TheGlobalCollateSpace);
-	numtags = TheGlobalCollateSpace.size();
-    }
-
-    //
-    // Now broadcast them back to the other processors.
-    //
-    ParallelDescriptor::Bcast(&numtags, 1, IOProcNumber);
-    ParallelDescriptor::Bcast(TheGlobalCollateSpace[0].getVect(), numtags*AMREX_SPACEDIM, IOProcNumber);
-    TheGlobalCollateSpace.resize(numtags);
-
 #else
-    //
-    // Copy TheLocalCollateSpace to TheGlobalCollateSpace.
-    //
-    TheGlobalCollateSpace = TheLocalCollateSpace;
+    std::swap(TheGlobalCollateSpace, TheLocalCollateSpace);
 #endif
 }
 
