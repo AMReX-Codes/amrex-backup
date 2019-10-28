@@ -7,7 +7,7 @@
 
 namespace amrex {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 std::ostream&
 operator<< (std::ostream& os, const dim3& d)

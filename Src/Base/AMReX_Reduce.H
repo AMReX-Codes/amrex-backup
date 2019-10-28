@@ -117,7 +117,7 @@ struct ReduceOpLogicalOr
 
 template <typename... Ps> class ReduceOps;
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 namespace Reduce {
 namespace detail {

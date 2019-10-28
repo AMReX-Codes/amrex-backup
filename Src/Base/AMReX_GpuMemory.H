@@ -118,7 +118,7 @@ private:
 #endif
 };
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 template <class T>
 struct SharedMemory

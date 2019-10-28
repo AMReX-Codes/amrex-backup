@@ -11,7 +11,7 @@ namespace Gpu {
 
 namespace {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 extern "C" {
 AMREX_HIP_OR_CUDA(
@@ -33,7 +33,7 @@ AMREX_HIP_OR_CUDA(
 void
 Elixir::clear () noexcept
 {
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     if (Gpu::inLaunchRegion())
     {
         if (m_p != nullptr) {

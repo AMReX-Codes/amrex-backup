@@ -5,7 +5,7 @@
 namespace amrex {
 namespace Gpu {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 void getGridSize (FabArrayBase const& fa, int ngrow, LayoutData<GridSize>& gs, int& ntotblocks)
 {
     gs = LayoutData<GridSize>(fa.boxArray(),fa.DistributionMap());

@@ -45,7 +45,7 @@ Arena::align (std::size_t s)
 void*
 Arena::allocate_system (std::size_t nbytes)
 {
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     void * p;
     if (arena_info.device_use_hostalloc)
     {
@@ -98,7 +98,7 @@ Arena::allocate_system (std::size_t nbytes)
 void
 Arena::deallocate_system (void* p, std::size_t nbytes)
 {
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     if (arena_info.device_use_hostalloc)
     {
         AMREX_HIP_OR_CUDA(AMREX_HIP_SAFE_CALL ( hipHostFree(p));,
@@ -133,7 +133,7 @@ Arena::Initialize ()
     pp.query("the_arena_init_size", the_arena_init_size);
     pp.query("abort_on_out_of_gpu_memory", abort_on_out_of_gpu_memory);
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     if (use_buddy_allocator)
     {
         if (buddy_allocator_size <= 0) {
@@ -146,9 +146,9 @@ Arena::Initialize ()
     else
 #endif
     {
-#if defined(BL_COALESCE_FABS) || defined(AMREX_USE_GPU)
+#if defined(BL_COALESCE_FABS) || defined(AMREX_USE_HIP_OR_CUDA)
         the_arena = new CArena(0, ArenaInfo().SetPreferred());
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (the_arena_init_size <= 0) {
             the_arena_init_size = Gpu::Device::totalGlobalMem() / 4L * 3L;
         }
@@ -160,13 +160,13 @@ Arena::Initialize ()
 #endif
     }
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     the_device_arena = new CArena(0, ArenaInfo().SetDeviceMemory());
 #else
     the_device_arena = new BArena;
 #endif
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     the_managed_arena = new CArena;
 #else
     the_managed_arena = new BArena;
@@ -194,7 +194,7 @@ void
 Arena::PrintUsage ()
 {
     const int IOProc = ParallelDescriptor::IOProcessorNumber();
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     {
         long min_megabytes = Gpu::Device::totalGlobalMem() / (1024*1024);
         long max_megabytes = min_megabytes;

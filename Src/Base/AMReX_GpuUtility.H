@@ -113,7 +113,7 @@ namespace Gpu {
 
     namespace Atomic {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         namespace detail {
 
             AMREX_GPU_DEVICE AMREX_FORCE_INLINE
@@ -170,7 +170,7 @@ namespace Gpu {
                 return __longlong_as_double(old);
             }            
         } // namespace detail
-#endif  // AMREX_USE_GPU
+#endif  // AMREX_USE_HIP_OR_CUDA
 
         template<class T>
         AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
@@ -434,7 +434,7 @@ namespace Gpu {
 
 } // namespace Gpu
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 std::ostream& operator<< (std::ostream& os, const dim3& d);
 #endif
 

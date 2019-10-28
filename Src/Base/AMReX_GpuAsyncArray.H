@@ -9,7 +9,7 @@
 #include <AMReX_TypeTraits.H>
 #include <AMReX_GpuDevice.H>
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 extern "C" {
 AMREX_HIP_OR_CUDA(
     void  HIPRT_CB amrex_asyncarray_delete ( hipStream_t stream,  hipError_t error, void* p);,

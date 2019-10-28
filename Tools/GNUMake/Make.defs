@@ -551,6 +551,7 @@ ifeq ($(USE_HIP),TRUE)
     endif
 
     DEFINES += -DAMREX_USE_HIP
+    DEFINES += -DAMREX_USE_HIP_OR_CUDA
 
     ifeq ($(HIP_PLATFORM),nvcc)
         DEFINES += -DAMREX_USE_CUDA -DAMREX_HIP_PLATFORM_NVCC
@@ -594,6 +595,7 @@ else ifeq ($(USE_CUDA),TRUE)
     endif
 
     DEFINES += -DAMREX_USE_CUDA
+    DEFINES += -DAMREX_USE_HIP_OR_CUDA
 
     ifeq ($(USE_GPU_PRAGMA),TRUE)
         DEFINES += -DAMREX_USE_GPU_PRAGMA

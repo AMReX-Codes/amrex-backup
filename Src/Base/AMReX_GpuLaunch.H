@@ -62,7 +62,7 @@ namespace amrex {
 
 namespace Gpu {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     static constexpr std::size_t numThreadsPerBlockParallelFor () {
         return AMREX_GPU_MAX_THREADS;
     }
@@ -109,7 +109,7 @@ namespace Gpu {
 
 // ************************************************
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     struct ExecutionConfig {
         ExecutionConfig () noexcept {
             Gpu::Device::grid_stride_threads_and_blocks(numBlocks,numThreads);
@@ -145,7 +145,7 @@ namespace Gpu {
 }
 
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 #include <AMReX_GpuLaunchMacrosG.H>
 #include <AMReX_GpuLaunchFunctsG.H>
 #else

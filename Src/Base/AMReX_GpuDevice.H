@@ -66,7 +66,7 @@ public:
     static void mem_advise_set_preferred (void* p, const std::size_t sz, const int device);
     static void mem_advise_set_readonly (void* p, const std::size_t sz);
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     static void setNumThreadsMin (int nx, int ny, int nz) noexcept;
     static void n_threads_and_blocks (const long N, dim3& numBlocks, dim3& numThreads) noexcept;
     static void c_comps_threads_and_blocks (const int* lo, const int* hi, const int comps,
@@ -87,7 +87,7 @@ public:
 
     static std::size_t freeMemAvailable ();
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 #ifdef AMREX_USE_CUDA
     static constexpr int warp_size = 32;
 #else
@@ -95,7 +95,7 @@ public:
 #endif
 #endif
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     static int maxBlocksPerLaunch () noexcept { return max_blocks_per_launch; }
 #endif
 
@@ -116,13 +116,15 @@ private:
 #endif
 
 #ifdef AMREX_USE_GPU
+    static gpuStream_t gpu_stream;
+    static std::array<gpuStream_t,max_gpu_streams> gpu_streams;
+
+#ifdef AMREX_USE_HIP_OR_CUDA
     static dim3 numThreadsMin;
     static dim3 numBlocksOverride, numThreadsOverride;
-
-    static std::array<gpuStream_t,max_gpu_streams> gpu_streams;
-    static gpuStream_t gpu_stream;
     static gpuDeviceProp_t device_prop;
     static int max_blocks_per_launch;
+#endif
 #endif
 };
 

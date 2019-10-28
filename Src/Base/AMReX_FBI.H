@@ -23,7 +23,7 @@ struct VoidCopyTag {
 
 namespace detail {
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 template <class T>
 struct CellStore
@@ -282,7 +282,7 @@ fab_to_fab_atomic_add (Vector<Array4CopyTag<T> > const& copy_tags, int scomp, in
     fab_to_fab<T>(copy_tags, scomp, dcomp, ncomp, CellAdd<T>(), masks);
 }
 
-#endif /* AMREX_USE_GPU */
+#endif /* AMREX_USE_HIP_OR_CUDA */
 
 }
 
@@ -345,7 +345,7 @@ FabArray<FAB>::FB_local_copy_cpu (const FB& TheFB, int scomp, int ncomp)
     }
 }
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 template <class FAB>
 void
@@ -571,11 +571,11 @@ FabArray<FAB>::FB_local_copy_cuda_graph_n (const FB& TheFB, int scomp, int ncomp
 
 #endif /* CUDA >= 10 */
 
-#endif /* AMREX_USE_GPU */
+#endif /* AMREX_USE_HIP_OR_CUDA */
 
 #ifdef AMREX_USE_MPI
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
 
@@ -866,7 +866,7 @@ FabArray<FAB>::unpack_recv_buffer_gpu (FabArray<FAB>& dst, int dcomp, int ncomp,
     }
 }
 
-#endif /* AMREX_USE_GPU */
+#endif /* AMREX_USE_HIP_OR_CUDA */
 
 template <class FAB>
 void

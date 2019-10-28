@@ -1,7 +1,7 @@
 #include <AMReX_GpuAsyncArray.H>
 #include <mutex>
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 extern "C" {
 AMREX_HIP_OR_CUDA(

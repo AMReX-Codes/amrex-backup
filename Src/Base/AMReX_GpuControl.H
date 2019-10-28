@@ -25,6 +25,10 @@ namespace amrex {
 using gpuStream_t     = hipStream_t;
 #elif defined(AMREX_USE_CUDA)
 using gpuStream_t     = cudaStream_t;
+#elif defined (AMREX_USE_ACC)
+// If CUDA is defined, we defer to its stream mechanism,
+// so this is last.
+using gpuStream_t     = int;
 #endif
 
 namespace Gpu {

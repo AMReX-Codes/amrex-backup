@@ -33,16 +33,18 @@ int Device::verbose = 0;
 
 #ifdef AMREX_USE_GPU
 constexpr int Device::max_gpu_streams;
+std::array<gpuStream_t,Device::max_gpu_streams> Device::gpu_streams;
+gpuStream_t                                     Device::gpu_stream;
+
+#ifdef AMREX_USE_HIP_OR_CUDA
 dim3 Device::numThreadsMin      = dim3(1, 1, 1);
 dim3 Device::numThreadsOverride = dim3(0, 0, 0);
 dim3 Device::numBlocksOverride  = dim3(0, 0, 0);
 int  Device::max_blocks_per_launch = 640;
 
-std::array<gpuStream_t,Device::max_gpu_streams> Device::gpu_streams;
-gpuStream_t                                     Device::gpu_stream;
 gpuDeviceProp_t                                 Device::device_prop;
-
 constexpr int                                   Device::warp_size;
+#endif
 
 namespace {
 
@@ -356,7 +358,7 @@ Device::initialize_gpu ()
 {
 #ifdef AMREX_USE_GPU
 
-#ifdef AMREX_USE_HIP
+#if defined(AMREX_USE_HIP)
 
     AMREX_HIP_SAFE_CALL(hipGetDeviceProperties(&device_prop, device_id));
 
@@ -372,7 +374,8 @@ Device::initialize_gpu ()
         AMREX_HIP_SAFE_CALL(hipStreamCreate(&gpu_streams[i]));
     }
 
-#else
+#elif defined(AMREX_USE_CUDA)
+
     AMREX_CUDA_SAFE_CALL(cudaGetDeviceProperties(&device_prop, device_id));
 
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(device_prop.major >= 6, "Compute capability must be >= 6");
@@ -390,11 +393,19 @@ Device::initialize_gpu ()
         AMREX_CUDA_SAFE_CALL(cudaStreamCreate(&gpu_streams[i]));
     }
 
+#elif defined(AMREX_USE_ACC)
+
+    // These GPU streams correspond to OpenACC async queues.
+    for (int i = 0; i < max_gpu_streams; ++i) {
+        gpu_streams[i] = i;
+    }
+
 #endif
 
-    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(warp_size == device_prop.warpSize, "Incorrect warp size");
-
     gpu_stream = 0;
+
+#ifdef AMREX_USE_HIP_OR_CUDA
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(warp_size == device_prop.warpSize, "Incorrect warp size");
 
     ParmParse pp("device");
 
@@ -435,6 +446,8 @@ Device::initialize_gpu ()
     }
 
     max_blocks_per_launch = numMultiProcessors() * maxThreadsPerMultiProcessor() / AMREX_GPU_MAX_THREADS;
+
+#endif
 
 #endif
 }
@@ -641,7 +654,7 @@ Device::mem_advise_set_readonly (void* p, const std::size_t sz)
 #endif
 }
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
 
 void
 Device::setNumThreadsMin (int nx, int ny, int nz) noexcept
@@ -880,7 +893,7 @@ Device::box_threads_and_blocks (const Box& bx, dim3& numBlocks, dim3& numThreads
 std::size_t
 Device::freeMemAvailable ()
 {
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
     std::size_t f, t;
     AMREX_HIP_OR_CUDA( AMREX_HIP_SAFE_CALL(hipMemGetInfo(&f,&t));,
                        AMREX_CUDA_SAFE_CALL(cudaMemGetInfo(&f,&t)); )

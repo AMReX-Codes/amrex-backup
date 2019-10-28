@@ -35,7 +35,7 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
         //
 	int N_locs = (*TheFB.m_LocTags).size();
         if (N_locs == 0) return;
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (Gpu::inLaunchRegion())
         {
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10))
@@ -143,7 +143,7 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
             }
         }
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (Gpu::inLaunchRegion())
         {
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10))
@@ -181,7 +181,7 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
     //
     if (N_locs > 0)
     {
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (Gpu::inLaunchRegion())
         {
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
@@ -246,7 +246,7 @@ FabArray<FAB>::FillBoundary_finish ()
 
         bool is_thread_safe = TheFB.m_threadsafe_rcv;
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (Gpu::inLaunchRegion())
         {
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
@@ -356,7 +356,7 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
         //
 	int N_locs = (*thecpc.m_LocTags).size();
         if (N_locs == 0) return;
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
         if (Gpu::inLaunchRegion())
         {
             PC_local_gpu(thecpc, src, scomp, dcomp, ncomp, op);
@@ -467,7 +467,7 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
                 }
             }
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
             if (Gpu::inLaunchRegion())
             {
                 pack_send_buffer_gpu(src, SC, NC, send_data, send_size, send_cctc);
@@ -495,7 +495,7 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
         //
         if (N_locs > 0)
 	{
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
             if (Gpu::inLaunchRegion())
             {
                 PC_local_gpu(thecpc, src, SC, DC, NC, op);
@@ -532,7 +532,7 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
 
             bool is_thread_safe = thecpc.m_threadsafe_rcv;
 
-#ifdef AMREX_USE_GPU
+#ifdef AMREX_USE_HIP_OR_CUDA
             if (Gpu::inLaunchRegion())
             {
                 unpack_recv_buffer_gpu(*this, DC, NC, recv_data, recv_size, recv_cctc,
