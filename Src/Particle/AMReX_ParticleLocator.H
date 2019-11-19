@@ -4,6 +4,7 @@
 #include <AMReX_Particles.H>
 #include <AMReX_GpuContainers.H>
 #include <AMReX_Tuple.H>
+#include <AMReX_ParticleUtil.H>
 
 namespace amrex
 {
@@ -47,14 +48,14 @@ struct AssignGrid
 
     template <typename P>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    int operator() (const P& p) const noexcept
+    GpuTuple<int, int> operator() (const P& p) const noexcept
     {
         const auto iv = getParticleCell(p, m_plo, m_dxi, m_domain);
         return this->operator()(iv);
     }
 
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
-    int operator() (const IntVect& iv) const noexcept
+    GpuTuple<int, int> operator() (const IntVect& iv) const noexcept
     {
         const auto lo = iv.dim3();
         int ix = (lo.x - m_lo.x) / m_bin_size.x;
@@ -71,13 +72,21 @@ struct AssignGrid
                     int index = (ii * ny + jj) * nz + kk;
                     for (int p = m_poffset[index]; p < m_poffset[index+1]; ++p) {
                         const Box& box = m_boxes_ptr[m_pperm[p]];
-                        if (box.contains(iv)) return m_pperm[p];
+                        if (box.contains(iv))
+                        {
+                            int grid = m_pperm[p];
+                            bool do_tiling = false;
+                            IntVect tile_size = IntVect(AMREX_D_DECL(0,0,0));
+                            Box tbx;
+                            int tile = getTileIndex(iv, box, do_tiling, tile_size, tbx);
+                            return makeTuple(grid, tile);
+                        }
                     }
                 }
             }
         }
 
-        return -1;        
+        return makeTuple(-1, -1);
     }
 };
 
@@ -241,14 +250,16 @@ struct AmrAssignGrid
 
     template <typename P>
     AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE   
-    GpuTuple<int, int> operator() (const P& p) const noexcept
+    GpuTuple<int, int, int> operator() (const P& p) const noexcept
     {
         for (int lev = m_size-1; lev >= 0; --lev)
         {
-            int grid = m_funcs[lev](p);
-            if (grid >= 0) return makeTuple(grid, lev);
+            auto tup = m_funcs[lev](p);
+            int grid = amrex::get<0>(tup);
+            int tile = amrex::get<1>(tup);
+            if (grid >= 0) return makeTuple(grid, tile, lev);
         }
-        return makeTuple(-1, -1);
+        return makeTuple(-1, -1, -1);
     }
 };
 

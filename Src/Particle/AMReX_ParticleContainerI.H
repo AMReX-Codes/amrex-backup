@@ -1036,7 +1036,8 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
                     enforcePeriodic(p, plo, phi, is_per);
                     auto tup = assign_grid(p);
                     grids_ptr[i] = amrex::get<0>(tup);
-                    levs_ptr[i] = amrex::get<1>(tup);
+                    int tile = amrex::get<1>(tup);
+                    levs_ptr[i] = amrex::get<2>(tup);
                 }
             });
 
