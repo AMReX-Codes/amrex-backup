@@ -1055,8 +1055,8 @@ protected:
     Gpu::ManagedVector<int> m_levs_tmp;
     Gpu::ManagedVector<int> m_tiles_tmp;    
 
-    ParticleCopyOp redistribute_copy_op;
-    ParticleCopyPlan redistribute_copy_plan;
+    ParticleComm::ParticleCopyOp   redistribute_copy_op;
+    ParticleComm::ParticleCopyPlan redistribute_copy_plan;
 
     Gpu::DeviceVector<char> redistribute_snd_buffer;
     Gpu::DeviceVector<char> redistribute_rcv_buffer;

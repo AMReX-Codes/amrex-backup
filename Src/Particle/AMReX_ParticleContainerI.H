@@ -1160,9 +1160,9 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
     {
         plan.buildMPIFinish(BufferMap());
         communicateParticlesStart(*this, plan, snd_buffer, rcv_buffer);
-        unpackBuffer(*this, plan, snd_buffer, RedistributeUnpackPolicy());
+        unpackBuffer(*this, plan, snd_buffer, ParticleComm::RedistributeUnpackPolicy());
         communicateParticlesFinish(plan);
-        unpackRemotes(*this, plan, rcv_buffer, RedistributeUnpackPolicy());        
+        unpackRemotes(*this, plan, rcv_buffer, ParticleComm::RedistributeUnpackPolicy());        
     }
     else
     {
@@ -1173,10 +1173,10 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
         Gpu::Device::synchronize();
         communicateParticlesStart(*this, plan, pinned_snd_buffer, pinned_rcv_buffer);
         rcv_buffer.resize(pinned_rcv_buffer.size());   
-        unpackBuffer(*this, plan, snd_buffer, RedistributeUnpackPolicy());
+        unpackBuffer(*this, plan, snd_buffer, ParticleComm::RedistributeUnpackPolicy());
         communicateParticlesFinish(plan);        
         cudaMemcpyAsync(rcv_buffer.dataPtr(), pinned_rcv_buffer.dataPtr(), pinned_rcv_buffer.size(), cudaMemcpyHostToDevice);    
-        unpackRemotes(*this, plan, rcv_buffer, RedistributeUnpackPolicy());
+        unpackRemotes(*this, plan, rcv_buffer, ParticleComm::RedistributeUnpackPolicy());
     }
 
     AMREX_ASSERT(numParticlesOutOfRange(*this, 0) == 0);

@@ -11,6 +11,8 @@
 
 namespace amrex {
 
+namespace ParticleComm {
+    
 struct NeighborUnpackPolicy
 {
     template <class PTile> 
@@ -496,6 +498,8 @@ void unpackRemotes (PC& pc, const ParticleCopyPlan& plan, Buffer& rcv_buffer, co
 #endif // MPI
 }
 
+} // namespace ParticleComm
+    
 } // namespace amrex
 
 #endif // AMREX_PARTICLECOMMUNICATION_H_

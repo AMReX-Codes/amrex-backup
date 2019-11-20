@@ -430,8 +430,8 @@ protected:
     std::map<int, amrex::Gpu::ManagedVector<NeighborCode> > m_code_array;
     std::map<int, amrex::Gpu::ManagedVector<int> > m_code_offsets;
 
-    ParticleCopyOp neighbor_copy_op;
-    ParticleCopyPlan neighbor_copy_plan;
+    ParticleComm::ParticleCopyOp neighbor_copy_op;
+    ParticleComm::ParticleCopyPlan neighbor_copy_plan;
 
     amrex::Gpu::DeviceVector<char> snd_buffer;
     amrex::Gpu::DeviceVector<char> rcv_buffer;
