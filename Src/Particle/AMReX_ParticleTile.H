@@ -310,7 +310,7 @@ struct ParticleTile
     ///
     /// Add one particle to this tile.
     ///
-    void push_back (const ParticleType& p) { m_aos_tile().push_back(p); }
+    void push_back (const ParticleType& p) { m_aos_tile.push_back(p); }
 
     ///
     /// Add a Real value to the struct-of-arrays at index comp.
@@ -390,7 +390,7 @@ struct ParticleTile
 
     void swap (ParticleTile<NStructReal, NStructInt, NArrayReal, NArrayInt>& other)
     {
-        m_aos_tile().swap(other.GetArrayOfStructs()());
+        m_aos_tile.m_data.swap(other.GetArrayOfStructs().m_data);
         for (int j = 0; j < NumRealComps(); ++j)
         {
             auto& rdata = GetStructOfArrays().GetRealData(j);
@@ -413,7 +413,7 @@ struct ParticleTile
             m_runtime_i_ptrs[i] = m_soa_tile.GetIntData(NArrayInt + i).dataPtr();
 
         ParticleTileDataType ptd;
-        ptd.m_aos = m_aos_tile().dataPtr();
+        ptd.m_aos = m_aos_tile.dataPtr();
         for (int i = 0; i < NArrayReal; ++i)
             ptd.m_rdata[i] = m_soa_tile.GetRealData(i).dataPtr();
         for (int i = 0; i < NArrayInt; ++i)
@@ -435,7 +435,7 @@ struct ParticleTile
             m_runtime_i_cptrs[i] = m_soa_tile.GetIntData(NArrayInt + i).dataPtr();
 
         ConstParticleTileDataType ptd;
-        ptd.m_aos = m_aos_tile().dataPtr();
+        ptd.m_aos = m_aos_tile.dataPtr();
         for (int i = 0; i < NArrayReal; ++i)
             ptd.m_rdata[i] = m_soa_tile.GetRealData(i).dataPtr();
         for (int i = 0; i < NArrayInt; ++i)

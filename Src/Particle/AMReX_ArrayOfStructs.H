@@ -23,9 +23,6 @@ public:
     ArrayOfStructs() 
         : m_num_neighbor_particles(0) {}
 
-    const ParticleVector& operator() () const { return m_data; }
-    ParticleVector& operator() ()       { return m_data; }
-
     /**
     * \brief Returns the total number of particles (real and neighbor)
     *
@@ -67,11 +64,11 @@ public:
     
     bool empty () const { return m_data.empty(); }
     
-    const RealType* data () const { return &(m_data[0].m_rdata.arr[0]); }
-    RealType* data () { return &(m_data[0].m_rdata.arr[0]); }
+    const ParticleType* data () const { return &m_data[0]; }
+    ParticleType* data () { return &m_data[0]; }
 
-    const RealType* dataPtr () const { return data(); }
-    RealType*       dataPtr ()       { return data(); }
+    const ParticleType* dataPtr () const { return data(); }
+    ParticleType*       dataPtr ()       { return data(); }
     
     std::pair<int,int> dataShape () const {
 	return std::make_pair(SizeInReal, static_cast<int>(m_data.size()));
