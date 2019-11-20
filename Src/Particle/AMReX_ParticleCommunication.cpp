@@ -7,6 +7,7 @@ void ParticleCopyOp::clear ()
 {
     m_boxes.resize(0);
     m_levels.resize(0);
+    m_tiles.resize(0);
     m_src_indices.resize(0);
     m_periodic_shift.resize(0);
 }
@@ -15,6 +16,7 @@ void ParticleCopyOp::setNumLevels (const int num_levels)
 {
     m_boxes.resize(num_levels);
     m_levels.resize(num_levels);
+    m_tiles.resize(num_levels);
     m_src_indices.resize(num_levels);
     m_periodic_shift.resize(num_levels);
 }
@@ -27,6 +29,7 @@ void ParticleCopyOp::resize (const int gid, const int lev, const int size)
     }
     m_boxes[lev][gid].resize(size);
     m_levels[lev][gid].resize(size);
+    m_tiles[lev][gid].resize(size);    
     m_src_indices[lev][gid].resize(size);
     m_periodic_shift[lev][gid].resize(size);
 }
