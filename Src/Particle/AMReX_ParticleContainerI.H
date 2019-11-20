@@ -988,7 +988,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
     BL_PROFILE_VAR_START(blp_partition);
     auto& op = redistribute_copy_op;
     redistribute_copy_op.setNumLevels(num_levels);
-    Vector<std::map<int, int> > new_sizes(num_levels);    
+    Vector<std::map<std::pair<int, int>, int> > new_sizes(num_levels);    
     int pid = ParallelDescriptor::MyProc();
     for (int lev = lev_min; lev <= lev_max; ++lev)
     {
@@ -1094,7 +1094,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
             }
 
             int num_move = np - num_stay;
-            new_sizes[lev][gid] = num_stay;
+            new_sizes[lev][index] = num_stay;
             op.resize(Level{lev}, Grid{gid}, Tile{tid}, num_move);
 
             auto p_boxes = op.boxesPtr (Level{lev}, Grid{gid}, Tile{tid});
@@ -1138,7 +1138,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
             int tid = kv.first.second;
             auto index = std::make_pair(gid, tid);
             auto& tile = plev[index];
-            tile.resize(new_sizes[lev][gid]);
+            tile.resize(new_sizes[lev][index]);
         }
     }
 
