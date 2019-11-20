@@ -141,6 +141,8 @@ buildNeighborCopyOp ()
 {
     BL_PROFILE("NeighborParticleContainer<NStructReal, NStructInt>::buildNeighborCopyOp()");
 
+    using namespace ParticleComm;
+    
     AMREX_ALWAYS_ASSERT(this->numLevels() == 1);
     AMREX_ASSERT(hasNeighbors() == false);
 
@@ -191,13 +193,14 @@ buildNeighborCopyOp ()
 	int num_copies;
         Gpu::dtoh_memcpy(&num_copies, offsets.data()+np, sizeof(int));
 
-	neighbor_copy_op.resize(gid, lev, num_copies);
+        auto& op = neighbor_copy_op;        
+	op.resize(Level{lev}, Grid{gid}, Tile{tid},  num_copies);
 
-	auto p_boxes = neighbor_copy_op.m_boxes[lev][gid].dataPtr();
-        auto p_levs = neighbor_copy_op.m_levels[lev][gid].dataPtr();
-        auto p_tiles = neighbor_copy_op.m_tiles[lev][gid].dataPtr();
-	auto p_src_indices = neighbor_copy_op.m_src_indices[lev][gid].dataPtr();
-	auto p_periodic_shift = neighbor_copy_op.m_periodic_shift[lev][gid].dataPtr();
+        auto p_boxes = op.boxesPtr (Level{lev}, Grid{gid}, Tile{tid});
+        auto p_levs  = op.levelsPtr(Level{lev}, Grid{gid}, Tile{tid});
+        auto p_tiles = op.tilesPtr (Level{lev}, Grid{gid}, Tile{tid});
+        auto p_src_indices = op.indicesPtr(Level{lev}, Grid{gid}, Tile{tid});
+        auto p_periodic_shift = op.periodicPtr(Level{lev}, Grid{gid}, Tile{tid});
 
 	AMREX_FOR_1D ( np, i,
         {

@@ -947,9 +947,11 @@ template <int NStructReal, int NStructInt, int NArrayReal, int NArrayInt>
 void
 ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
 ::RedistributeGPU (int lev_min, int lev_max, int nGrow, int local)
-{
+{    
 #ifdef AMREX_USE_CUDA
 
+    using namespace ParticleComm;
+    
     if (local) AMREX_ASSERT(numParticlesOutOfRange(*this, local) == 0);
     
     // sanity checks
@@ -1093,13 +1095,14 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
 
             int num_move = np - num_stay;
             new_sizes[lev][gid] = num_stay;
-            op.resize(gid, lev, num_move);
+            op.resize(Level{lev}, Grid{gid}, Tile{tid}, num_move);
 
-            auto p_boxes = op.m_boxes[lev][gid].dataPtr();
-            auto p_levs = op.m_levels[lev][gid].dataPtr();
-            auto p_tiles = op.m_tiles[lev][gid].dataPtr();
-            auto p_src_indices = op.m_src_indices[lev][gid].dataPtr();
-            auto p_periodic_shift = op.m_periodic_shift[lev][gid].dataPtr();
+            auto p_boxes = op.boxesPtr (Level{lev}, Grid{gid}, Tile{tid});
+            auto p_levs  = op.levelsPtr(Level{lev}, Grid{gid}, Tile{tid});
+            auto p_tiles = op.tilesPtr (Level{lev}, Grid{gid}, Tile{tid});
+            auto p_src_indices = op.indicesPtr(Level{lev}, Grid{gid}, Tile{tid});
+            auto p_periodic_shift = op.periodicPtr(Level{lev}, Grid{gid}, Tile{tid});
+
             auto dst_grids_ptr = m_grids_r.dataPtr();
             auto dst_levs_ptr  = m_levs_r.dataPtr();
             auto dst_tiles_ptr  = m_tiles_r.dataPtr();

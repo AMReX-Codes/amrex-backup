@@ -22,17 +22,21 @@ void ParticleCopyOp::setNumLevels (const int num_levels)
     m_periodic_shift.resize(num_levels);
 }
 
-void ParticleCopyOp::resize (const int gid, const int lev, const int size)
+void ParticleCopyOp::resize (Level lev, Grid grid, Tile tile, int size)
 {
-    if (lev >= m_boxes.size())
+    int level = lev.i;
+    auto ind = std::make_pair(grid.i, tile.i);
+
+    if (level >= m_boxes.size())
     {
-        setNumLevels(lev+1);
+        setNumLevels(level+1);
     }
-    m_boxes[lev][gid].resize(size);
-    m_levels[lev][gid].resize(size);
-    m_tiles[lev][gid].resize(size);    
-    m_src_indices[lev][gid].resize(size);
-    m_periodic_shift[lev][gid].resize(size);
+
+    m_boxes[level][ind].resize(size);
+    m_levels[level][ind].resize(size);
+    m_tiles[level][ind].resize(size);    
+    m_src_indices[level][ind].resize(size);
+    m_periodic_shift[level][ind].resize(size);
 }
 
 void ParticleCopyPlan::clear ()

@@ -12,6 +12,10 @@
 namespace amrex {
 
 namespace ParticleComm {
+
+struct Grid  { int i; };
+struct Tile  { int i; };
+struct Level { int i; };
     
 struct NeighborUnpackPolicy
 {
@@ -50,24 +54,76 @@ struct RedistributeUnpackPolicy
     }
 };
 
-struct ParticleCopyOp 
+class ParticleCopyOp 
 {
-    Vector<std::map<int, Gpu::ManagedVector<int> > > m_boxes;
-    Vector<std::map<int, Gpu::ManagedVector<int> > > m_levels;
-    Vector<std::map<int, Gpu::ManagedVector<int> > > m_tiles;
-    Vector<std::map<int, Gpu::ManagedVector<int> > > m_src_indices;
-    Vector<std::map<int, Gpu::ManagedVector<IntVect> > > m_periodic_shift;
+    Vector<std::map<std::pair<int, int>, Gpu::ManagedVector<int> > > m_boxes;
+    Vector<std::map<std::pair<int, int>, Gpu::ManagedVector<int> > > m_levels;
+    Vector<std::map<std::pair<int, int>, Gpu::ManagedVector<int> > > m_tiles;
+    Vector<std::map<std::pair<int, int>, Gpu::ManagedVector<int> > > m_src_indices;
+    Vector<std::map<std::pair<int, int>, Gpu::ManagedVector<IntVect> > > m_periodic_shift;
 
+public:
+    
     void clear ();
 
-    void setNumLevels (const int num_levels);
+    void setNumLevels (int num_levels);
 
-    void resize (const int gid, const int lev, const int size);
+    void resize (Level lev, Grid grid, Tile tile, int size);
 
-    int numCopies (const int gid, const int lev) const 
+    int numCopies (Level lev, Grid grid, Tile tile) const 
     { 
-        if (m_boxes.size() <= lev) return 0;
-        return m_boxes[lev].at(gid).size(); 
+        if (m_boxes.size() <= lev.i) return 0;
+        return m_boxes[lev.i].at(std::make_pair(grid.i, tile.i)).size();
+    }
+
+    int * boxesPtr (Level lev, Grid grid, Tile tile)
+    {
+        return m_boxes[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    int * tilesPtr (Level lev, Grid grid, Tile tile)
+    {
+        return m_tiles[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    int * levelsPtr (Level lev, Grid grid, Tile tile)
+    {
+        return m_levels[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    int * indicesPtr (Level lev, Grid grid, Tile tile)
+    {
+        return m_src_indices[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    IntVect * periodicPtr (Level lev, Grid grid, Tile tile)
+    {
+        return m_periodic_shift[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+    
+    const int * boxesPtr (Level lev, Grid grid, Tile tile) const
+    {
+        return m_boxes[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    const int * tilesPtr (Level lev, Grid grid, Tile tile) const
+    {
+        return m_tiles[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    const int * levelsPtr (Level lev, Grid grid, Tile tile) const
+    {
+        return m_levels[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    const int * indicesPtr (Level lev, Grid grid, Tile tile) const
+    {
+        return m_src_indices[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
+    }
+
+    const IntVect * periodicPtr (Level lev, Grid grid, Tile tile) const 
+    {
+        return m_periodic_shift[lev.i].at(std::make_pair(grid.i, tile.i)).dataPtr();
     }
 };
 
@@ -150,12 +206,13 @@ struct ParticleCopyPlan
             for (const auto& kv : pc.GetParticles(lev))
             {
                 int gid = kv.first.first;
-                int num_copies = op.numCopies(gid, lev);
+                int tid = kv.first.second;
+                int num_copies = op.numCopies(Level{lev}, Grid{gid}, Tile{tid});
                 m_dst_indices[lev][gid].resize(num_copies);
             
-                auto p_boxes = op.m_boxes[lev].at(gid).dataPtr();
-                auto p_levs = op.m_levels[lev].at(gid).dataPtr();
-                auto p_tiles = op.m_tiles[lev].at(gid).dataPtr();
+                const auto p_boxes = op.boxesPtr (Level{lev}, Grid{gid}, Tile{tid});
+                const auto p_levs  = op.levelsPtr(Level{lev}, Grid{gid}, Tile{tid});
+                const auto p_tiles = op.tilesPtr (Level{lev}, Grid{gid}, Tile{tid});
                 auto p_dst_indices = m_dst_indices[lev][gid].dataPtr();
                 
                 AMREX_FOR_1D ( num_copies, i,
@@ -245,14 +302,15 @@ void packBuffer (const PC& pc, const ParticleCopyOp& op, const ParticleCopyPlan&
             auto& aos   = src_tile.GetArrayOfStructs();
             const auto ptd = src_tile.getConstParticleTileData();
             
-            int num_copies = op.numCopies(gid, lev);
+            int num_copies = op.numCopies(Level{lev}, Grid{gid}, Tile{tid});
+
+            const auto p_boxes = op.boxesPtr (Level{lev}, Grid{gid}, Tile{tid});
+            const auto p_levs  = op.levelsPtr(Level{lev}, Grid{gid}, Tile{tid});
+            const auto p_tiles = op.tilesPtr (Level{lev}, Grid{gid}, Tile{tid});
+            const auto p_src_indices = op.indicesPtr(Level{lev}, Grid{gid}, Tile{tid});
+            const auto p_periodic_shift = op.periodicPtr(Level{lev}, Grid{gid}, Tile{tid});
             
-            auto p_boxes = op.m_boxes[lev].at(gid).dataPtr();
-            auto p_levels = op.m_levels[lev].at(gid).dataPtr();
-            auto p_tiles = op.m_tiles[lev].at(gid).dataPtr();
-            auto p_src_indices = op.m_src_indices[lev].at(gid).dataPtr();
             auto p_dst_indices = plan.m_dst_indices[lev].at(gid).dataPtr();
-            auto p_periodic_shift = op.m_periodic_shift[lev].at(gid).dataPtr();
             auto p_box_offsets = plan.m_box_offsets.dataPtr();
             auto p_lev_offsets = pc.BufferMap().levelOffsetsPtr();
             auto p_box_perm = pc.BufferMap().levGridToBucketPtr();
@@ -262,7 +320,7 @@ void packBuffer (const PC& pc, const ParticleCopyOp& op, const ParticleCopyPlan&
             {
                 int dst_box = p_boxes[i];
                 if (dst_box < 0) continue;
-                int dst_lev = p_levels[i];
+                int dst_lev = p_levs[i];
                 int dst_tile = p_tiles[i];
                 AMREX_ASSERT(dst_tile == 0);
                 int box_offset = p_box_offsets[p_box_perm[p_lev_offsets[dst_lev]+dst_box]];
