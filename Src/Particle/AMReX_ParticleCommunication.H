@@ -52,6 +52,7 @@ struct ParticleCopyOp
 {
     Vector<std::map<int, Gpu::ManagedVector<int> > > m_boxes;
     Vector<std::map<int, Gpu::ManagedVector<int> > > m_levels;
+    Vector<std::map<int, Gpu::ManagedVector<int> > > m_tiles;
     Vector<std::map<int, Gpu::ManagedVector<int> > > m_src_indices;
     Vector<std::map<int, Gpu::ManagedVector<IntVect> > > m_periodic_shift;
 
@@ -152,12 +153,14 @@ struct ParticleCopyPlan
             
                 auto p_boxes = op.m_boxes[lev].at(gid).dataPtr();
                 auto p_levs = op.m_levels[lev].at(gid).dataPtr();
+                auto p_tiles = op.m_tiles[lev].at(gid).dataPtr();
                 auto p_dst_indices = m_dst_indices[lev][gid].dataPtr();
                 
                 AMREX_FOR_1D ( num_copies, i,
                 {
                     int dst_box = p_boxes[i];
                     int dst_lev = p_levs[i];
+                    int dst_tile = p_tiles[i];
                     if (dst_box < 0) continue;
                     int index = Gpu::Atomic::Inc(
                         &p_dst_box_counts[p_box_perm[p_lev_offsets[dst_lev]+dst_box]], max_unsigned_int);
