@@ -13,9 +13,23 @@ namespace amrex {
 
 namespace ParticleComm {
 
-struct Grid  { int i; };
-struct Tile  { int i; };
-struct Level { int i; };
+struct Grid
+{
+    int i;
+    explicit Grid(int i) : i(i) {}
+};
+
+struct Tile
+{
+    int i;
+    explicit Tile(int i) : i(i) {}
+};
+
+struct Level
+{
+    int i;
+    explicit Level(int i) : i(i) {}
+};
     
 struct NeighborUnpackPolicy
 {
