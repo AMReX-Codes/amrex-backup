@@ -1050,8 +1050,10 @@ protected:
 #ifdef AMREX_USE_GPU
     Gpu::ManagedVector<int> m_grids_r;
     Gpu::ManagedVector<int> m_levs_r;
+    Gpu::ManagedVector<int> m_tiles_r;
     Gpu::ManagedVector<int> m_grids_tmp;
     Gpu::ManagedVector<int> m_levs_tmp;
+    Gpu::ManagedVector<int> m_tiles_tmp;    
 
     ParticleCopyOp redistribute_copy_op;
     ParticleCopyPlan redistribute_copy_plan;

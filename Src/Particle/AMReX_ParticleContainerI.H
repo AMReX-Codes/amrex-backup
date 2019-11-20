@@ -1016,12 +1016,15 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
             
             m_grids_tmp.resize(np);
             m_grids_r.resize(np);
+            m_tiles_tmp.resize(np);
+            m_tiles_r.resize(np);            
             m_levs_r.resize(np);
             m_levs_tmp.resize(np);
 
             auto grids_ptr = m_grids_tmp.dataPtr();
             auto levs_ptr = m_levs_tmp.dataPtr();
-            ParticleType* p_ptr = &(aos[0]);
+            auto tiles_ptr = m_tiles_tmp.dataPtr();
+            auto p_ptr = &(aos[0]);
             amrex::ParallelFor(np, [=] AMREX_GPU_DEVICE (int i) noexcept
             {
                 auto& p = p_ptr[i];
@@ -1030,14 +1033,15 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
                 {    
                     grids_ptr[i] = -1;
                     levs_ptr[i] = -1;
+                    tiles_ptr[i] = -1;
                 }
                 else
                 {
                     enforcePeriodic(p, plo, phi, is_per);
                     auto tup = assign_grid(p);
                     grids_ptr[i] = amrex::get<0>(tup);
-                    int tile = amrex::get<1>(tup);
-                    levs_ptr[i] = amrex::get<2>(tup);
+                    tiles_ptr[i] = amrex::get<1>(tup);
+                    levs_ptr[i]  = amrex::get<2>(tup);
                 }
             });
 
@@ -1058,6 +1062,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
 
                 auto dst_grids_ptr = m_grids_r.dataPtr();
                 auto dst_levs_ptr = m_levs_r.dataPtr();
+                auto dst_tiles_ptr = m_tiles_r.dataPtr();
                 
                 num_stay = Scan::PrefixSum<int> (np, 
                     [=] AMREX_GPU_DEVICE (int i) -> int 
@@ -1071,12 +1076,14 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
                             copyParticle(dst_data, src_data, i, s);
                             dst_grids_ptr[s] = grids_ptr[i];
                             dst_levs_ptr[s] = levs_ptr[i];
+                            dst_tiles_ptr[s] = tiles_ptr[i];
                         }
                         else
                         {
                             copyParticle(dst_data, src_data, i, np-1-(i-s));
                             dst_grids_ptr[np-1-(i-s)] = grids_ptr[i];
                             dst_levs_ptr[np-1-(i-s)] = levs_ptr[i];
+                            dst_tiles_ptr[np-1-(i-s)] = tiles_ptr[i];
                         }
                     }, 
                     Scan::Type::exclusive);
@@ -1090,15 +1097,18 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
 
             auto p_boxes = op.m_boxes[lev][gid].dataPtr();
             auto p_levs = op.m_levels[lev][gid].dataPtr();
+            auto p_tiles = op.m_tiles[lev][gid].dataPtr();
             auto p_src_indices = op.m_src_indices[lev][gid].dataPtr();
             auto p_periodic_shift = op.m_periodic_shift[lev][gid].dataPtr();
             auto dst_grids_ptr = m_grids_r.dataPtr();
             auto dst_levs_ptr  = m_levs_r.dataPtr();
+            auto dst_tiles_ptr  = m_tiles_r.dataPtr();
             
 	    AMREX_FOR_1D ( num_move, i,
             {
                 p_boxes[i] = dst_grids_ptr[i + num_stay];
-                p_levs[i] = dst_levs_ptr[i + num_stay];
+                p_levs[i]  = dst_levs_ptr[i + num_stay];
+                p_tiles[i] = dst_tiles_ptr[i + num_stay];
                 p_periodic_shift[i] = IntVect(AMREX_D_DECL(0,0,0));
                 p_src_indices[i] = i+num_stay;
             });

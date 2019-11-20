@@ -162,6 +162,7 @@ struct ParticleCopyPlan
                     int dst_lev = p_levs[i];
                     int dst_tile = p_tiles[i];
                     if (dst_box < 0) continue;
+                    AMREX_ASSERT(dst_tile == 0);
                     int index = Gpu::Atomic::Inc(
                         &p_dst_box_counts[p_box_perm[p_lev_offsets[dst_lev]+dst_box]], max_unsigned_int);
                     p_dst_indices[i] = index;
@@ -246,6 +247,7 @@ void packBuffer (const PC& pc, const ParticleCopyOp& op, const ParticleCopyPlan&
             
             auto p_boxes = op.m_boxes[lev].at(gid).dataPtr();
             auto p_levels = op.m_levels[lev].at(gid).dataPtr();
+            auto p_tiles = op.m_tiles[lev].at(gid).dataPtr();
             auto p_src_indices = op.m_src_indices[lev].at(gid).dataPtr();
             auto p_dst_indices = plan.m_dst_indices[lev].at(gid).dataPtr();
             auto p_periodic_shift = op.m_periodic_shift[lev].at(gid).dataPtr();
@@ -257,8 +259,10 @@ void packBuffer (const PC& pc, const ParticleCopyOp& op, const ParticleCopyPlan&
             AMREX_FOR_1D ( num_copies, i,
             {
                 int dst_box = p_boxes[i];
-                int dst_lev = p_levels[i];
                 if (dst_box < 0) continue;
+                int dst_lev = p_levels[i];
+                int dst_tile = p_tiles[i];
+                AMREX_ASSERT(dst_tile == 0);
                 int box_offset = p_box_offsets[p_box_perm[p_lev_offsets[dst_lev]+dst_box]];
                 int dst_index = box_offset + p_dst_indices[i];
                 int src_index = p_src_indices[i];

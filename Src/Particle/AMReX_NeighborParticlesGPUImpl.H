@@ -195,6 +195,7 @@ buildNeighborCopyOp ()
 
 	auto p_boxes = neighbor_copy_op.m_boxes[lev][gid].dataPtr();
         auto p_levs = neighbor_copy_op.m_levels[lev][gid].dataPtr();
+        auto p_tiles = neighbor_copy_op.m_tiles[lev][gid].dataPtr();
 	auto p_src_indices = neighbor_copy_op.m_src_indices[lev][gid].dataPtr();
 	auto p_periodic_shift = neighbor_copy_op.m_periodic_shift[lev][gid].dataPtr();
 
@@ -212,6 +213,7 @@ buildNeighborCopyOp ()
                     int index = p_offsets[i]+k;
                     p_boxes[index] = p_code_array[j].grid_id;
                     p_levs[index] = 0;
+                    p_tiles[index] = 0;
                     p_periodic_shift[index] = p_code_array[j].periodic_shift;
                     p_src_indices[index] = i;
                     ++k;
