@@ -8,12 +8,62 @@
 #include <AMReX_MFIter.H>
 #include <AMReX_ParGDB.H>
 #include <AMReX_ParticleTile.H>
+#include <AMReX_TypeTraits.H>
 
 #include <limits>
 
 namespace amrex
 {
 
+/**
+ * \brief Returns the number of particles that are more than nGrow cells
+ * from the box correspond to the input iterator.
+ *
+ * \tparam Iterator an AMReX ParticleIterator
+ *
+ * \param the iterator pointing to the current grid/tile to test
+ * \param nGrow the number of grow cells allowed.
+ *
+ */
+template <class Iterator, EnableIf_t<amrex::IsParticleIterator<Iterator>::value, int> foo = 0>
+int
+numParticlesOutOfRange (Iterator const& pti, int nGrow)
+{
+    using ParticleType = typename Iterator::ContainerType::ParticleType;
+
+    const auto& tile = pti.GetParticleTile();
+    const auto np = tile.numParticles();
+    const auto& aos = tile.GetArrayOfStructs();
+    const auto pstruct = aos().dataPtr();
+    const auto& geom = pti.Geom(pti.GetLevel());
+
+    const auto domain = geom.Domain();
+    const auto plo = geom.ProbLoArray();
+    const auto dxi = geom.InvCellSizeArray();
+    
+    Box box = pti.tilebox();
+    box.grow(nGrow);
+        
+    ReduceOps<ReduceOpSum> reduce_op;
+    ReduceData<int> reduce_data(reduce_op);
+    using ReduceTuple = typename decltype(reduce_data)::Type;
+
+    reduce_op.eval(np, reduce_data,
+    [=] AMREX_GPU_DEVICE (int i) -> ReduceTuple
+    {
+        const ParticleType& p = pstruct[i];
+        if ((p.id() < 0)) return false;
+        IntVect iv = IntVect(
+            AMREX_D_DECL(floor((p.pos(0)-plo[0])*dxi[0]),
+                         floor((p.pos(1)-plo[1])*dxi[1]),
+                         floor((p.pos(2)-plo[2])*dxi[2])));
+        iv += domain.smallEnd();
+        return !box.contains(iv);
+    });
+    int hv = amrex::get<0>(reduce_data.value());
+    return hv;
+}
+    
 /**
  * \brief Returns the number of particles that are more than nGrow cells
  * from their assigned box.
@@ -26,8 +76,8 @@ namespace amrex
  * \param nGrow the number of grow cells allowed.
  *
  */    
-template <class PC>
-bool
+template <class PC, EnableIf_t<amrex::IsParticleContainer<PC>::value, int> foo = 0>
+int
 numParticlesOutOfRange (PC const& pc, int nGrow)
 {
     return numParticlesOutOfRange(pc, 0, pc.finestLevel(), nGrow);
@@ -47,8 +97,8 @@ numParticlesOutOfRange (PC const& pc, int nGrow)
  * \param nGrow the number of grow cells allowed.
  *
  */        
-template <class PC>
-bool
+template <class PC, EnableIf_t<amrex::IsParticleContainer<PC>::value, int> foo = 0>
+int
 numParticlesOutOfRange (PC const& pc, int lev_min, int lev_max, int nGrow)
 {
     BL_PROFILE("numParticlesOutOfRange()");
@@ -66,39 +116,14 @@ numParticlesOutOfRange (PC const& pc, int lev_min, int lev_max, int nGrow)
 #endif
         for(ParIter pti(pc, lev); pti.isValid(); ++pti)
         {
-            const auto& tile = pti.GetParticleTile();
-            const auto np = tile.numParticles();
-            const auto& aos = tile.GetArrayOfStructs();
-            const auto pstruct = aos().dataPtr();
-            
-            Box box = pti.tilebox();
-            box.grow(nGrow);
-
-            ReduceOps<ReduceOpSum> reduce_op;
-            ReduceData<int> reduce_data(reduce_op);
-            using ReduceTuple = typename decltype(reduce_data)::Type;
-
-            reduce_op.eval(np, reduce_data,
-            [=] AMREX_GPU_DEVICE (int i) -> ReduceTuple
-            {
-                const ParticleType& p = pstruct[i];
-                if ((p.id() < 0)) return false;
-                IntVect iv = IntVect(
-                        AMREX_D_DECL(floor((p.pos(0)-plo[0])*dxi[0]),
-                                     floor((p.pos(1)-plo[1])*dxi[1]),
-                                     floor((p.pos(2)-plo[2])*dxi[2])));
-                iv += domain.smallEnd();
-                return !box.contains(iv);
-            });
-            int hv = amrex::get<0>(reduce_data.value());
-            num_wrong += hv;
+            num_wrong += numParticlesOutOfRange(pti, nGrow);
         }
     }
     ParallelDescriptor::ReduceIntSum(num_wrong);
 
     return num_wrong;
 }
-    
+
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 int getTileIndex (const IntVect& iv, const Box& box, const bool a_do_tiling, 
 		  const IntVect& a_tile_size, Box& tbx)
