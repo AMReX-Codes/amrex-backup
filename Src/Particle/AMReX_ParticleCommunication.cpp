@@ -153,9 +153,9 @@ void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
         const auto offset = m_rOffset[i];
         const auto Cnt    = m_Rcvs[Who];
         
-        BL_ASSERT(Cnt > 0);
-        BL_ASSERT(Cnt < std::numeric_limits<int>::max());
-        BL_ASSERT(Who >= 0 && Who < NProcs);
+        AMREX_ASSERT(Cnt > 0);
+        AMREX_ASSERT(Cnt < std::numeric_limits<int>::max());
+        AMREX_ASSERT(Who >= 0 && Who < NProcs);
         
         m_build_rreqs[i] = ParallelDescriptor::Arecv((char*) (m_rcv_data.dataPtr() + offset), Cnt, Who, SeqNum).req();
     }
@@ -167,9 +167,9 @@ void ParticleCopyPlan::buildMPIStart (const ParticleBufferMap& map)
         const auto Cnt = m_Snds[i];
         if (Cnt == 0) continue;
 
-        BL_ASSERT(Cnt > 0);
-        BL_ASSERT(Who >= 0 && Who < NProcs);
-        BL_ASSERT(Cnt < std::numeric_limits<int>::max());
+        AMREX_ASSERT(Cnt > 0);
+        AMREX_ASSERT(Who >= 0 && Who < NProcs);
+        AMREX_ASSERT(Cnt < std::numeric_limits<int>::max());
         
         ParallelDescriptor::Asend((char*) snd_data[i].data(), Cnt, Who, SeqNum);
     }
@@ -255,7 +255,7 @@ void ParticleCopyPlan::doHandShakeLocal (const Vector<long>& Snds, Vector<long>&
         const int Who = m_neighbor_procs[i];
         const long Cnt = 1;
         
-        BL_ASSERT(Who >= 0 && Who < ParallelDescriptor::NProcs());
+        AMREX_ASSERT(Who >= 0 && Who < ParallelDescriptor::NProcs());
         
         rreqs[i] = ParallelDescriptor::Arecv(&Rcvs[Who], Cnt, Who, SeqNum).req();
     }
@@ -266,7 +266,7 @@ void ParticleCopyPlan::doHandShakeLocal (const Vector<long>& Snds, Vector<long>&
         const int Who = m_neighbor_procs[i];
         const long Cnt = 1;
         
-        BL_ASSERT(Who >= 0 && Who < ParallelDescriptor::NProcs());
+        AMREX_ASSERT(Who >= 0 && Who < ParallelDescriptor::NProcs());
         
         ParallelDescriptor::Send(&Snds[Who], Cnt, Who, SeqNum);        
     }
@@ -275,6 +275,27 @@ void ParticleCopyPlan::doHandShakeLocal (const Vector<long>& Snds, Vector<long>&
     {
         ParallelDescriptor::Waitall(rreqs, stats);
     }
+#endif
+}
+
+void ParticleCopyPlan::doHandShakeAllToAll (const Vector<long>& Snds, Vector<long>& Rcvs) const
+{
+#ifdef BL_USE_MPI
+    BL_COMM_PROFILE(BLProfiler::Alltoall, sizeof(long),
+                    ParallelDescriptor::MyProc(), BLProfiler::BeforeCall());
+
+    BL_MPI_REQUIRE( MPI_Alltoall(Snds.dataPtr(),
+                                 1,
+                                 ParallelDescriptor::Mpi_typemap<long>::type(),
+                                 Rcvs.dataPtr(),
+                                 1,
+                                 ParallelDescriptor::Mpi_typemap<long>::type(),
+                                 ParallelDescriptor::Communicator()) );
+    
+    AMREX_ASSERT(Rcvs[ParallelDescriptor::MyProc()] == 0);
+    
+    BL_COMM_PROFILE(BLProfiler::Alltoall, sizeof(long),
+                    ParallelDescriptor::MyProc(), BLProfiler::AfterCall());
 #endif
 }
 
