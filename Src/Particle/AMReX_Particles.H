@@ -86,7 +86,7 @@ struct ParticleLocData
 };
 
 /**
-* /brief A struct used to pass initial data into the various Init methods.
+* \brief A struct used to pass initial data into the various Init methods.
 * This struct is used to pass initial data into the various Init methods
 * of the particle container. That data should be initialized in the order
 * real struct data, int struct data, real array data, int array data.
@@ -106,7 +106,7 @@ struct ParticleInitType
     std::array<double, NArrayReal > real_array_data;
     std::array<int,    NArrayInt  > int_array_data;
 };
-
+    
 template <bool is_const, int NStructReal, int NStructInt, int NArrayReal, int NArrayInt>
 class ParIterBase;
 
@@ -115,6 +115,10 @@ class ParIter;
 
 template <int NStructReal, int NStructInt, int NArrayReal, int NArrayInt>
 class ParConstIter;
+
+class ParticleContainerBase
+{
+};
     
 /**
  * \brief A distributed container for Particles sorted onto the levels, grids,
@@ -130,7 +134,7 @@ class ParConstIter;
  *
  */
 template <int T_NStructReal, int T_NStructInt=0, int T_NArrayReal=0, int T_NArrayInt=0>
-class ParticleContainer
+class ParticleContainer : ParticleContainerBase
 {
 public:
     //! \brief number of extra Real components in the particle struct
@@ -883,17 +887,17 @@ public:
     bool PeriodicShift (ParticleType& prt) const;
 
     MFIter MakeMFIter (int lev, const MFItInfo& info) const {
-        BL_ASSERT(m_dummy_mf[lev] != nullptr);
+        AMREX_ASSERT(m_dummy_mf[lev] != nullptr);
         return MFIter(*m_dummy_mf[lev], info);
     }
 
     MFIter MakeMFIter (int lev) const {
-        BL_ASSERT(m_dummy_mf[lev] != nullptr);
+        AMREX_ASSERT(m_dummy_mf[lev] != nullptr);
         return MFIter(*m_dummy_mf[lev], do_tiling ? tile_size : IntVect::TheZeroVector());
     }
 
     MFIter MakeMFIter (int lev, bool tile) const {
-        BL_ASSERT(m_dummy_mf[lev] != nullptr);
+        AMREX_ASSERT(m_dummy_mf[lev] != nullptr);
         return MFIter(*m_dummy_mf[lev], tile ? tile_size : IntVect::TheZeroVector());
     }
 
@@ -1096,7 +1100,6 @@ private:
     Vector<std::unique_ptr<MultiFab> > m_dummy_mf;
 };
 
-
 template <bool is_const, int NStructReal, int NStructInt=0, int NArrayReal=0, int NArrayInt=0>
 class ParIterBase
     : public MFIter
@@ -1130,8 +1133,8 @@ public:
     ParIterBase (ContainerRef pc, int level, MFItInfo& info);
 
 #ifdef _OPENMP
-    void operator++ () {
-
+    void operator++ ()
+    {
         if (dynamic) {
 #pragma omp atomic capture
             m_pariter_index = nextDynamicIndex++;
@@ -1141,7 +1144,8 @@ public:
         currentIndex = m_valid_index[m_pariter_index];
     }
 #else
-    void operator++ () {
+    void operator++ ()
+    {
         ++m_pariter_index;
         currentIndex = m_valid_index[m_pariter_index];
 #ifdef AMREX_USE_GPU
@@ -1158,7 +1162,6 @@ public:
     SoARef GetStructOfArrays () const { return GetParticleTile().GetStructOfArrays(); }
 
     template <typename Container>
-
     void GetPosition (AMREX_D_DECL(Container& x,
                                    Container& y,
                                    Container& z)) const;
@@ -1168,6 +1171,8 @@ public:
     int GetLevel () const { return m_level; }
 
     std::pair<int, int> GetPairIndex () const { return std::make_pair(this->index(), this->LocalTileIndex()); }
+
+    const Geometry& Geom (int lev) const { return m_pc.Geom(lev); } 
     
 protected:
     
@@ -1175,6 +1180,7 @@ protected:
     int m_pariter_index;
     Vector<int> m_valid_index;
     Vector<ParticleTilePtr> m_particle_tiles;
+    ContainerRef m_pc;
 };
 
 
