@@ -33,6 +33,8 @@ target_sources( amrex
    AMReX_ccse-mpi.H
    AMReX_Algorithm.H
    AMReX_Array.H
+   AMReX_BlockMutex.H
+   AMReX_BlockMutex.cpp
    AMReX_Vector.H
    AMReX_Tuple.H
    AMReX.cpp
@@ -163,6 +165,7 @@ target_sources( amrex
    AMReX_Geometry.H
    AMReX_MultiFabUtil.cpp
    AMReX_MultiFabUtil.H
+   AMReX_MultiFabUtilI.H
    # Boundary-related --------------------------------------------------------
    AMReX_BCRec.cpp
    AMReX_BCRec.H 
