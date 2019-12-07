@@ -15,6 +15,9 @@ C$(AMREX_BASE)_headers += AMReX_IndexSequence.H
 
 C$(AMREX_BASE)_headers += AMReX_PODVector.H
 
+C$(AMREX_BASE)_headers += AMReX_BlockMutex.H
+C$(AMREX_BASE)_sources += AMReX_BlockMutex.cpp
+
 C$(AMREX_BASE)_sources += AMReX_ParmParse.cpp AMReX_parmparse_fi.cpp AMReX_Utility.cpp
 C$(AMREX_BASE)_headers += AMReX_ParmParse.H AMReX_Utility.H AMReX_BLassert.H AMReX_ArrayLim.H
 C$(AMREX_BASE)_headers += AMReX_Functional.H AMReX_Reduce.H AMReX_Scan.H AMReX_Partition.H
@@ -141,6 +144,7 @@ C$(AMREX_BASE)_headers += AMReX_CoordSys.H AMReX_Geometry.H AMReX_COORDSYS_C.H A
 
 C$(AMREX_BASE)_headers += AMReX_MultiFabUtil.H AMReX_MultiFabUtil_C.H AMReX_MultiFabUtil_$(DIM)D_C.H AMReX_MultiFabUtil_nd_C.H
 C$(AMREX_BASE)_sources += AMReX_MultiFabUtil.cpp
+C$(AMREX_BASE)_headers += AMReX_MultiFabUtilI.H
 
 ifneq ($(BL_NO_FORT),TRUE)
   C$(AMREX_BASE)_sources += AMReX_MultiFabUtil_Perilla.cpp
