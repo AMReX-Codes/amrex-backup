@@ -4,7 +4,7 @@
 #include <AMReX_BoxArray.H>
 #include <AMReX_DistributionMapping.H>
 #include <AMReX_Gpu.H>
-#include <AMReX_CudaContainers.H>
+#include <AMReX_GpuContainers.H>
 #include <AMReX_ParGDB.H>
 
 namespace amrex {
@@ -25,6 +25,7 @@ class ParticleBufferMap {
     Vector<int> m_proc_box_counts;
     Vector<int> m_proc_box_offsets;
 
+    Gpu::DeviceVector<int> d_bucket_to_pid;
     Gpu::DeviceVector<int> d_lev_gid_to_bucket;    
     Gpu::DeviceVector<int> d_lev_offsets;
     
@@ -103,14 +104,14 @@ public:
     }
 
     AMREX_INLINE
-    int numBoxesOnProc(int pid) const
+    int numBoxesOnProc (int pid) const
     {
         AMREX_ASSERT(m_defined);
         return m_proc_box_counts[pid];
     }
 
     AMREX_INLINE
-    Vector<int> allBucketsOnProc(int pid) const
+    Vector<int> allBucketsOnProc (int pid) const
     {
         AMREX_ASSERT(m_defined);
         Vector<int> buckets;        
@@ -122,10 +123,17 @@ public:
     }
 
     AMREX_INLINE
-    int procID(int gid, int lev) const 
+    int procID (int gid, int lev) const 
     { 
         AMREX_ASSERT(m_defined);
         return m_dm[lev][gid]; 
+    }
+
+    AMREX_INLINE
+    const int* bucketToPIDPtr () const
+    {
+        AMREX_ASSERT(m_defined);
+        return d_bucket_to_pid.dataPtr();
     }
 };
 

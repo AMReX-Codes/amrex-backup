@@ -68,7 +68,7 @@ void testIntersection()
 
     for (int lev = 0; lev < params.nlevs; ++lev)
     {
-        ploc[lev].build(ba[lev]);
+        ploc[lev].build(ba[lev], geom[lev]);
 
         auto assign_grid = ploc[lev].getGridAssignor();
 
@@ -83,7 +83,7 @@ void testIntersection()
             int num_cells = host_cells.size();
       
             Gpu::DeviceVector<IntVect> device_cells(num_cells);
-            Gpu::thrust_copy(host_cells.begin(), host_cells.end(), device_cells.begin());
+            Gpu::copy(Gpu::hostToDevice, host_cells.begin(), host_cells.end(), device_cells.begin());
             
             Gpu::DeviceVector<int> device_grids(num_cells);
             

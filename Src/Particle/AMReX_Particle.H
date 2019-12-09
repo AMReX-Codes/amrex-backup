@@ -23,14 +23,22 @@ namespace
     constexpr int NoSplitParticleID  = std::numeric_limits<int>::max()-4;
 }
 
-//
-//! The struct used to store particles.
-template<int NReal, int NInt=0>
+/** \brief The struct used to store particles.
+ *
+ * \tparam T_NReal The number of extra Real components
+ * \tparam T_NInt The number of extra integer components
+ */
+template<int T_NReal, int T_NInt=0>
 struct Particle
 {
+    //! \brief number of extra Real components in the particle struct
+    static constexpr int NReal = T_NReal;
+    //! \brief number of extra integer components in the particle struct
+    static constexpr int NInt = T_NInt;
+
     //
     //! The floating point type used for the particles.
-    typedef ParticleReal RealType;
+    using RealType = ParticleReal;
 
     /**
     * The real data. We always have SPACEDIM position coordinates,
@@ -62,14 +70,38 @@ struct Particle
     AMREX_GPU_HOST_DEVICE int& cpu()       & {return m_idata.cpu;}
     AMREX_GPU_HOST_DEVICE int  cpu() const & {return m_idata.cpu;}
 
-    AMREX_GPU_HOST_DEVICE RealType& pos(int index)       & {return m_rdata.pos[index];}
-    AMREX_GPU_HOST_DEVICE RealType  pos(int index) const & {return m_rdata.pos[index];}
+    AMREX_GPU_HOST_DEVICE RealType& pos(int index)       &
+	{
+		AMREX_ASSERT(index < AMREX_SPACEDIM);
+		return m_rdata.pos[index];
+	}
+    AMREX_GPU_HOST_DEVICE RealType  pos(int index) const &
+	{
+		AMREX_ASSERT(index < AMREX_SPACEDIM);
+		return m_rdata.pos[index];
+	}
 
-    AMREX_GPU_HOST_DEVICE RealType& rdata(int index)       & {return m_rdata.arr[AMREX_SPACEDIM + index];}
-    AMREX_GPU_HOST_DEVICE RealType  rdata(int index) const & {return m_rdata.arr[AMREX_SPACEDIM + index];}
+    AMREX_GPU_HOST_DEVICE RealType& rdata(int index)       &
+	{
+		AMREX_ASSERT(index < NReal);
+		return m_rdata.arr[AMREX_SPACEDIM + index];
+	}
+    AMREX_GPU_HOST_DEVICE RealType  rdata(int index) const &
+	{
+		AMREX_ASSERT(index < NReal);
+		return m_rdata.arr[AMREX_SPACEDIM + index];
+	}
 
-    AMREX_GPU_HOST_DEVICE int& idata(int index)       & {return m_idata.arr[2 + index];}
-    AMREX_GPU_HOST_DEVICE int  idata(int index) const & {return m_idata.arr[2 + index];}
+    AMREX_GPU_HOST_DEVICE int& idata(int index)       &
+	{
+		AMREX_ASSERT(index < NInt);
+		return m_idata.arr[2 + index];
+	}
+    AMREX_GPU_HOST_DEVICE int  idata(int index) const &
+	{
+		AMREX_ASSERT(index < NInt);		
+		return m_idata.arr[2 + index];
+	}
 
     static Real InterpDoit (const FArrayBox& fab, const Real* fracs, const IntVect* cells, int comp);
 
@@ -599,8 +631,8 @@ Particle<NReal, NInt>::Interp (const Particle<NReal, NInt>& prt,
 			  int                 cnt)
 {
     BL_PROFILE("Particle<NReal, NInt>::Interp()");
-    BL_ASSERT(idx != 0);
-    BL_ASSERT(val != 0);
+    AMREX_ASSERT(idx != 0);
+    AMREX_ASSERT(val != 0);
 
     const int       M   = AMREX_D_TERM(2,+2,+4);
     const Real*     plo = geom.ProbLo();
@@ -615,7 +647,7 @@ Particle<NReal, NInt>::Interp (const Particle<NReal, NInt>& prt,
 
     for (int i = 0; i < cnt; i++)
     {
-        BL_ASSERT(idx[i] >= 0 && idx[i] < fab.nComp());
+        AMREX_ASSERT(idx[i] >= 0 && idx[i] < fab.nComp());
 
         val[i] = Particle<NReal, NInt>::InterpDoit(fab,fracs,cells,idx[i]);
     }
@@ -629,7 +661,7 @@ Particle<NReal, NInt>::GetGravity (const FArrayBox&    gfab,
 			      Real*               grav)
 {
     BL_PROFILE("Particle<NReal, NInt>::GetGravity()");
-    BL_ASSERT(grav != 0);
+    AMREX_ASSERT(grav != 0);
 
     int idx[AMREX_SPACEDIM] = { AMREX_D_DECL(0,1,2) };
 

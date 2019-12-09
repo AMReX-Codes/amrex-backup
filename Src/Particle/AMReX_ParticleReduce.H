@@ -6,31 +6,32 @@
 #include <AMReX_Gpu.H>
 #include <AMReX_Print.H>
 #include <AMReX_GpuUtility.H>
+#include <AMReX_TypeTraits.H>
 
 #include <limits>
 
 namespace amrex
 {
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceSum (PC const& pc, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceSum (PC const& pc, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceSum(pc, 0, pc.finestLevel(), std::move(f));
+    return ReduceSum(pc, 0, pc.finestLevel(), std::forward<F>(f));
 }
     
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceSum (PC const& pc, int lev, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceSum (PC const& pc, int lev, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceSum(pc, lev, lev, std::move(f));
+    return ReduceSum(pc, lev, lev, std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceSum (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceSum (PC const& pc, int lev_min, int lev_max, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    using value_type = decltype(f(typename PC::ParticleType()));
+    using value_type = decltype(f(typename PC::SuperParticleType()));
     using ParIter = typename PC::ParConstIterType;
     value_type sm = 0;
 
@@ -43,15 +44,13 @@ ReduceSum (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
 
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 reduce_op.eval(np, reduce_data,
-                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(pstruct[i])};});
+                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(ptd.getSuperParticle(i))};});
             }
         }
 
@@ -63,7 +62,6 @@ ReduceSum (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     {
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
 #ifdef _OPENMP
 #pragma omp parallel if (!system::regtest_reduction) reduction(+:sm)
 #endif
@@ -71,10 +69,9 @@ ReduceSum (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 for (int i = 0; i < np; ++i)
-                    sm += f(pstruct[i]);
+                    sm += f(ptd.getSuperParticle(i));
             }
         }
     }
@@ -82,25 +79,25 @@ ReduceSum (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     return sm;
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMax (PC const& pc, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMax (PC const& pc, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceMax(pc, 0, pc.finestLevel(), std::move(f));
+    return ReduceMax(pc, 0, pc.finestLevel(), std::forward<F>(f));
 }
     
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMax (PC const& pc, int lev, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMax (PC const& pc, int lev, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceMax(pc, lev, lev, std::move(f));
+    return ReduceMax(pc, lev, lev, std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMax (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMax (PC const& pc, int lev_min, int lev_max, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    using value_type = decltype(f(typename PC::ParticleType()));
+    using value_type = decltype(f(typename PC::SuperParticleType()));
     using ParIter = typename PC::ParConstIterType;
     constexpr value_type value_lowest = std::numeric_limits<value_type>::lowest();
     value_type r = value_lowest;
@@ -114,15 +111,13 @@ ReduceMax (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
 
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 reduce_op.eval(np, reduce_data,
-                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(pstruct[i])};});
+                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(ptd.getSuperParticle(i))};});
             }
         }
 
@@ -134,7 +129,6 @@ ReduceMax (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     {
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
 #ifdef _OPENMP
 #pragma omp parallel if (!system::regtest_reduction) reduction(max:r)
 #endif
@@ -142,11 +136,9 @@ ReduceMax (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();        
-
+				const auto ptd = tile.getConstParticleTileData();
                 for (int i = 0; i < np; ++i)
-                    r = std::max(r, f(pstruct[i]));
+                    r = std::max(r, f(ptd.getSuperParticle(i)));
             }
         }
     }
@@ -154,25 +146,25 @@ ReduceMax (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     return r;
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMin (PC const& pc, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMin (PC const& pc, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceMin(pc, 0, pc.finestLevel(), std::move(f));
+    return ReduceMin(pc, 0, pc.finestLevel(), std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMin (PC const& pc, int lev, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMin (PC const& pc, int lev, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    return ReduceMin(pc, lev, lev, std::move(f));
+    return ReduceMin(pc, lev, lev, std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 auto
-ReduceMin (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename PC::ParticleType()))
+ReduceMin (PC const& pc, int lev_min, int lev_max, F&& f) -> decltype(f(typename PC::SuperParticleType()))
 {
-    using value_type = decltype(f(typename PC::ParticleType()));
+    using value_type = decltype(f(typename PC::SuperParticleType()));
     using ParIter = typename PC::ParConstIterType;
     constexpr value_type value_max = std::numeric_limits<value_type>::max();
     value_type r = value_max;
@@ -186,15 +178,13 @@ ReduceMin (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
 
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 reduce_op.eval(np, reduce_data,
-                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(pstruct[i])};});
+                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(ptd.getSuperParticle(i))};});
             }
         }
 
@@ -206,7 +196,6 @@ ReduceMin (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     {
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
 #ifdef _OPENMP
 #pragma omp parallel if (!system::regtest_reduction) reduction(min:r)
 #endif
@@ -214,11 +203,9 @@ ReduceMin (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();        
-
+				const auto ptd = tile.getConstParticleTileData();
                 for (int i = 0; i < np; ++i)
-                    r = std::min(r, f(pstruct[i]));
+                    r = std::min(r, f(ptd.getSuperParticle(i)));
             }
         }
     }
@@ -226,23 +213,23 @@ ReduceMin (PC const& pc, int lev_min, int lev_max, F f) -> decltype(f(typename P
     return r;
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalAnd (PC const& pc, F f)
+ReduceLogicalAnd (PC const& pc, F&& f)
 {
-    return ReduceLogicalAnd(pc, 0, pc.finestLevel(), std::move(f));
+    return ReduceLogicalAnd(pc, 0, pc.finestLevel(), std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalAnd (PC const& pc, int lev, F f)
+ReduceLogicalAnd (PC const& pc, int lev, F&& f)
 {
-    return ReduceLogicalAnd(pc, lev, lev, std::move(f));
+    return ReduceLogicalAnd(pc, lev, lev, std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalAnd (PC const& pc, int lev_min, int lev_max, F f)
+ReduceLogicalAnd (PC const& pc, int lev_min, int lev_max, F&& f)
 {
     using ParIter = typename PC::ParConstIterType;
     int r = true;
@@ -256,15 +243,13 @@ ReduceLogicalAnd (PC const& pc, int lev_min, int lev_max, F f)
 
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 reduce_op.eval(np, reduce_data,
-                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(pstruct[i])};});
+                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(ptd.getSuperParticle(i))};});
             }
         }
 
@@ -276,19 +261,16 @@ ReduceLogicalAnd (PC const& pc, int lev_min, int lev_max, F f)
     {
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
 #ifdef _OPENMP
-#pragma omp parallel if (!system::regtest_reduction) reduction(min:r)
+#pragma omp parallel if (!system::regtest_reduction) reduction(&&:r)
 #endif
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();        
-
+				const auto ptd = tile.getConstParticleTileData();
                 for (int i = 0; i < np; ++i)
-                    r = r && f(pstruct[i]);
+                    r = r && f(ptd.getSuperParticle(i));
             }
         }
     }
@@ -296,23 +278,23 @@ ReduceLogicalAnd (PC const& pc, int lev_min, int lev_max, F f)
     return r;
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalOr (PC const& pc, F f)
+ReduceLogicalOr (PC const& pc, F&& f)
 {
-    return ReduceLogicalOr(pc, 0, pc.finestLevel(), std::move(f));
+    return ReduceLogicalOr(pc, 0, pc.finestLevel(), std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalOr (PC const& pc, int lev, F f)
+ReduceLogicalOr (PC const& pc, int lev, F&& f)
 {
-    return ReduceLogicalOr(pc, lev, lev, std::move(f));
+    return ReduceLogicalOr(pc, lev, lev, std::forward<F>(f));
 }
 
-template <class PC, class F>
+template <class PC, class F, EnableIf_t<IsParticleContainer<PC>::value, int> foo = 0>
 bool
-ReduceLogicalOr (PC const& pc, int lev_min, int lev_max, F f)
+ReduceLogicalOr (PC const& pc, int lev_min, int lev_max, F&& f)
 {
     using ParIter = typename PC::ParConstIterType;
     int r = false;
@@ -326,15 +308,13 @@ ReduceLogicalOr (PC const& pc, int lev_min, int lev_max, F f)
 
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();
+				const auto ptd = tile.getConstParticleTileData();
                 reduce_op.eval(np, reduce_data,
-                [=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(pstruct[i])};});
+				[=] AMREX_GPU_DEVICE (const int i) -> ReduceTuple {return {f(ptd.getSuperParticle(i))};});
             }
         }
 
@@ -346,19 +326,17 @@ ReduceLogicalOr (PC const& pc, int lev_min, int lev_max, F f)
     {
         for (int lev = lev_min; lev <= lev_max; ++lev)
         {
-            const auto& plevel = pc.GetParticles(lev);
 #ifdef _OPENMP
-#pragma omp parallel if (!system::regtest_reduction) reduction(min:r)
+#pragma omp parallel if (!system::regtest_reduction) reduction(||:r)
 #endif
             for(ParIter pti(pc, lev); pti.isValid(); ++pti)
             {
                 const auto& tile = pti.GetParticleTile();
                 const auto np = tile.numParticles();
-                const auto& aos = tile.GetArrayOfStructs();
-                const auto pstruct = aos().dataPtr();        
-
+				const auto ptd = tile.getConstParticleTileData();
                 for (int i = 0; i < np; ++i)
-                    r = r || f(pstruct[i]);
+                    r = r || f(ptd.getSuperParticle(i));
+
             }
         }
     }

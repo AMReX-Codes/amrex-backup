@@ -160,9 +160,9 @@ public:
     * \brief Returns the maximum *absolute* value contained in
     * component comp of the MultiFab.
     */
-    Real norm0 (int comp = 0, int nghost = 0, bool local = false, bool set_covered = false ) const;
-    Real norminf (int comp = 0, int nghost = 0, bool local = false, bool set_covered = false ) const {
-        return norm0(comp,nghost,local,set_covered);
+    Real norm0 (int comp = 0, int nghost = 0, bool local = false, bool ignore_covered = false ) const;
+    Real norminf (int comp = 0, int nghost = 0, bool local = false, bool ignore_covered = false ) const {
+        return norm0(comp,nghost,local,ignore_covered);
     }
 
     Real norm0 (const iMultiFab& mask, int comp = 0, int nghost = 0, bool local = false) const;
@@ -174,16 +174,16 @@ public:
     * \brief Returns the maximum *absolute* values contained in
     * each component of "comps" of the MultiFab.  No ghost cells are used.
     */
-    Vector<Real> norm0 (const Vector<int>& comps, int nghost = 0, bool local = false, bool set_covered = false ) const;
-    Vector<Real> norminf (const Vector<int>& comps, int nghost = 0, bool local = false, bool set_covered = false) const {
-        return norm0(comps,nghost,local,set_covered);
+    Vector<Real> norm0 (const Vector<int>& comps, int nghost = 0, bool local = false, bool ignore_covered = false ) const;
+    Vector<Real> norminf (const Vector<int>& comps, int nghost = 0, bool local = false, bool ignore_covered = false) const {
+        return norm0(comps,nghost,local,ignore_covered);
     }
 
     /**
     * \brief Returns the L1 norm of component "comp" over the MultiFab.
     * No ghost cells are used.  This version has no double counting for nodal data.
     */
-    Real norm1 (int comp, const Periodicity& period, bool set_covered = false) const;
+    Real norm1 (int comp, const Periodicity& period, bool ignore_covered = false) const;
     /**
     * \brief Returns the L1 norm of component "comp" over the MultiFab.
     * ngrow ghost cells are used.
@@ -480,6 +480,25 @@ public:
 #endif
 
     /**
+    * \brief Swap from src to dst including nghost ghost cells.
+    * The two MultiFabs MUST have the same underlying BoxArray.
+    * The swap is local.
+    */
+    static void Swap (MultiFab&       dst,
+                      MultiFab&       src,
+                      int             srccomp,
+                      int             dstcomp,
+                      int             numcomp,
+                      int             nghost);
+
+    static void Swap (MultiFab&       dst,
+                      MultiFab&       src,
+                      int             srccomp,
+                      int             dstcomp,
+                      int             numcomp,
+                      const IntVect&  nghost);
+
+    /**
     * \brief Subtract src from dst including nghost ghost cells.
     * The two MultiFabs MUST have the same underlying BoxArray.
     */
@@ -540,6 +559,15 @@ public:
 		       int             dstcomp,
 		       int             numcomp,
 		       int             nghost);
+
+    static void Saxpy (MultiFab&       dst,
+		       Real            a,
+		       const MultiFab& src,
+		       int             srccomp,
+		       int             dstcomp,
+		       int             numcomp,
+		       const IntVect&  nghost);
+
     /**
     * \brief dst = src + a*dst
     */
@@ -550,6 +578,14 @@ public:
 		      int             dstcomp,
 		      int             numcomp,
 		      int             nghost);
+
+    static void Xpay (MultiFab&       dst,
+		      Real            a,
+		      const MultiFab& src,
+		      int             srccomp,
+		      int             dstcomp,
+		      int             numcomp,
+		      const IntVect&  nghost);
     /**
     * \brief dst = a*x + b*y
     */
@@ -563,6 +599,18 @@ public:
 			 int             dstcomp,
 			 int             numcomp,
 			 int             nghost);
+
+    static void LinComb (MultiFab&       dst,
+			 Real            a,
+			 const MultiFab& x,
+			 int             xcomp,
+			 Real            b,
+			 const MultiFab& y,
+			 int             ycomp,
+			 int             dstcomp,
+			 int             numcomp,
+			 const IntVect&  nghost);
+
     /**
     * \brief dst += src1*src2
     */
@@ -574,6 +622,15 @@ public:
 			    int             dstcomp,
 			    int             numcomp,
 			    int             nghost);
+
+    static void AddProduct (MultiFab&       dst,
+			    const MultiFab& src1,
+			    int             comp1,
+			    const MultiFab& src2,
+			    int             comp2,
+			    int             dstcomp,
+			    int             numcomp,
+			    const IntVect&  nghost);
 
     /**
     * \brief Are there any NaNs in the MF?

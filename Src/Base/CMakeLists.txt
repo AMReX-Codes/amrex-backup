@@ -33,6 +33,8 @@ target_sources( amrex
    AMReX_ccse-mpi.H
    AMReX_Algorithm.H
    AMReX_Array.H
+   AMReX_BlockMutex.H
+   AMReX_BlockMutex.cpp
    AMReX_Vector.H
    AMReX_Tuple.H
    AMReX.cpp
@@ -43,6 +45,7 @@ target_sources( amrex
    AMReX_error_fi.cpp
    AMReX_Extension.H
    AMReX_IndexSequence.H
+   AMReX_PODVector.H
    AMReX_ParmParse.cpp
    AMReX_parmparse_fi.cpp
    AMReX_ParmParse.H
@@ -52,6 +55,8 @@ target_sources( amrex
    AMReX_Reduce.H
    AMReX_Scan.H
    AMReX_Partition.H
+   AMReX_Random.H
+   AMReX_Random.cpp
    AMReX_BLassert.H
    AMReX_ArrayLim.H
    AMReX_REAL.H
@@ -160,6 +165,7 @@ target_sources( amrex
    AMReX_Geometry.H
    AMReX_MultiFabUtil.cpp
    AMReX_MultiFabUtil.H
+   AMReX_MultiFabUtilI.H
    # Boundary-related --------------------------------------------------------
    AMReX_BCRec.cpp
    AMReX_BCRec.H 
@@ -220,11 +226,10 @@ target_sources( amrex
    AMReX_GpuMemory.H
    AMReX_GpuRange.H
    AMReX_GpuReduce.H
+   AMReX_GpuAllocators.H
+   AMReX_GpuAllocators.cpp
+   AMReX_GpuContainers.H
    # CUDA --------------------------------------------------------------------
-   AMReX_CudaAllocators.H
-   AMReX_CudaAllocators.cpp
-   AMReX_CudaAllocators.H
-   AMReX_CudaContainers.H
    AMReX_CudaGraph.H
    # Machine model -----------------------------------------------------------
    AMReX_Machine.H

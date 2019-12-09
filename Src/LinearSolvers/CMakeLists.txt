@@ -2,6 +2,7 @@
 # Sources in subdirectory MLMG
 #
 target_include_directories(amrex PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/MLMG>)
+target_include_directories(amrex PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_LIST_DIR}/Projections>)
 
 target_sources(amrex
    PRIVATE
@@ -40,14 +41,18 @@ target_sources(amrex
    MLMG/AMReX_MLNodeLaplacian.cpp
    MLMG/AMReX_MLNodeLap_K.H
    MLMG/AMReX_MLNodeLap_${DIM}D_K.H
-   MLMG/AMReX_MLNodeLap_F.H
-   MLMG/AMReX_MLNodeLap_${DIM}d.F90
+   MLMG/AMReX_MLNodeTensorLaplacian.H
+   MLMG/AMReX_MLNodeTensorLaplacian.cpp
+   MLMG/AMReX_MLNodeTensorLap_K.H
+   MLMG/AMReX_MLNodeTensorLap_${DIM}D_K.H
    MLMG/AMReX_MLTensorOp.H
    MLMG/AMReX_MLTensorOp.cpp
    MLMG/AMReX_MLTensor_K.H
    MLMG/AMReX_MLTensor_${DIM}D_K.H
-   MLMG/AMReX_MacProjector.H
-   MLMG/AMReX_MacProjector.cpp
+   Projections/AMReX_MacProjector.H
+   Projections/AMReX_MacProjector.cpp
+   Projections/AMReX_NodalProjector.H
+   Projections/AMReX_NodalProjector.cpp
    )
 
 if (ENABLE_EB)

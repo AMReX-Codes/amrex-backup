@@ -34,8 +34,8 @@ struct LPInfo
 {
     bool do_agglomeration = true;
     bool do_consolidation = true;
-    int agg_grid_size = AMREX_D_PICK(32, 16, 8);
-    int con_grid_size = AMREX_D_PICK(32, 16, 8);
+    int agg_grid_size = -1;
+    int con_grid_size = -1;
     bool has_metric_term = true;
     int max_coarsening_level = 30;
 
@@ -45,6 +45,22 @@ struct LPInfo
     LPInfo& setConsolidationGridSize (int x) noexcept { con_grid_size = x; return *this; }
     LPInfo& setMetricTerm (bool x) noexcept { has_metric_term = x; return *this; }
     LPInfo& setMaxCoarseningLevel (int n) noexcept { max_coarsening_level = n; return *this; }
+
+    static constexpr int getDefaultAgglomerationGridSize () {
+#ifdef AMREX_USE_GPU
+        return 32;
+#else
+        return AMREX_D_PICK(32, 16, 8);
+#endif
+    }
+
+    static constexpr int getDefaultConsolidationGridSize () {
+#ifdef AMREX_USE_GPU
+        return 32;
+#else
+        return AMREX_D_PICK(32, 16, 8);
+#endif
+    }
 };
 
 class MLLinOp
@@ -190,7 +206,8 @@ public:
     virtual void unapplyMetricTerm (int amrlev, int mglev, MultiFab& rhs) const = 0;
     virtual void fillSolutionBC (int amrlev, MultiFab& sol, const MultiFab* crse_bcdata=nullptr) = 0;
 
-    virtual void applyInhomogNeumannTerm (int armlev, MultiFab& rhs) const {}
+    virtual void unimposeNeumannBC (int amrlev, MultiFab& rhs) const {} // only nodal solver might need it
+    virtual void applyInhomogNeumannTerm (int amrlev, MultiFab& rhs) const {}
 
     virtual void prepareForSolve () = 0;
     virtual bool isSingular (int amrlev) const = 0;
@@ -211,6 +228,13 @@ public:
                             const Vector<MultiFab*>& a_sol) const {
         amrex::Abort("MLLinOp::getFluxes: How did we get here?");
     }
+
+#ifdef AMREX_USE_EB
+    virtual void getEBFluxes (const Vector<MultiFab*>& a_flux,
+                              const Vector<MultiFab*>& a_sol) const {
+        amrex::Abort("MLLinOp::getEBFluxes: How did we get here?");
+    }
+#endif
 
 #ifdef AMREX_USE_HYPRE
     virtual std::unique_ptr<Hypre> makeHypre (Hypre::Interface hypre_interface) const {
@@ -304,6 +328,17 @@ protected:
     const Geometry& Geom (int amr_lev, int mglev=0) const noexcept { return m_geom[amr_lev][mglev]; }
     FabFactory<FArrayBox> const* Factory (int amr_lev, int mglev=0) const noexcept {
         return m_factory[amr_lev][mglev].get();
+    }
+
+    GpuArray<BCType,AMREX_SPACEDIM> LoBC (int icomp = 0) const noexcept {
+        return GpuArray<BCType,AMREX_SPACEDIM>{AMREX_D_DECL(m_lobc[icomp][0],
+                                                            m_lobc[icomp][1],
+                                                            m_lobc[icomp][2])};
+    }
+    GpuArray<BCType,AMREX_SPACEDIM> HiBC (int icomp = 0) const noexcept {
+        return GpuArray<BCType,AMREX_SPACEDIM>{AMREX_D_DECL(m_hibc[icomp][0],
+                                                            m_hibc[icomp][1],
+                                                            m_hibc[icomp][2])};
     }
 
 #ifdef BL_USE_MPI

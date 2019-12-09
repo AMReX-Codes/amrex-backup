@@ -539,8 +539,10 @@ void EB_computeDivergence (MultiFab& divu, const Array<MultiFab const*,AMREX_SPA
 {
     AMREX_ASSERT(divu.nComp()==umac[0]->nComp());
     AMREX_ASSERT(divu.nComp()==umac[1]->nComp());
+#if (AMREX_SPACEDIM == 3)
     AMREX_ASSERT(divu.nComp()==umac[2]->nComp());
-
+#endif
+    
     if (!divu.hasEBFabFactory())
     {
         amrex::computeDivergence(divu, umac, geom);
@@ -554,33 +556,7 @@ void EB_computeDivergence (MultiFab& divu, const Array<MultiFab const*,AMREX_SPA
         const auto& fcent = factory.getFaceCent();
 
         iMultiFab cc_mask(divu.boxArray(), divu.DistributionMap(), 1, 1);
-        cc_mask.setVal(0);
-
-#ifdef _OPENMP
-#pragma omp parallel if (Gpu::notInLaunchRegion())
-#endif
-        {
-            std::vector< std::pair<int,Box> > isects;
-            const std::vector<IntVect>& pshifts = geom.periodicity().shiftIntVect();
-            const BoxArray& ba = cc_mask.boxArray();
-            for (MFIter mfi(cc_mask); mfi.isValid(); ++mfi)
-            {
-                const Box& bx = mfi.fabbox();
-                Array4<int> const& fab = cc_mask.array(mfi);
-                for (const auto& iv : pshifts)
-                {
-                    ba.intersections(bx+iv, isects);
-                    for (const auto& is : isects)
-                    {
-                        const Box& b = is.second-iv;
-                        AMREX_HOST_DEVICE_FOR_3D(b,i,j,k,
-                        {
-                            fab(i,j,k) = 1;
-                        });
-                    }
-                }
-            }
-        }
+        cc_mask.BuildMask(geom.Domain(), geom.periodicity(), 1, 0, 0, 1);
 
         const GpuArray<Real,AMREX_SPACEDIM> dxinv = geom.InvCellSizeArray();
         MFItInfo info;

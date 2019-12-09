@@ -120,7 +120,7 @@ FabArray<FAB>::FBEP_nowait (int scomp, int ncomp, const IntVect& nghost,
                 nbytes += (*this)[cct.srcIndex].nBytes(cct.sbox,scomp,ncomp);
             }
             
-            BL_ASSERT(nbytes < std::numeric_limits<int>::max());
+            BL_ASSERT(nbytes < std::size_t(std::numeric_limits<int>::max()));
             
             total_volume += nbytes;
 
@@ -213,6 +213,8 @@ FabArray<FAB>::FillBoundary_finish ()
     BL_PROFILE("FillBoundary_finish()");
 
     if ( n_grow.allLE(IntVect::TheZeroVector()) && !fb_epo ) return; // For epo (Enforce Periodicity Only), there may be no ghost cells.
+
+    n_filled = fb_nghost;
 
     if (ParallelContext::NProcsSub() == 1) return;
 
@@ -308,6 +310,8 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
 
     BL_ASSERT(src.nGrowVect().allGE(snghost));
     BL_ASSERT(    nGrowVect().allGE(dnghost));
+
+    n_filled = dnghost;
 
     if ((src.boxArray().ixType().cellCentered() || op == FabArrayBase::COPY) &&
         (boxarray == src.boxarray && distributionMap == src.distributionMap)
@@ -444,7 +448,7 @@ FabArray<FAB>::ParallelCopy (const FabArray<FAB>& src,
                     nbytes += src[cct.srcIndex].nBytes(cct.sbox,SC,NC);
                 }
 		
-		BL_ASSERT(nbytes < std::numeric_limits<int>::max());
+		BL_ASSERT(nbytes < std::size_t(std::numeric_limits<int>::max()));
 
                 total_volume += nbytes;
 
@@ -668,7 +672,7 @@ FabArray<FAB>::PostRcvs (const MapOfCopyComTagContainers&  m_RcvTags,
             nbytes += (*this)[cct.dstIndex].nBytes(cct.dbox,icomp,ncomp);
         }
 
-        BL_ASSERT(nbytes < std::numeric_limits<int>::max());
+        BL_ASSERT(nbytes < std::size_t(std::numeric_limits<int>::max()));
 
         TotalRcvsVolume += nbytes;
 

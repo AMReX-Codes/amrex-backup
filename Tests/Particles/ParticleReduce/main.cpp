@@ -7,8 +7,8 @@ using namespace amrex;
 
 static constexpr int NSR = 4;
 static constexpr int NSI = 3;
-static constexpr int NAR = 0;
-static constexpr int NAI = 0;
+static constexpr int NAR = 2;
+static constexpr int NAI = 1;
 
 void get_position_unit_cell(Real* r, const IntVect& nppc, int i_part)
 {
@@ -89,23 +89,20 @@ public:
             auto new_size = old_size + host_particles.size();
             particle_tile.resize(new_size);
             
-            Cuda::thrust_copy(host_particles.begin(),
-                              host_particles.end(),
-                              particle_tile.GetArrayOfStructs().begin() + old_size);        
-
+            Gpu::copy(Gpu::hostToDevice, host_particles.begin(), host_particles.end(),
+                      particle_tile.GetArrayOfStructs().begin() + old_size);        
+            
             auto& soa = particle_tile.GetStructOfArrays();
             for (int i = 0; i < NAR; ++i)
             {
-                Cuda::thrust_copy(host_real[i].begin(),
-                                  host_real[i].end(),
-                                  soa.GetRealData(i).begin() + old_size);
+                Gpu::copy(Gpu::hostToDevice, host_real[i].begin(), host_real[i].end(),
+                          soa.GetRealData(i).begin() + old_size);
             }
-
+            
             for (int i = 0; i < NAI; ++i)
             {
-                Cuda::thrust_copy(host_int[i].begin(),
-                                  host_int[i].end(),
-                                  soa.GetIntData(i).begin() + old_size);
+                Gpu::copy(Gpu::hostToDevice, host_int[i].begin(), host_int[i].end(),
+                          soa.GetIntData(i).begin() + old_size);
             }
         }
     }
@@ -175,17 +172,26 @@ void testReduce ()
 
     pc.InitParticles(nppc);
 
-    using PType = typename TestParticleContainer::ParticleType;
-    
-    auto sm = amrex::ReduceSum(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return -p.rdata(1); });
-    AMREX_ALWAYS_ASSERT(sm == -pc.TotalNumberOfParticles());
+    using PType = typename TestParticleContainer::SuperParticleType;
+
+    auto sm = amrex::ReduceSum(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return p.rdata(1); });
+    AMREX_ALWAYS_ASSERT(sm == pc.TotalNumberOfParticles());
+	
+    auto sm2 = amrex::ReduceSum(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return -p.rdata(NSR+1); });
+    AMREX_ALWAYS_ASSERT(sm2 == -pc.TotalNumberOfParticles());
 
     auto mn = amrex::ReduceMin(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return p.rdata(1); });
     AMREX_ALWAYS_ASSERT(mn == 1);
 
+    auto mn2 = amrex::ReduceMin(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return p.rdata(NSR+1); });
+    AMREX_ALWAYS_ASSERT(mn2 == 1);
+	
     auto mx = amrex::ReduceMax(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> Real { return p.rdata(1); });
     AMREX_ALWAYS_ASSERT(mx == 1);
 
+    auto mx2 = amrex::ReduceMax(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> int { return p.idata(NSI); });
+    AMREX_ALWAYS_ASSERT(mx2 == 0);
+	
     {
         auto r = amrex::ReduceLogicalOr(pc, [=] AMREX_GPU_HOST_DEVICE (const PType& p) -> int { return p.id() == 1; });
         AMREX_ALWAYS_ASSERT(r == 1);

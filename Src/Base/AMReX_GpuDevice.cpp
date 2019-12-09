@@ -18,9 +18,12 @@
 #endif
 
 #ifdef AMREX_USE_ACC
+#include <openacc.h>
+
 extern "C" {
     void amrex_initialize_acc (int);
     void amrex_finalize_acc ();
+    void amrex_set_acc_stream (int);
 }
 #endif
 
@@ -43,12 +46,6 @@ gpuStream_t                                     Device::gpu_stream;
 gpuDeviceProp_t                                 Device::device_prop;
 
 constexpr int                                   Device::warp_size;
-
-#if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
-bool Device::graph_per_stream = true;
-bool Device::use_events = false;
-Vector<cudaGraph_t> Device::cuda_graphs;
-#endif
 
 namespace {
 
@@ -73,7 +70,7 @@ namespace {
 
             graphExec = Gpu::Device::stopGraphRecording((n == (graph_size-1)));
         }
-        AMREX_GPU_SAFE_CALL(cudaGraphExecDestroy(graphExec));
+        AMREX_CUDA_SAFE_CALL(cudaGraphExecDestroy(graphExec));
 #endif
     }
 }
@@ -314,9 +311,9 @@ Device::Initialize ()
 #endif
 
     if (amrex::Verbose()) {
-#ifdef AMREX_USE_MPI
+#if defined(AMREX_USE_MPI) && (AMREX_NVCC_MAJOR_VERSION >= 10)
         amrex::Print() << "CUDA initialized with 1 GPU per MPI rank; "
-                       << num_devices_used << " GPUs used in total\n";
+                       << num_devices_used << " GPU(s) used in total\n";
 #else
         amrex::Print() << "CUDA initialized with 1 GPU\n";
 #endif
@@ -394,6 +391,9 @@ Device::initialize_gpu ()
 
     for (int i = 0; i < max_gpu_streams; ++i) {
         AMREX_CUDA_SAFE_CALL(cudaStreamCreate(&gpu_streams[i]));
+#ifdef AMREX_USE_ACC
+        acc_set_cuda_stream(i, gpu_streams[i]);
+#endif
     }
 
 #endif
@@ -463,8 +463,16 @@ Device::setStreamIndex (const int idx) noexcept
 #ifdef AMREX_USE_GPU
     if (idx < 0) {
         gpu_stream = 0;
+
+#ifdef AMREX_USE_ACC
+        amrex_set_acc_stream(acc_async_sync);
+#endif
     } else {
         gpu_stream = gpu_streams[idx % max_gpu_streams];
+
+#ifdef AMREX_USE_ACC
+        amrex_set_acc_stream(idx % max_gpu_streams);
+#endif
     }
 #endif
 }
@@ -504,285 +512,78 @@ Device::streamSynchronize () noexcept
 
 #if ( defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ >= 10) )
 
-void 
-Device::startGraphRecording(bool first_iter)
-{
-    if (isGraphPerStream())
-    {
-        if (first_iter) {
-            startGraphStreamRecording();
-        }
-    } else {
-        startGraphIterRecording();
-    }
-}
-
-void 
+void
 Device::startGraphRecording(bool first_iter, void* h_ptr, void* d_ptr, size_t sz)
 {
-    if (isGraphPerStream())
-    {
-        if (first_iter) {
-            startGraphStreamRecording(h_ptr, d_ptr, sz);
-        }
-    } else {
-        startGraphIterRecording();
-    }
-}
-
-cudaGraphExec_t
-Device::stopGraphRecording(bool last_iter)
-{
-    if (isGraphPerStream())
-    {
-        if (last_iter) {
-            return stopGraphStreamRecording();
-        }
-    } else {
-        stopGraphIterRecording();
-        if (last_iter) {
-            return assembleGraphIter();
-        }
-    }
-
-    return NULL;
-}
-
-
-void
-Device::startGraphIterRecording()
-{
-    if (inLaunchRegion() && inGraphRegion())
-    {
-#if (__CUDACC_VER_MAJOR__ == 10) && (__CUDACC_VER_MINOR__ == 0)
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(cudaStream()));
-#else  
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(cudaStream(), cudaStreamCaptureModeGlobal));
-#endif
-    }
-}
-
-void
-Device::stopGraphIterRecording()
-{
-    if (inLaunchRegion() && inGraphRegion())
-    {
-        cudaGraph_t curr_graph;
-        AMREX_GPU_SAFE_CALL(cudaStreamEndCapture(cudaStream(), &(curr_graph)));
-
-        cuda_graphs.push_back(curr_graph);
-    }
-}
-
-cudaGraphExec_t
-Device::assembleGraphIter()
-{
-    cudaGraphExec_t graphExec;
-
-    if (inLaunchRegion() && inGraphRegion())
-    {
-        cudaGraph_t     graphFull;
-        cudaGraphNode_t emptyNode, placeholder;
-
-        AMREX_GPU_SAFE_CALL(cudaGraphCreate(&graphFull, 0));
-        AMREX_GPU_SAFE_CALL(cudaGraphAddEmptyNode(&emptyNode, graphFull, &placeholder, 0));
-
-        for (auto it = cuda_graphs.begin(); it != cuda_graphs.end(); ++it)
-        {
-            AMREX_GPU_SAFE_CALL(cudaGraphAddChildGraphNode(&placeholder, graphFull, &emptyNode, 1, *it));
-        }
-
-        graphExec = instantiateGraph(graphFull);
-        AMREX_GPU_SAFE_CALL(cudaGraphDestroy(graphFull));
-    }
-
-    for (int i=0; i<cuda_graphs.size(); ++i)
-    {
-        AMREX_GPU_SAFE_CALL(cudaGraphDestroy(cuda_graphs[i]));
-    }
-    cuda_graphs.clear();
-
-    return graphExec;
-}
-
-void
-Device::startGraphStreamRecording()
-{
-    if (inLaunchRegion() && inGraphRegion())
-    {
-        // Note: This builds a graph per stream and then assembles them into a single graph. 
-        // Should make multiple options for building for future flexibility.
-        //   (and add each cuda API call to a unique function so users can make their own).
-
-        cudaStream_t currentStream = gpu_stream;
-        for (int i=0; i<numGpuStreams(); ++i)
-        {
-            setStreamIndex(i);
-#if (__CUDACC_VER_MAJOR__ == 10) && (__CUDACC_VER_MINOR__ == 0)
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(cudaStream()));
-#else  
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(cudaStream(), cudaStreamCaptureModeGlobal));
-#endif
-        }
-        gpu_stream = currentStream; // Stream index isn't saved in Device for easy reset. Save it?
-
-        use_events = false;
-    }
-}
-
-void
-Device::startGraphStreamRecording(void* h_ptr, void* d_ptr, size_t sz)
-{
-    if (inLaunchRegion() && inGraphRegion())
+    if ((first_iter) && inLaunchRegion() && inGraphRegion())
     {
         // Uses passed information to do initial async memcpy in graph and 
-        //    link to all streams using cudaEvent.
+        //    links dependency to all streams using cudaEvents.
 
         setStreamIndex(0);
         cudaStream_t graph_stream = gpuStream();
         cudaEvent_t memcpy_event = {0};
-        AMREX_GPU_SAFE_CALL( cudaEventCreate(&memcpy_event, cudaEventDisableTiming) );
+        AMREX_CUDA_SAFE_CALL( cudaEventCreate(&memcpy_event, cudaEventDisableTiming) );
 
 #if (__CUDACC_VER_MAJOR__ == 10) && (__CUDACC_VER_MINOR__ == 0)
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(graph_stream));
+        AMREX_CUDA_SAFE_CALL(cudaStreamBeginCapture(graph_stream));
 #else  
-        AMREX_GPU_SAFE_CALL(cudaStreamBeginCapture(graph_stream, cudaStreamCaptureModeGlobal));
+        AMREX_CUDA_SAFE_CALL(cudaStreamBeginCapture(graph_stream, cudaStreamCaptureModeGlobal));
 #endif
 
-        AMREX_GPU_SAFE_CALL(cudaMemcpyAsync(d_ptr, h_ptr, sz, cudaMemcpyHostToDevice, graph_stream));
-        AMREX_GPU_SAFE_CALL(cudaEventRecord(memcpy_event, graph_stream));
+        AMREX_CUDA_SAFE_CALL(cudaMemcpyAsync(d_ptr, h_ptr, sz, cudaMemcpyHostToDevice, graph_stream));
+        AMREX_CUDA_SAFE_CALL(cudaEventRecord(memcpy_event, graph_stream));
 
         // Note: Main graph stream fixed at 0, so i starts at 1.
         //       Will need more complex logic if this changes.
         for (int i=1; i<numGpuStreams(); ++i)
         {
             setStreamIndex(i);
-            AMREX_GPU_SAFE_CALL(cudaStreamWaitEvent(gpuStream(), memcpy_event, 0));
-        } 
+            AMREX_CUDA_SAFE_CALL(cudaStreamWaitEvent(gpuStream(), memcpy_event, 0));
+        }
         setStreamIndex(0);
-        use_events = true;
 
-        AMREX_GPU_SAFE_CALL( cudaEventDestroy(memcpy_event) );
+        AMREX_CUDA_SAFE_CALL( cudaEventDestroy(memcpy_event) );
     }
 }
 
-
-
 cudaGraphExec_t
-Device::stopGraphStreamRecording()
+Device::stopGraphRecording(bool last_iter)
 {
     cudaGraphExec_t graphExec;
 
-    if (inLaunchRegion() && inGraphRegion())
+    if (last_iter && inLaunchRegion() && inGraphRegion())
     {
-        if (use_events)
+        // Uses cudaEvents to rejoin the streams, making a single graph.
+        setStreamIndex(0);
+        cudaStream_t graph_stream = gpuStream();
+        cudaEvent_t rejoin_event = {0};
+        AMREX_CUDA_SAFE_CALL( cudaEventCreate(&rejoin_event, cudaEventDisableTiming) );
+
+        // Note: Main graph stream fixed at 0, so i starts at 1.
+        //       Will need more complex logic if this changes.
+        for (int i=1; i<Gpu::Device::numGpuStreams(); ++i)
         {
-            // This uses cudaEvents to combine the streams into a single graph directly.
-            // Is turned on if the memCpy info was passed to startGraphStreamRecording.
-            setStreamIndex(0);
-            cudaStream_t graph_stream = gpuStream();
-            cudaEvent_t rejoin_event = {0};
-            AMREX_GPU_SAFE_CALL( cudaEventCreate(&rejoin_event, cudaEventDisableTiming) );
-
-            // Note: Main graph stream fixed at 0, so i starts at 1.
-            //       Will need more complex logic if this changes.
-            for (int i=1; i<Gpu::Device::numGpuStreams(); ++i)
-            {
-                Gpu::Device::setStreamIndex(i);
-                cudaEventRecord(rejoin_event, gpuStream());
-                cudaStreamWaitEvent(graph_stream, rejoin_event, 0);
-            }
-            Gpu::Device::setStreamIndex(0);
-
-            cudaGraph_t graph;
-            AMREX_GPU_SAFE_CALL(cudaStreamEndCapture(graph_stream, &graph));
-            graphExec = instantiateGraph(graph);
-
-            AMREX_GPU_SAFE_CALL( cudaGraphDestroy(graph); );
-            AMREX_GPU_SAFE_CALL( cudaEventDestroy(rejoin_event) );
+            Gpu::Device::setStreamIndex(i);
+            cudaEventRecord(rejoin_event, gpuStream());
+            cudaStreamWaitEvent(graph_stream, rejoin_event, 0);
         }
-        else
-        {
-            // This builds a graph per stream and then assembles them into a single graph. 
-            cudaGraph_t     graph[numGpuStreams()];
-            cudaStream_t currentStream = gpu_stream;
-            for (int i=0; i<numGpuStreams(); ++i)
-            {
-                setStreamIndex(i);
-                AMREX_GPU_SAFE_CALL(cudaStreamEndCapture(cudaStream(), &(graph[i])));
-            }
-            gpu_stream = currentStream; // Stream index isn't saved in Device for easy reset. Save it?
+        Gpu::Device::setStreamIndex(0);
 
-            cudaGraph_t     graphFull;
-            cudaGraphNode_t emptyNode, placeholder;
+        cudaGraph_t graph;
+        AMREX_CUDA_SAFE_CALL(cudaStreamEndCapture(graph_stream, &graph));
+        graphExec = instantiateGraph(graph);
 
-            AMREX_GPU_SAFE_CALL(cudaGraphCreate(&graphFull, 0));
-            AMREX_GPU_SAFE_CALL(cudaGraphAddEmptyNode(&emptyNode, graphFull, &placeholder, 0));
-            for (int i=0; i<numGpuStreams(); ++i)
-            {
-                AMREX_GPU_SAFE_CALL(cudaGraphAddChildGraphNode(&placeholder, graphFull, &emptyNode, 1, graph[i]));
-            }
-            graphExec = instantiateGraph(graphFull);
-
-            for (int i=0; i<numGpuStreams(); ++i)
-            {
-                AMREX_GPU_SAFE_CALL(cudaGraphDestroy(graph[i]));
-            }
-            AMREX_GPU_SAFE_CALL(cudaGraphDestroy(graphFull));
-        }
+        AMREX_CUDA_SAFE_CALL( cudaGraphDestroy(graph); );
+        AMREX_CUDA_SAFE_CALL( cudaEventDestroy(rejoin_event) );
     }
 
     return graphExec;
 }
-
-cudaGraphExec_t
-Device::stopGraphStreamRecording(cudaGraph_t rootGraph)
-{
-    cudaGraphExec_t graphExec;
-
-    if (inLaunchRegion() && inGraphRegion())
-    {
-        // Note: This builds a graph per stream and then assembles them into a single graph. 
-        // Should make multiple options for building for future flexibility.
-        //   (and add each cuda API call to a unique function so users can make their own).
-
-        cudaGraph_t     graph[numGpuStreams()];
-        cudaStream_t currentStream = gpu_stream;
-        for (int i=0; i<numGpuStreams(); ++i)
-        {
-            setStreamIndex(i);
-            AMREX_GPU_SAFE_CALL(cudaStreamEndCapture(cudaStream(), &(graph[i])));
-        }
-        gpu_stream = currentStream; // Stream index isn't saved in Device for easy reset. Save it?
-
-        cudaGraph_t     graphFull;
-        cudaGraphNode_t rootNode, placeholder;
-
-        AMREX_GPU_SAFE_CALL(cudaGraphCreate(&graphFull, 0));
-        AMREX_GPU_SAFE_CALL(cudaGraphAddChildGraphNode(&rootNode, graphFull, NULL, 0, rootGraph));
-
-        for (int i=0; i<numGpuStreams(); ++i)
-        {
-            AMREX_GPU_SAFE_CALL(cudaGraphAddChildGraphNode(&placeholder, graphFull, &rootNode, 1, graph[i]));
-        }
-        graphExec = instantiateGraph(graphFull);
-
-        for (int i=0; i<numGpuStreams(); ++i)
-        {
-            AMREX_GPU_SAFE_CALL(cudaGraphDestroy(graph[i]));
-        }
-        AMREX_GPU_SAFE_CALL(cudaGraphDestroy(graphFull));
-    }
-
-    return graphExec;
-}
-
-
 
 cudaGraphExec_t
 Device::instantiateGraph(cudaGraph_t graph)
 {
-
     cudaGraphExec_t graphExec;
 
 #ifdef AMREX_DEBUG 
@@ -801,7 +602,7 @@ Device::instantiateGraph(cudaGraph_t graph)
     }
 #else
 
-    AMREX_GPU_SAFE_CALL(cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0)); 
+    AMREX_CUDA_SAFE_CALL(cudaGraphInstantiate(&graphExec, graph, NULL, NULL, 0)); 
 
 #endif
 
@@ -815,7 +616,7 @@ Device::executeGraph(const cudaGraphExec_t &graphExec, bool synch)
     if (inLaunchRegion() && inGraphRegion())
     {
         setStreamIndex(0);
-        AMREX_GPU_SAFE_CALL(cudaGraphLaunch(graphExec, cudaStream()));
+        AMREX_CUDA_SAFE_CALL(cudaGraphLaunch(graphExec, cudaStream()));
         if (synch) {
             synchronize();
         }
