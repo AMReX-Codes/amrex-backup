@@ -189,7 +189,7 @@ struct ParticleCopyPlan
 
         if (num_buckets == 1 and (not pc.Geom(0).isAnyPeriodic()) )
         {
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
             const int NProcs = ParallelDescriptor::NProcs();
             m_Snds.resize(0);
             m_Snds.resize(NProcs, 0);
@@ -444,7 +444,7 @@ void communicateParticlesStart (const PC& pc, ParticleCopyPlan& plan, const Buff
     
     long psize = pc.superParticleSize();
 
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
     const int NProcs = ParallelDescriptor::NProcs();
     const int MyProc = ParallelDescriptor::MyProc();
     
@@ -513,7 +513,7 @@ void unpackRemotes (PC& pc, const ParticleCopyPlan& plan, Buffer& rcv_buffer, co
 {
     BL_PROFILE("amrex::unpackRemotes");
     
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
     const int NProcs = ParallelDescriptor::NProcs();
     if (NProcs == 1) return;
 

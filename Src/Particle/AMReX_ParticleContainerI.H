@@ -452,7 +452,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::ByteSpread ()
     const int IOProc = ParallelDescriptor::IOProcessorNumber();
     const std::size_t sz = sizeof(ParticleType)+NumRealComps()*sizeof(Real)+NumIntComps()*sizeof(int);
 
-#ifdef BL_LAZY
+#ifdef AMREX_LAZY
     Lazy::QueueReduction( [=] () mutable {
 #endif
     ParallelDescriptor::ReduceLongMin(mn, IOProc);
@@ -466,7 +466,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::ByteSpread ()
                    << mx*sz
                    << " (" << mx << ")"
                    << "] total particles: (" << cnt << ")\n";
-#ifdef BL_LAZY
+#ifdef AMREX_LAZY
     });
 #endif
 }
@@ -1552,12 +1552,12 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
       
       ByteSpread();
       
-#ifdef BL_LAZY
+#ifdef AMREX_LAZY
       Lazy::QueueReduction( [=] () mutable {
 #endif
               ParallelDescriptor::ReduceRealMax(stoptime,ParallelDescriptor::IOProcessorNumber());
               amrex::Print() << "ParticleContainer::Redistribute() time: " << stoptime << "\n\n";
-#ifdef BL_LAZY
+#ifdef AMREX_LAZY
           });
 #endif
   }
@@ -1645,7 +1645,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
     BL_PROFILE_VAR_NS("RedistributeMPI_locate", blp_locate);
     BL_PROFILE_VAR_NS("RedistributeMPI_copy", blp_copy);
 
-#ifdef BL_USE_MPI
+#ifdef AMREX_USE_MPI
 
     using buffer_type = unsigned long long;
     
@@ -1722,7 +1722,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
         const auto offset = rOffset[i];
         const auto Cnt = (Rcvs[Who] + sizeof(buffer_type)-1)/sizeof(buffer_type);
         AMREX_ASSERT(Cnt > 0);
-        AMREX_ASSERT(Cnt < std::numeric_limits<int>::max());
+        AMREX_ASSERT(Cnt < size_t(std::numeric_limits<int>::max()));
         AMREX_ASSERT(Who >= 0 && Who < NProcs);
         
         rreqs[i] = ParallelDescriptor::Arecv(&recvdata[offset], Cnt, Who, SeqNum).req();
@@ -1758,7 +1758,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
             const auto offset = rOffset[j];
             const auto Who    = RcvProc[j];
             const auto Cnt    = Rcvs[Who] / superparticle_size;            
-            for (int i = 0; i < Cnt; ++i)
+            for (int i = 0; i < int(Cnt); ++i)
             {
                 char* pbuf = ((char*) &recvdata[offset]) + i*superparticle_size;
                 ParticleType p;
@@ -1782,7 +1782,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
             const auto offset = rOffset[i];
             const auto Who    = RcvProc[i];
             const auto Cnt = Rcvs[Who] / superparticle_size;            
-            for (int j = 0; j < Cnt; ++j)
+            for (int j = 0; j < int(Cnt); ++j)
             {                
                 auto& ptile = m_particles[rcv_levs[ipart]][std::make_pair(rcv_grid[ipart],
                                                                           rcv_tile[ipart])];
@@ -1918,7 +1918,7 @@ RedistributeMPI (std::map<int, Vector<char> >& not_ours,
 
 	BL_PROFILE_VAR_STOP(blp_copy);
     }
-#endif /*BL_USE_MPI*/
+#endif /*AMREX_USE_MPI*/
 }
 
 template <int NStructReal, int NStructInt, int NArrayReal, int NArrayInt>
