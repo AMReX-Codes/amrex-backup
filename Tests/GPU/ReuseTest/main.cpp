@@ -6,9 +6,10 @@ using namespace amrex;
 
 // To do:
 // ======
-// resize going down the wrong path? (Not clearing, just replacing?)
+// resize going down the wrong path? (Not clearing, just replacing?) -- Should be fine. Shouldn't clear unless new size > old size.
 // check NumCallBacks isn't messing anything up.
-// Vector of Boxes and indexing scheme to get rid of synchronize.
+// Vector of Boxes and indexing scheme to get rid of synchronize. -- Do I need box? Should be properly captured by callback and launches.
+// Need Array4 on the device. (Managed Array4 for first attempt?)
 
 
 // Resize callback stuff
@@ -16,7 +17,7 @@ using namespace amrex;
 
 struct FabResize{
     FArrayBox* fab;
-    const Box* bx;
+    const Box bx;
     Array4<Real>* array;
 };
 
@@ -68,22 +69,20 @@ void main_main ()
         ba.maxSize(max_grid_size);
     }
 
-    MultiFab mf(ba,DistributionMapping{ba},1,0,MFInfo().SetArena(The_Managed_Arena()));
+    MultiFab mf(ba,DistributionMapping{ba},1,0);
     mf.setVal(1.5);
 
-    MultiFab mf_elix(ba,DistributionMapping{ba},1,0,MFInfo().SetArena(The_Managed_Arena()));
+    MultiFab mf_elix(ba,DistributionMapping{ba},1,0);
     mf_elix.setVal(1.5);
 
-    MultiFab mf_reuse(ba,DistributionMapping{ba},1,0,MFInfo().SetArena(The_Managed_Arena()));
+    MultiFab mf_reuse(ba,DistributionMapping{ba},1,0);
     mf_reuse.setVal(1.5);
+
+    long FabBytesBegin = amrex::TotalBytesAllocatedInFabs();
 
     if (do_baseline)
     {
-        amrex::ResetTotalBytesAllocatedInFabsHWM(); 
-
         BL_PROFILE("1-Baseline");
-
-        amrex::Print() << "Baseline without temps -- Begin" << std::endl;
         for (MFIter mfi(mf_elix, MFItInfo().EnableTiling(FabArrayBase::mfiter_tile_size).SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.tilebox();
@@ -95,19 +94,15 @@ void main_main ()
                 fab(i,j,k) = fab(i,j,k)*fab(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Baseline without temps -- End" << std::endl;
-        amrex::Print() << "Baseline memory HWM: " << amrex::TotalBytesAllocatedInFabsHWM() << std::endl << std::endl;
+        amrex::Print() << "Baseline -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
     }
 
     if (do_elixir)
     {
-        amrex::ResetTotalBytesAllocatedInFabsHWM(); 
-
-        FArrayBox temp_fab(The_Managed_Arena());
-
         BL_PROFILE("2-Elixir");
 
-        amrex::Print() << "Elixir temps -- Begin" << std::endl;
+        FArrayBox temp_fab;
+
         for (MFIter mfi(mf_elix, MFItInfo().EnableTiling(FabArrayBase::mfiter_tile_size).SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.tilebox();
@@ -129,64 +124,65 @@ void main_main ()
                 fab(i,j,k) = temp(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Elixir temps -- End" << std::endl;
-        amrex::Print() << "Elixir memory HWM: " << amrex::TotalBytesAllocatedInFabsHWM() << std::endl << std::endl;
+        amrex::Print() << "Elixir -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
 
     }
 
     if (do_reuse)
     {
-        amrex::ResetTotalBytesAllocatedInFabsHWM(); 
+        BL_PROFILE("3-Reuse");
 
-        Vector<Box> temp_box( mf_elix.local_size() );
-        Vector<Array4<Real>> temp_arr( num_streams ); 
-        Vector<FArrayBox*> temp_fab( num_streams );
+        // Version 2: Search for largest box on each stream, initialize FArrayBox with that box.
+        //            resize will only ever update the box for the new Array4.
+        //            FArrayBox data will be left on the device.
+
+        // Version 3: Make it without Managed Memory.
+
+        // Version 4: API for users.
+
+        Vector<FArrayBox*> temp_fab(num_streams);
         for (int i = 0; i<num_streams; ++i)
         {
-            temp_fab[i] = new FArrayBox(The_Managed_Arena());
+            temp_fab[i] = new FArrayBox;
         }
+        ManagedVector<Array4<Real>> temp_arr(num_streams);
 
-        BL_PROFILE("3-Reuse");
-        amrex::Print() << "Reuse temps -- Begin" << std::endl;
         for (MFIter mfi(mf_elix, MFItInfo().EnableTiling(FabArrayBase::mfiter_tile_size).SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
         {
             const Box& bx = mfi.tilebox();
             Array4<Real> const& fab = mf_reuse.array(mfi);
-            Array4<Real> temp;
 
             // Find FArrayBox associated with this stream.
             // Equivalent of setStreamIndex MFIter value in MFIter operator++.
             //    (minus the CPU or no stream variations, for simplicity).
             int stream_id = mfi.tileIndex()%num_streams;
             FArrayBox& my_temp = *(temp_fab[stream_id]);
+            Array4<Real>* temp = &(temp_arr[stream_id]);
 
             // Make these a callback function. No elixir needed. That should be it. :)
             //    ****** my_temp.resize(bx, AMREX_SPACEDIM);
             //    ****** const auto temp = my_temp.array();
 
-            FabResize fr{&my_temp, &bx, &temp};
+            FabResize fr{&my_temp, bx, &temp_arr[stream_id]};
             cudaLaunchHostFunc(Gpu::gpuStream(), amrex_farraybox_resize, &fr);
 
-            // Currently fails without this, as box and array change outside the callback.
-            //    An Array4 can be stored with the matching FArrayBox in a "Temporaries" object and cycled in the callback.
-            //    Proper pointers to boxes? std::vector<Box*> for each stream with indexing scheme?
-            //    Need to keep FabResize outside?
+            // Currently Needed.
             amrex::Gpu::Device::synchronize();
 
             amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {   
-                temp(i,j,k) = fab(i,j,k)*fab(i,j,k);
+                (*temp)(i,j,k) = fab(i,j,k)*fab(i,j,k);
             });
 
             amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE (int i, int j, int k)
             {   
-                fab(i,j,k) = temp(i,j,k) + 3.14159;
+                fab(i,j,k) = (*temp)(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Reuse temps -- End" << std::endl;
-        amrex::Print() << "Reuse memory HWM: " << amrex::TotalBytesAllocatedInFabsHWM() << std::endl << std::endl;
+        amrex::Print() << "Reuse -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
+
     }
 
     {
