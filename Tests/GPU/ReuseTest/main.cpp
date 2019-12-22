@@ -25,8 +25,10 @@ void CUDART_CB amrex_farraybox_resize (void* p)
 {
     FabResize* fr = (FabResize*) p;
 
-    (fr->fab)->resize(*(fr->bx), AMREX_SPACEDIM);
+    (fr->fab)->resize((fr->bx), AMREX_SPACEDIM);
     *(fr->array) = (fr->fab)->array();
+
+    delete fr;
 }
 
 // ======================
@@ -82,6 +84,7 @@ void main_main ()
 
     if (do_baseline)
     {
+        amrex::Print() << "Baseline -- start." << std::endl;
         BL_PROFILE("1-Baseline");
         for (MFIter mfi(mf_elix, MFItInfo().EnableTiling(FabArrayBase::mfiter_tile_size).SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
         {
@@ -94,11 +97,14 @@ void main_main ()
                 fab(i,j,k) = fab(i,j,k)*fab(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Baseline -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
+        amrex::Print() << "Baseline -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
     }
 
     if (do_elixir)
     {
+        amrex::Print() << "Elixir -- start." << std::endl;
+        amrex::ResetTotalBytesAllocatedInFabsHWM();
+
         BL_PROFILE("2-Elixir");
 
         FArrayBox temp_fab;
@@ -124,28 +130,29 @@ void main_main ()
                 fab(i,j,k) = temp(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Elixir -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
+        amrex::Print() << "Elixir -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
 
     }
 
     if (do_reuse)
     {
+        amrex::Print() << "Reuse -- start" << std::endl;
+        amrex::ResetTotalBytesAllocatedInFabsHWM();
+
         BL_PROFILE("3-Reuse");
+
+        // Version 1: Work!!!
 
         // Version 2: Search for largest box on each stream, initialize FArrayBox with that box.
         //            resize will only ever update the box for the new Array4.
-        //            FArrayBox data will be left on the device.
+        //            FArrayBox data can be entirely left on the device.
 
         // Version 3: Make it without Managed Memory.
 
         // Version 4: API for users.
 
-        Vector<FArrayBox*> temp_fab(num_streams);
-        for (int i = 0; i<num_streams; ++i)
-        {
-            temp_fab[i] = new FArrayBox;
-        }
-        ManagedVector<Array4<Real>> temp_arr(num_streams);
+        Vector<FArrayBox> temp_fab(num_streams);
+        Gpu::ManagedVector<Array4<Real>> temp_arr(num_streams);
 
         for (MFIter mfi(mf_elix, MFItInfo().EnableTiling(FabArrayBase::mfiter_tile_size).SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
         {
@@ -156,18 +163,15 @@ void main_main ()
             // Equivalent of setStreamIndex MFIter value in MFIter operator++.
             //    (minus the CPU or no stream variations, for simplicity).
             int stream_id = mfi.tileIndex()%num_streams;
-            FArrayBox& my_temp = *(temp_fab[stream_id]);
+            FArrayBox& my_temp = temp_fab[stream_id];
             Array4<Real>* temp = &(temp_arr[stream_id]);
 
             // Make these a callback function. No elixir needed. That should be it. :)
             //    ****** my_temp.resize(bx, AMREX_SPACEDIM);
             //    ****** const auto temp = my_temp.array();
 
-            FabResize fr{&my_temp, bx, &temp_arr[stream_id]};
-            cudaLaunchHostFunc(Gpu::gpuStream(), amrex_farraybox_resize, &fr);
-
-            // Currently Needed.
-            amrex::Gpu::Device::synchronize();
+            FabResize* fr = new FabResize{&my_temp, bx, &temp_arr[stream_id]};
+            cudaLaunchHostFunc(Gpu::gpuStream(), amrex_farraybox_resize, fr);
 
             amrex::ParallelFor(bx,
             [=] AMREX_GPU_DEVICE (int i, int j, int k)
@@ -181,8 +185,7 @@ void main_main ()
                 fab(i,j,k) = (*temp)(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Reuse -- memory added: " << amrex::TotalBytesAllocatedInFabs() - FabBytesBegin << std::endl << std::endl;
-
+        amrex::Print() << "Reuse -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
     }
 
     {
