@@ -133,8 +133,9 @@ contains
 !!$       print *,qmat(m,:)
 !!$       print *,qmatFE(m,:)
 !!$       print *,qmatBE(m,:)
+!!$       print *,qmatLU(m,:)
 !!$    end do
-!!$    print *,'transpose'
+    if (nnodes .eq. 2)  qmatBE=qmat
     do n = 1,nnodes-1
        do m = 1,nnodes
           qmats(m,n,1)=qmat(n,m)

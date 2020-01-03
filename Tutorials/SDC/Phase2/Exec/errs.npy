@@ -1,0 +1,10 @@
+import numpy as np
+import matplotlib.pyplot as plt
+dt = [0.1,0.05, 0.025]
+e32 = [4.637315257e-06, 4.637323002e-06,4.637323738e-06]
+e64 = [2.957006835e-07,2.95702809e-07, 2.957038573e-07]
+128 = [1.857268365e-08,1.857372896e-08,1.857372896e-08]
+plt.plot(dt,e32,'-x')
+plt.plot(dt,e64,'-x')
+plt.plot(dt,e128,'-x')
+plt.show
