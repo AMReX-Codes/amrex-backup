@@ -65,8 +65,8 @@ void main_main ()
     int do_elixir = 1;
     int do_reuse = 0;
     int do_reuse_max = 1;
-    int do_arrs = 1;
-    int do_device = 1;
+    int do_arrs = 0;
+    int do_device = 0;
     int do_error_check = 1;
 
     int box_size = 128;
