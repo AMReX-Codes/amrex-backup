@@ -385,10 +385,10 @@ void main_main ()
                 fab(i,j,k) = (*(arrs+index))(i,j,k) + 3.14159;
             });
         }
-        amrex::Print() << "Reuse Max -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
+        amrex::Print() << "Prepare Array4s -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
     }
     Gpu::synchronize();
-    amrex::Print() << std::endl << " Synched outside reuse max scope. " << std::endl;
+    amrex::Print() << std::endl << " Synched outside Prepare Array4s scope. " << std::endl;
     amrex::Print() << " ******************************************** " << std::endl;
 
 // ==================================================================================================
