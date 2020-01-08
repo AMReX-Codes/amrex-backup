@@ -2,6 +2,10 @@
 #include <AMReX_MultiFab.H>
 #include <AMReX_ParmParse.H>
 
+// Try prepping all Array4's for all launches first,
+// moving to the device, and then passing the correct index?
+// (e.g. fused launch style).
+
 using namespace amrex;
 
 template <class T>
@@ -27,6 +31,21 @@ void CUDART_CB amrex_farraybox_resize (void* p)
     delete fr;
 }
 
+struct FabResizeP{
+    const Box bx;
+    int ncomp;
+    FArrayBox* fab;
+};
+
+void CUDART_CB amrex_farraybox_resize_prepared (void* p)
+{
+    FabResizeP* fr = (FabResizeP*) p;
+
+    (fr->fab)->resize(fr->bx, fr->ncomp);
+
+    delete fr;
+}
+
 // ======================
 
 void main_main();
@@ -46,6 +65,7 @@ void main_main ()
     int do_elixir = 1;
     int do_reuse = 0;
     int do_reuse_max = 1;
+    int do_arrs = 1;
     int do_device = 1;
     int do_error_check = 1;
 
@@ -60,6 +80,7 @@ void main_main ()
         pp.query("elixir", do_elixir);
         pp.query("reuse", do_reuse);
         pp.query("reuse_max", do_reuse_max);
+        pp.query("array4", do_arrs);
         pp.query("reuse_device", do_device);
         pp.query("error", do_error_check);
 
@@ -103,6 +124,9 @@ void main_main ()
 
     MultiFab mf_max(ba,DistributionMapping{ba},1,0);
     mf_max.setVal(1.5);
+
+    MultiFab mf_arrs(ba,DistributionMapping{ba},1,0);
+    mf_arrs.setVal(1.5);
 
     MultiFab mf_device(ba,DistributionMapping{ba},1,0);
     mf_device.setVal(1.5);
@@ -296,13 +320,86 @@ void main_main ()
 
 // ==================================================================================================
 
+    if (do_arrs)
+    {
+        amrex::Print() << " ******************************************** " << std::endl;
+        amrex::Print() << "Prepare Array4s -- start" << std::endl;
+        amrex::ResetTotalBytesAllocatedInFabsHWM();
+
+        BL_PROFILE("5-Prepare-Array4s");
+
+        int num_fabs = mf_arrs.local_size();
+
+        Vector<FArrayBox> temp_fab(num_streams);
+        Gpu::HostVector<Array4<Real>> h_temp_arr(num_fabs);
+        Gpu::DeviceVector<Array4<Real>> d_temp_arr(num_fabs);
+        {
+            Vector<Box> max_box(num_streams);
+
+            // Find and store maximum box.
+            for (MFIter mfi(mf_arrs, MFItInfo().SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
+            {
+                const Box& bx = mfi.tilebox();
+                int sid = mfi.tileIndex()%num_streams;
+                int index = mfi.tileIndex();
+
+                h_temp_arr[index] = amrex::makeArray4(temp_fab[index].dataPtr(), bx, mf_arrs.nComp());
+
+                if (bx.numPts() > max_box[sid].numPts())
+                {
+                    max_box[sid] = bx;
+                }
+            }
+
+            amrex::Gpu::htod_memcpy((void*) (d_temp_arr.data()), (void*) (h_temp_arr.data()), sizeof(Array4<Real>)*num_fabs);
+
+            // Initialize temporary fabs to maximum size.
+            for (int i=0; i<num_streams; ++i)
+            {
+                temp_fab[i].resize(max_box[i], 1);
+            }
+        }
+
+        for (MFIter mfi(mf_arrs, MFItInfo().SetNumStreams(num_streams)); mfi.isValid(); ++mfi)
+        {
+            const Box& bx = mfi.tilebox();
+            Array4<Real> const& fab = mf_arrs.array(mfi);
+            Array4<Real>* arrs = d_temp_arr.data();
+
+            int index = mfi.tileIndex();
+            int stream_id = index%num_streams;
+            FArrayBox& my_temp = temp_fab[stream_id];
+
+            FabResizeP* fr = new FabResizeP{bx, 1, &my_temp};
+            cudaLaunchHostFunc(Gpu::gpuStream(), amrex_farraybox_resize_prepared, fr);
+
+            amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            {  
+                (*(arrs+index))(i,j,k) = fab(i,j,k)*fab(i,j,k);
+            });
+
+            amrex::ParallelFor(bx,
+            [=] AMREX_GPU_DEVICE (int i, int j, int k)
+            {   
+                fab(i,j,k) = (*(arrs+index))(i,j,k) + 3.14159;
+            });
+        }
+        amrex::Print() << "Reuse Max -- memory added: " << amrex::TotalBytesAllocatedInFabsHWM() - FabBytesBegin << std::endl << std::endl;
+    }
+    Gpu::synchronize();
+    amrex::Print() << std::endl << " Synched outside reuse max scope. " << std::endl;
+    amrex::Print() << " ******************************************** " << std::endl;
+
+// ==================================================================================================
+
     if (do_device)
     {
         amrex::Print() << " ******************************************** " << std::endl;
         amrex::Print() << "Device -- start" << std::endl;
         amrex::ResetTotalBytesAllocatedInFabsHWM();
 
-        BL_PROFILE("5-Device");
+        BL_PROFILE("6-Device");
 
         Vector<FArrayBox> temp_fab(num_streams);
         // Prep with maximum size box.
@@ -392,6 +489,15 @@ void main_main ()
 
             mf_max.minus(mf, 0, 1, 0);
             amrex::Print() << " **Reuse-max method error: " << mf_max.sum() << std::endl;
+        }
+
+        if (do_arrs)
+        {
+            amrex::Print() << " ******************************************** " << std::endl;
+            amrex::Print() << " Reuse-max error check -- " << std::endl;
+
+            mf_arrs.minus(mf, 0, 1, 0);
+            amrex::Print() << " **Reuse-max method error: " << mf_arrs.sum() << std::endl;
         }
 
         if (do_device)
