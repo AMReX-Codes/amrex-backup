@@ -200,6 +200,10 @@ public:
     static std::future<WriteAsyncStatus>
     WriteAsync (const FabArray<FArrayBox>& fafab, const std::string& name);
 
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPI (const FabArray<FArrayBox>& fafab, const std::string& name);
+
     /**
     * \brief Write only the header-file corresponding to FabArray<FArrayBox> to
     * disk without the corresponding FAB data. This writes BoxArray information
@@ -366,6 +370,8 @@ private:
     static bool allowSparseWrites;
 
     static long ioBufferSize;   //!< ---- the settable buffer size
+
+    static int asyncTag;
 };
 
 //! Write a FabOnDisk to an ostream in ASCII.
