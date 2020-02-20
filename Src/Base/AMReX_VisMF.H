@@ -197,12 +197,46 @@ public:
                        VisMF::How         how = NFiles,
                        bool               set_ghost = false);
 
-    static std::future<WriteAsyncStatus>
-    WriteAsync (const FabArray<FArrayBox>& fafab, const std::string& name);
+// Async output tests 
+// *****************************
 
+//  File based method, for comparison
+    static std::future<WriteAsyncStatus>
+    WriteAsync (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+// Blocking comm tests
+// *****************************
+
+// Note: All except WriteAsyncMPI use a file-specific MPI Communicator,
+//       as this is considerably clearer and better practice, whether there
+//       is a performance improvement or not. So unless it's worse, this
+//       method will likely be preferred, but still tested here.
 
     static std::future<WriteAsyncStatus>
-    WriteAsyncMPI (const FabArray<FArrayBox>& fafab, const std::string& name);
+    WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+/*
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+*/
+// Non-blocking comm tests 
+// *****************************
+
+/*
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPICommLight (const FabArray<FArrayBox>& fafab, const std::string& name);
+*/
 
     /**
     * \brief Write only the header-file corresponding to FabArray<FArrayBox> to
@@ -371,7 +405,10 @@ private:
 
     static long ioBufferSize;   //!< ---- the settable buffer size
 
-    static int asyncTag;
+    // Async I/O data.
+    static int asyncTag;         // Tag for async comms.
+    static MPI_Comm async_comm;  // MPI_Communicator for each file.
+    static MPI_Win async_window; // Window designating rank currently writing to the file.
 };
 
 //! Write a FabOnDisk to an ostream in ASCII.
