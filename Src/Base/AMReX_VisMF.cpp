@@ -103,6 +103,7 @@ VisMF::Initialize ()
 void
 VisMF::Finalize ()
 {
+#ifdef BL_USE_MPI
     if (async_comm != MPI_COMM_NULL)
     {
         MPI_Comm_free(&async_comm);
@@ -112,14 +113,14 @@ VisMF::Finalize ()
     {
         MPI_Win_free(&async_window);
     }
-
+#endif
     initialized = false;
 }
 
 void
 VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
 {
-    AMREX_ASSERT((async_comm == MPI_COMM_NULL) == (turn_window == MPI_WIN_NULL));
+    AMREX_ASSERT((async_comm == MPI_COMM_NULL) == (async_window == MPI_WIN_NULL));
 
     // Must be called globally with this change (MPI_Comm_split on m_comm == MPI_COMM_WORLD)
     // So, minimize when it's done.
@@ -127,6 +128,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
     {
         nOutFiles = std::max(1, std::min(ParallelDescriptor::NProcs(comm), newoutfiles));
 
+#ifdef BL_USE_MPI
         int myproc = ParallelDescriptor::MyProc();
         int nprocs = ParallelDescriptor::NProcs();
         int nfiles = nOutFiles;
@@ -164,6 +166,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
         //MPI_Win_Allocate(sizeof(int), sizeof(int), 0, async_comm, async_id, &async_window);
 
         amrex::AllPrint() << myproc << ": async_spot = " << ParallelDescriptor::MyProc(async_comm) << std::endl;
+#endif
     }
 }
 
@@ -3249,12 +3252,12 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
         int ifile, ispot, iamlast;
         if (rank < nfull*nspots) {
             ifile = rank / nspots;
-            ispot = ParallelDescriptor::MyProc(async_comm);
+            ispot = rank - ifile*nspots;
             iamlast = (ispot == nspots-1);
         } else {
             int tmpproc = rank-nfull*nspots;
             ifile = tmpproc/(nspots-1);
-            ispot = ParallelDescriptor::MyProc(async_comm);
+            ispot = tmpproc - ifile*(nspots-1);
             ifile += nfull;
             iamlast = (ispot == nspots-2);
         }
@@ -4543,7 +4546,7 @@ VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::stri
     return af;
 }
 
-#endif
+#endif  // if 0, blocking out all unwritten AsyncTests
 
 std::ostream&
 operator<< (std::ostream& os, const WriteAsyncStatus& status)
