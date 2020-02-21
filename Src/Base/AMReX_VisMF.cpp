@@ -162,6 +162,8 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
 
         MPI_Comm_split(ParallelDescriptor::Communicator(), myfile, myproc, &async_comm);
         //MPI_Win_Allocate(sizeof(int), sizeof(int), 0, async_comm, async_id, &async_window);
+
+        amrex::AllPrint() << myproc << ": async_spot = " << ParallelDescriptor::MyProc(async_comm) << std::endl;
     }
 }
 
@@ -2818,8 +2820,6 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
-
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
@@ -2827,7 +2827,7 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
         if (ispot)
         {
             ParallelDescriptor::Recv<int>(&myturn, sizeof(int), myproc-1, asyncTag);
-            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
+//            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
 
         }
 
@@ -2849,7 +2849,7 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
         // If not the last, release the next rank to write
         if (!iamlast)
         {
-            amrex::AllPrint() << myproc << " send from " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
+//            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
             ParallelDescriptor::Asend<int>(&myturn, sizeof(int), myproc+1, asyncTag);
             myturn = 0;                  // Just for consistency. :)
         }
@@ -2914,12 +2914,12 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         int ifile, ispot, iamlast;
         if (rank < nfull*nspots) {
             ifile = rank / nspots;
-            ispot = amrex::ParallelDescriptor::MyProc(async_comm);
+            ispot = rank - ifile*nspots;
             iamlast = (ispot == nspots-1);
         } else {
             int tmpproc = rank-nfull*nspots;
             ifile = tmpproc/(nspots-1);
-            ispot = amrex::ParallelDescriptor::MyProc(async_comm);
+            ispot = tmpproc - ifile*(nspots-1);
             ifile += nfull;
             iamlast = (ispot == nspots-2);
         }
@@ -3156,8 +3156,6 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
-
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
@@ -3165,7 +3163,7 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         if (ispot)
         {
             ParallelDescriptor::Recv<int>(&myturn, sizeof(int), ispot-1, asyncTag, async_comm);
-            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
+//            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
         }
 
         Real t1 = amrex::second();
@@ -3186,7 +3184,7 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         // If not the last, release the next rank to write
         if (!iamlast)
         {
-            amrex::AllPrint() << myproc << " send from " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
+//            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
             ParallelDescriptor::Asend<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
             myturn = 0;                  // Just for consistency. :)
         }
@@ -3493,7 +3491,6 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
 
         Real t0 = amrex::second();
 
@@ -3832,8 +3829,6 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
-
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
@@ -4167,8 +4162,6 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
-
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
@@ -4502,8 +4495,6 @@ VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::stri
         }
 
         int myturn = (ispot == 0);
-        long nchecks = 0;
-
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
