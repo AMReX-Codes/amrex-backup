@@ -1,4 +1,4 @@
-AMREX_HOME ?= /ccs/home/kngott/amrex
+AMREX_HOME ?= ../../../
 
 DEBUG = FALSE
 DIM = 3
