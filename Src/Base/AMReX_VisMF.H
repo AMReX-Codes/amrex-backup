@@ -407,6 +407,7 @@ private:
 
     // Async I/O data.
     static int asyncTag;         // Tag for async comms.
+    static int asyncTurn;        // Data pointer for MPI_Win, containing rank of current writing rank (async_comm #).
     static MPI_Comm async_comm;  // MPI_Communicator for each file.
     static MPI_Win async_window; // Window designating rank currently writing to the file.
 };

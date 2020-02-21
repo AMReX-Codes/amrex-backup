@@ -37,7 +37,7 @@ void main_main ()
     }
 
     VisMF::SetNOutFiles(n_files);
-
+//    amrex::ResetRandomSeed(33344455666);
     BoxArray ba(Box(IntVect(0),IntVect(n_cell-1)));
     ba.maxSize(max_grid_size);
     DistributionMapping dm(ba);
@@ -57,6 +57,18 @@ void main_main ()
         MultiFab mfcpu(mf.boxArray(), mf.DistributionMap(), mf.nComp(), mf.nGrowVect(),
                        MFInfo().SetArena(The_Pinned_Arena()));
         amrex::dtoh_memcpy(mfcpu, mf);
+    }
+
+    amrex::Print() << " Printing random box with n_cell = " << n_cell
+                                    << ", max_grid_size = " << max_grid_size
+                                    << ", and noutfiles = " << n_files << std::endl;
+
+
+    for (int ip = 0; ip < ParallelDescriptor::NProcs(); ++ip) {
+        if (ip == ParallelDescriptor::MyProc()) {
+            amrex::AllPrint() << "Proc. " << ip << " number of boxes = " << mf.local_size() << std::endl;
+        }
+        ParallelDescriptor::Barrier();
     }
 
     amrex::UtilCreateDirectoryDestructive("vismfdata");
