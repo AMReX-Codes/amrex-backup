@@ -29,11 +29,13 @@ void main_main ()
     int n_cell = 512;
     int max_grid_size = 64;
     int n_files = 256;
+    int nwork = 50;
     {
         ParmParse pp;
         pp.query("n_cell", n_cell);
         pp.query("max_grid_size", max_grid_size);
         pp.query("noutfiles", n_files);
+        pp.query("nwork", nwork);
     }
 
     VisMF::SetNOutFiles(n_files);
@@ -73,8 +75,6 @@ void main_main ()
 
     amrex::UtilCreateDirectoryDestructive("vismfdata");
 
-    const int nwork = 50;
-
 // ***************************************************************
 
     amrex::Print() << " No Async " << std::endl;
@@ -90,6 +90,7 @@ void main_main ()
         }
     }
     ParallelDescriptor::Barrier();
+
 
 // ***************************************************************
 
@@ -113,9 +114,9 @@ void main_main ()
     }
     ParallelDescriptor::Barrier();
 
+// ***************************************************************
 
 #ifdef AMREX_MPI_MULTIPLE
-// ***************************************************************
 
     amrex::Print() << " Async-MPI " << std::endl; 
     WriteAsyncStatus status_mpi_basic;
@@ -182,6 +183,30 @@ void main_main ()
     ParallelDescriptor::Barrier();
 
 // ***************************************************************
+
+    amrex::Print() << " Async-MPI Fence " << std::endl; 
+    WriteAsyncStatus status_mpi_fence;
+    {
+        BL_PROFILE_REGION("vismf-async-mpi-fence-overlap");
+        auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf6");
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-fence-work", blp2);
+            for (int i = 0; i < nwork; ++i) {
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            }
+        }
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-fence-wait", blp3);
+            wrt_future.wait();
+            status_mpi_fence = wrt_future.get();
+        }
+    }
+    ParallelDescriptor::Barrier();
+
+// ***************************************************************
+
+
 #endif
 
     for (int ip = 0; ip < ParallelDescriptor::NProcs(); ++ip) {
@@ -192,6 +217,7 @@ void main_main ()
             amrex::AllPrint() << "MPI-Basic: " << status_mpi_basic << std::endl;
             amrex::AllPrint() << "MPI-Comm: "  << status_mpi_comm  << std::endl;
             amrex::AllPrint() << "MPI-Wait: "  << status_mpi_wait  << std::endl;
+            amrex::AllPrint() << "MPI-Fence: " << status_mpi_fence  << std::endl;
 #endif
         }
         ParallelDescriptor::Barrier();
