@@ -132,7 +132,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
 
 #ifdef BL_USE_MPI
         int myproc = ParallelDescriptor::MyProc();
-        int nprocs = ParallelDescriptor::NProcs();
+        int nprocs = ParallelDescriptor::NProcs(comm);
         int nfiles = nOutFiles;
 
         const int nspots = (nprocs + (nfiles-1)) / nfiles;   // max spots per file
@@ -154,11 +154,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
             return {ifile, ispot, iamlast};
         };
 
-        auto data = rank_to_info(myproc);
-        int myfile = std::get<0>(data);   // file #
-
-        bool reset = (async_comm != MPI_COMM_NULL);
-        if (reset)
+        if (async_comm != MPI_COMM_NULL)
         {
             MPI_Comm_free(&async_comm);
             MPI_Win_free(&async_window);
@@ -169,7 +165,9 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
         MPI_Info_set(win_info, "same_size", "true");
         MPI_Info_set(win_info, "same_disp_unit", "true");
 
-        MPI_Comm_split(ParallelDescriptor::Communicator(), myfile, myproc, &async_comm);
+        auto data = rank_to_info(myproc);
+        int myfile = std::get<0>(data); 
+        MPI_Comm_split(comm, myfile, myproc, &async_comm);
         MPI_Win_create(asyncTurn, sizeof(int), sizeof(int), win_info, async_comm, &async_window);
 
         MPI_Info_free(&win_info);
