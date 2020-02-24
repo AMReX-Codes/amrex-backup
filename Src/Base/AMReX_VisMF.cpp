@@ -2861,7 +2861,7 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
         if (!iamlast)
         {
 //            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
-            ParallelDescriptor::Asend<int>(&myturn, sizeof(int), myproc+1, asyncTag);
+            ParallelDescriptor::Send<int>(&myturn, sizeof(int), myproc+1, asyncTag);
             myturn = 0;                  // Just for consistency. :)
         }
 
@@ -3196,7 +3196,7 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         if (!iamlast)
         {
 //            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
-            ParallelDescriptor::Asend<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
+            ParallelDescriptor::Send<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
             myturn = 0;                  // Just for consistency. :)
         }
 
@@ -3531,7 +3531,9 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
         // If not the last, release the next rank to write
         if (!iamlast)
         {
+            ParallelDescriptor::Message youcanwrite = 
             ParallelDescriptor::Asend<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
+            youcanwrite.wait();
             myturn = 0;                  // Just for consistency. :)
         }
 
