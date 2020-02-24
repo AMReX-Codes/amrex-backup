@@ -40,7 +40,6 @@ bool VisMF::allowSparseWrites(true);
 
 MPI_Comm VisMF::async_comm;
 MPI_Win VisMF::async_window;
-void* VisMF::asyncTurn;
 int VisMF::asyncTag(-1);
 long VisMF::ioBufferSize(VisMF::IO_Buffer_Size);
 
@@ -72,7 +71,6 @@ VisMF::Initialize ()
     asyncTag = ParallelDescriptor::SeqNum();
     async_comm = MPI_COMM_NULL;
     async_window = MPI_WIN_NULL; 
-    asyncTurn = std::malloc(sizeof(int));
 
     ParmParse pp("vismf");
     pp.query("v",verbose);
@@ -160,6 +158,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
             MPI_Win_free(&async_window);
         }
 
+        // Object to set optional flags for the window.
         MPI_Info win_info;
         MPI_Info_create(&win_info);
         MPI_Info_set(win_info, "same_size", "true");
@@ -2829,15 +2828,13 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
             VisMF::WriteHeaderDoit(mf_name, h);
         }
 
-
-        int myturn = (ispot == 0);      // Garbage to pass. Value not really needed here.
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
         // block with recv until it is your turn.
         if (ispot)
         {
-            ParallelDescriptor::Recv<int>(&myturn, sizeof(int), myproc-1, asyncTag);
+            ParallelDescriptor::Recv<int>(nullptr, 0, myproc-1, asyncTag);
 //            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
 
         }
@@ -2861,8 +2858,7 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
         if (!iamlast)
         {
 //            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
-            ParallelDescriptor::Send<int>(&myturn, sizeof(int), myproc+1, asyncTag);
-            myturn = 0;                  // Just for consistency. :)
+            ParallelDescriptor::Send<int>(nullptr, 0, myproc+1, asyncTag);
         }
 
         Real tend = amrex::second();
@@ -3166,14 +3162,13 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
             VisMF::WriteHeaderDoit(mf_name, h);
         }
 
-        int myturn = (ispot == 0);      // Garbage to pass. Value not really needed here.
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
         // block with recv until it is your turn.
         if (ispot)
         {
-            ParallelDescriptor::Recv<int>(&myturn, sizeof(int), ispot-1, asyncTag, async_comm);
+            ParallelDescriptor::Recv<int>(nullptr, 0, ispot-1, asyncTag, async_comm);
 //            amrex::AllPrint() << myproc << " recv from " << myproc-1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
         }
 
@@ -3196,8 +3191,7 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
         if (!iamlast)
         {
 //            amrex::AllPrint() << myproc << " send to " << myproc+1 << ". ifile/ispot/iamlast: " << ifile << "/" << ispot << "/" << iamlast << std::endl;
-            ParallelDescriptor::Send<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
-            myturn = 0;                  // Just for consistency. :)
+            ParallelDescriptor::Send<int>(nullptr, 0, ispot+1, asyncTag, async_comm);
         }
 
         Real tend = amrex::second();
@@ -3501,7 +3495,6 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
             VisMF::WriteHeaderDoit(mf_name, h);
         }
 
-        int myturn = (ispot == 0);      // Garbage to pass. Value not really needed here.
         Real t0 = amrex::second();
 
         // If not the first MPI writing on this rank,
@@ -3509,7 +3502,7 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
         if (ispot)
         {
             ParallelDescriptor::Message icanwrite = 
-            ParallelDescriptor::Arecv<int>(&myturn, sizeof(int), ispot-1, asyncTag, async_comm);
+            ParallelDescriptor::Arecv<int>(nullptr, 0, ispot-1, asyncTag, async_comm);
             icanwrite.wait();
         }
 
@@ -3532,9 +3525,8 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
         if (!iamlast)
         {
             ParallelDescriptor::Message youcanwrite = 
-            ParallelDescriptor::Asend<int>(&myturn, sizeof(int), ispot+1, asyncTag, async_comm);
+            ParallelDescriptor::Asend<int>(nullptr, 0, ispot+1, asyncTag, async_comm);
             youcanwrite.wait();
-            myturn = 0;                  // Just for consistency. :)
         }
 
         Real tend = amrex::second();
@@ -3847,7 +3839,7 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
 
         // Given known order and size, each collective call to fence IS the message.
         // Each collective call = one completed rank. On your turn,
-        // (after the appropriate number of calls) write, then get back to fence-ing.
+        // after the appropriate number of calls, write then fence to count for the others.
         while (fence_count < ispot)
         {
 #ifdef BL_USE_MPI
