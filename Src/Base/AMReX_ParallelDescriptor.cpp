@@ -432,6 +432,28 @@ ParallelDescriptor::Barrier (const MPI_Comm &comm, const std::string &message)
     BL_COMM_PROFILE_BARRIER(message, false);
 }
 
+ParallelDescriptor::Message
+ParallelDescriptor::Abarrier ()
+{
+    MPI_Request req;
+    BL_MPI_REQUIRE( MPI_Ibarrier(ParallelDescriptor::Communicator(), &req) );
+
+    // Use a char/(byte) as a faux-type for compatibility. 
+
+    return Message(req, Mpi_typemap<char>::type());
+}
+
+ParallelDescriptor::Message
+ParallelDescriptor::Abarrier (const MPI_Comm & comm)
+{
+    MPI_Request req;
+    BL_MPI_REQUIRE( MPI_Ibarrier(comm, &req) );
+
+    // Use a char/(byte) as a faux-type for compatibility.
+
+    return Message(req, Mpi_typemap<char>::type());   
+}
+
 void
 ParallelDescriptor::Test (MPI_Request& request, int& flag, MPI_Status& status)
 {
