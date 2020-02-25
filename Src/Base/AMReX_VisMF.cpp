@@ -133,7 +133,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
         int nprocs = ParallelDescriptor::NProcs(comm);
         int nfiles = nOutFiles;
 
-        const int nspots = (nprocs + (nfiles-1)) / nfiles;   // max spots per file
+        const int nspots = (nprocs + (nfiles-1)) / nfiles;  // max spots per file
         const int nfull = nfiles + nprocs - nspots*nfiles;  // the first nfull files are full
        
         auto rank_to_info = [=] (int rank) -> std::array<int,3> {
@@ -167,7 +167,7 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
         auto data = rank_to_info(myproc);
         int myfile = std::get<0>(data); 
         MPI_Comm_split(comm, myfile, myproc, &async_comm);
-        MPI_Win_create(asyncTurn, sizeof(int), sizeof(int), win_info, async_comm, &async_window);
+        MPI_Win_create(nullptr, 0, 1, win_info, async_comm, &async_window);
 
         MPI_Info_free(&win_info);
 
@@ -3889,12 +3889,10 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
 }
 
 
-#if 0
-
 std::future<WriteAsyncStatus>
-VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::string& mf_name)
+VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::string& mf_name)
 {
-    BL_PROFILE("VisMF::WriteAsyncMPIOneSidedLock()");
+    BL_PROFILE("VisMF::WriteAsyncMPIOneSidedPost()");
     AMREX_ASSERT(mf_name[mf_name.length() - 1] != '/');
 
 #ifdef AMREX_USE_MPI
@@ -4175,14 +4173,20 @@ VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::stri
             VisMF::WriteHeaderDoit(mf_name, h);
         }
 
-        int myturn = (ispot == 0);
         Real t0 = amrex::second();
 
-        // If not the first MPI writing on this rank,
-        // block with recv until it is your turn.
+        MPI_Group file_group;
+        MPI_Comm_group(async_comm, &file_group);
+
         if (ispot)
         {
-            ParallelDescriptor::Recv<int>(&myturn, sizeof(int), myproc-1, asyncTag);
+#ifdef BL_USE_MPI
+            int sender[1] = {ispot-1};
+            MPI_Group receive_from;
+            MPI_Group_incl(file_group, 1, sender, &receive_from);
+            MPI_Win_post(receive_from, MPI_MODE_NOSTORE|MPI_MODE_NOPUT, async_window);
+            MPI_Win_wait(async_window);
+#endif
         }
 
         Real t1 = amrex::second();
@@ -4200,11 +4204,15 @@ VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::stri
 
         Real t2 = amrex::second();
 
-        // If not the last, release the next rank to write
         if (!iamlast)
         {
-            ParallelDescriptor::Asend<int>(&myturn, sizeof(int), myproc+1, asyncTag);
-            myturn = 0;                  // Just for consistency. :)
+#ifdef BL_USE_MPI
+            int receiver[1] = {ispot+1};
+            MPI_Group send_to;
+            MPI_Group_incl(file_group, 1, receiver, &send_to);
+            MPI_Win_start(send_to, 0, async_window);
+            MPI_Win_complete(async_window);
+#endif
         }
 
         Real tend = amrex::second();
@@ -4223,8 +4231,6 @@ VisMF::WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::stri
 
     return af;
 }
-
-#endif  // if 0, blocking out all unwritten AsyncTests
 
 std::ostream&
 operator<< (std::ostream& os, const WriteAsyncStatus& status)

@@ -224,10 +224,9 @@ public:
     static std::future<WriteAsyncStatus>
     WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
-/*
     static std::future<WriteAsyncStatus>
-    WriteAsyncMPIOneSidedLock (const FabArray<FArrayBox>& mf, const std::string& mf_name);
-*/
+    WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
 // Non-blocking comm tests 
 // *****************************
 
@@ -405,7 +404,6 @@ private:
 
     // Async I/O data.
     static int asyncTag;         // Tag for async comms.
-    static void *asyncTurn;       // Data pointer for MPI_Win.
     static MPI_Comm async_comm;  // MPI_Communicator for each file.
     static MPI_Win async_window; // Window designating rank currently writing to the file.
 };
