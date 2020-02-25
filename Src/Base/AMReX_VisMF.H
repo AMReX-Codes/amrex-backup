@@ -222,6 +222,12 @@ public:
     WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
     static std::future<WriteAsyncStatus>
+    WriteAsyncMPIBarrier (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
     WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
     static std::future<WriteAsyncStatus>
@@ -403,9 +409,9 @@ private:
     static long ioBufferSize;   //!< ---- the settable buffer size
 
     // Async I/O data.
-    static int asyncTag;         // Tag for async comms.
-    static MPI_Comm async_comm;  // MPI_Communicator for each file.
-    static MPI_Win async_window; // Window designating rank currently writing to the file.
+    static int asyncTag;             // Tag for async comms.
+    static MPI_Comm async_comm;      // MPI_Communicator for each file.
+    static MPI_Win async_window;     // Blank window (zero size) for cases where the comm is enough.
 };
 
 //! Write a FabOnDisk to an ostream in ASCII.

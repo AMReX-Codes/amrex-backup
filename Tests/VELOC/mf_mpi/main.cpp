@@ -184,11 +184,57 @@ void main_main ()
 
 // ***************************************************************
 
+    amrex::Print() << " Async-MPI Barrier w/ Comm " << std::endl; 
+    WriteAsyncStatus status_mpi_barrier;
+    {
+        BL_PROFILE_REGION("vismf-async-mpi-barrier-overlap");
+        auto wrt_future = VisMF::WriteAsyncMPIBarrier(mf, "vismfdata/mf6");
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-barrier-work", blp2);
+            for (int i = 0; i < nwork; ++i) {
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            }
+        }
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-barrier-wait", blp3);
+            wrt_future.wait();
+            status_mpi_barrier = wrt_future.get();
+        }
+    }
+    ParallelDescriptor::Barrier();
+
+
+// ***************************************************************
+
+    amrex::Print() << " Async-MPI IBarrier w/ Comm " << std::endl; 
+    WriteAsyncStatus status_mpi_ibarrier;
+    {
+        BL_PROFILE_REGION("vismf-async-mpi-ibarrier-overlap");
+        auto wrt_future = VisMF::WriteAsyncMPIABarrier(mf, "vismfdata/mf7");
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-ibarrier-work", blp2);
+            for (int i = 0; i < nwork; ++i) {
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            }
+        }
+        {
+            BL_PROFILE_VAR("vismf-async-mpi-ibarrier-wait", blp3);
+            wrt_future.wait();
+            status_mpi_ibarrier = wrt_future.get();
+        }
+    }
+    ParallelDescriptor::Barrier();
+
+
+// ***************************************************************
+
     amrex::Print() << " Async-MPI Fence " << std::endl; 
     WriteAsyncStatus status_mpi_fence;
     {
         BL_PROFILE_REGION("vismf-async-mpi-fence-overlap");
-        auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf6");
+        auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf8");
         {
             BL_PROFILE_VAR("vismf-async-mpi-fence-work", blp2);
             for (int i = 0; i < nwork; ++i) {
@@ -210,7 +256,7 @@ void main_main ()
     WriteAsyncStatus status_mpi_post;
     {
         BL_PROFILE_REGION("vismf-async-mpi-post-overlap");
-        auto wrt_future = VisMF::WriteAsyncMPIOneSidedPost(mf, "vismfdata/mf7");
+        auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf9");
         {
             BL_PROFILE_VAR("vismf-async-mpi-post-work", blp2);
             for (int i = 0; i < nwork; ++i) {
@@ -235,11 +281,13 @@ void main_main ()
             amrex::AllPrint() << "Proc. " << ip << std::endl;
             amrex::AllPrint() << "File: " << status_file << std::endl;
 #ifdef AMREX_MPI_MULTIPLE
-            amrex::AllPrint() << "MPI-Basic: " << status_mpi_basic << std::endl;
-            amrex::AllPrint() << "MPI-Comm: "  << status_mpi_comm  << std::endl;
-            amrex::AllPrint() << "MPI-Wait: "  << status_mpi_wait  << std::endl;
-            amrex::AllPrint() << "MPI-Fence: " << status_mpi_fence << std::endl;
-            amrex::AllPrint() << "MPI-Post: "  << status_mpi_post  << std::endl;
+            amrex::AllPrint() << "MPI-Basic: "    << status_mpi_basic << std::endl;
+            amrex::AllPrint() << "MPI-Comm: "     << status_mpi_comm  << std::endl;
+            amrex::AllPrint() << "MPI-Wait: "     << status_mpi_wait  << std::endl;
+            amrex::AllPrint() << "MPI-Barrier: "  << status_mpi_barrier  << std::endl;
+            amrex::AllPrint() << "MPI-IBarrier: " << status_mpi_barrier  << std::endl;
+            amrex::AllPrint() << "MPI-Fence: "    << status_mpi_fence << std::endl;
+            amrex::AllPrint() << "MPI-Post: "     << status_mpi_post  << std::endl;
 #endif
         }
         ParallelDescriptor::Barrier();
