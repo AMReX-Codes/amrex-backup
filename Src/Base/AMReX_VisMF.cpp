@@ -123,57 +123,54 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
     AMREX_ASSERT((async_comm == MPI_COMM_NULL) == (async_window == MPI_WIN_NULL));
 
     // Must be called globally with this change (MPI_Comm_split on m_comm == MPI_COMM_WORLD)
-    // So, minimize when it's done.
-    if (newoutfiles != nOutFiles)
-    {
-        nOutFiles = std::max(1, std::min(ParallelDescriptor::NProcs(comm), newoutfiles));
+    // So, minimize when it's done?? How?? (Comm / newoutfiles could both change!)
+    nOutFiles = std::max(1, std::min(ParallelDescriptor::NProcs(comm), newoutfiles));
 
 #ifdef BL_USE_MPI
-        int myproc = ParallelDescriptor::MyProc();
-        int nprocs = ParallelDescriptor::NProcs(comm);
-        int nfiles = nOutFiles;
+    int myproc = ParallelDescriptor::MyProc();
+    int nprocs = ParallelDescriptor::NProcs(comm);
+    int nfiles = nOutFiles;
 
-        const int nspots = (nprocs + (nfiles-1)) / nfiles;  // max spots per file
-        const int nfull = nfiles + nprocs - nspots*nfiles;  // the first nfull files are full
+    const int nspots = (nprocs + (nfiles-1)) / nfiles;  // max spots per file
+    const int nfull = nfiles + nprocs - nspots*nfiles;  // the first nfull files are full
        
-        auto rank_to_info = [=] (int rank) -> std::array<int,3> {
-            int ifile, ispot, iamlast;
-            if (rank < nfull*nspots) {
-                ifile = rank / nspots;
-                ispot = rank - ifile*nspots;
-                iamlast = (ispot == nspots-1);
-            } else {
-                int tmpproc = rank-nfull*nspots;
-                ifile = tmpproc/(nspots-1);
-                ispot = tmpproc - ifile*(nspots-1);
-                ifile += nfull;
-                iamlast = (ispot == nspots-2);
-            }
-            return {ifile, ispot, iamlast};
-        };
-
-        if (async_comm != MPI_COMM_NULL)
-        {
-            MPI_Comm_free(&async_comm);
-            MPI_Win_free(&async_window);
+    auto rank_to_info = [=] (int rank) -> std::array<int,3> {
+        int ifile, ispot, iamlast;
+        if (rank < nfull*nspots) {
+            ifile = rank / nspots;
+            ispot = rank - ifile*nspots;
+            iamlast = (ispot == nspots-1);
+        } else {
+            int tmpproc = rank-nfull*nspots;
+            ifile = tmpproc/(nspots-1);
+            ispot = tmpproc - ifile*(nspots-1);
+            ifile += nfull;
+            iamlast = (ispot == nspots-2);
         }
+        return {ifile, ispot, iamlast};
+    };
 
-        // Object to set optional flags for the window.
-        MPI_Info win_info;
-        MPI_Info_create(&win_info);
-        MPI_Info_set(win_info, "same_size", "true");
-        MPI_Info_set(win_info, "same_disp_unit", "true");
+    if (async_comm != MPI_COMM_NULL)
+    {
+        MPI_Comm_free(&async_comm);
+        MPI_Win_free(&async_window);
+    }
 
-        auto data = rank_to_info(myproc);
-        int myfile = std::get<0>(data); 
-        MPI_Comm_split(comm, myfile, myproc, &async_comm);
-        MPI_Win_create(nullptr, 0, 1, win_info, async_comm, &async_window);
+    // Object to set optional flags for the window.
+    MPI_Info win_info;
+    MPI_Info_create(&win_info);
+    MPI_Info_set(win_info, "same_size", "true");
+    MPI_Info_set(win_info, "same_disp_unit", "true");
 
-        MPI_Info_free(&win_info);
+    auto data = rank_to_info(myproc);
+    int myfile = std::get<0>(data); 
+    MPI_Comm_split(comm, myfile, myproc, &async_comm);
+    MPI_Win_create(nullptr, 0, 1, win_info, async_comm, &async_window);
+
+    MPI_Info_free(&win_info);
 
 //        amrex::AllPrint() << myproc << ": async_spot = " << ParallelDescriptor::MyProc(async_comm) << std::endl;
 #endif
-    }
 }
 
 void
