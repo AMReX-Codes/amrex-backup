@@ -1798,6 +1798,8 @@ const char* ParallelDescriptor::ErrorString (int) { return ""; }
 
 void ParallelDescriptor::Barrier (const std::string &message) {}
 void ParallelDescriptor::Barrier (const MPI_Comm &comm, const std::string &message) {}
+ParallelDescriptor::Message ParallelDescriptor::Abarrier () { return ParallelDescriptor::Message(); }
+ParallelDescriptor::Message ParallelDescriptor::Abarrier (const MPI_Comm &comm) { return ParallelDescriptor::Message(); }
 
 void ParallelDescriptor::Test (MPI_Request&, int&, MPI_Status&) {}
 void ParallelDescriptor::IProbe (int, int, int&, MPI_Status&) {}

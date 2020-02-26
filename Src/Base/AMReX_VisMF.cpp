@@ -3828,8 +3828,7 @@ VisMF::WriteAsyncMPIBarrier (const FabArray<FArrayBox>& mf, const std::string& m
         }
 
         int barrier_count = 0;
-        int ranks_in_file = 0;
-        MPI_Comm_size(async_comm, &ranks_in_file);
+        int ranks_in_file = ParallelDescriptor::NProcs(async_comm);
 
         Real t0 = amrex::second();
 
@@ -4165,8 +4164,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
         }
 
         int barrier_count = 0;
-        int ranks_in_file = 0;
-        MPI_Comm_size(async_comm, &ranks_in_file);
+        int ranks_in_file = ParallelDescriptor::NProcs(async_comm);
 
         Real t0 = amrex::second();
 
@@ -4509,8 +4507,7 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
         Real t0 = amrex::second();
 
         int fence_count = 0;
-        int ranks_in_file = 0;
-        MPI_Comm_size(async_comm, &ranks_in_file);
+        int ranks_in_file = ParallelDescriptor::NProcs(async_comm);
 
         // Given known order and size, each collective call to fence IS the message.
         // Each collective call = one completed rank. On your turn,
@@ -4854,7 +4851,9 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
         Real t0 = amrex::second();
 
         MPI_Group file_group;
-        MPI_Comm_group(async_comm, &file_group);
+#ifdef BL_USE_MPI
+        BL_MPI_REQUIRE( MPI_Comm_group(async_comm, &file_group) );
+#endif
 
         if (ispot)
         {
