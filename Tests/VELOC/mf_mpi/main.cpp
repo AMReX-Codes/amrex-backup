@@ -331,7 +331,7 @@ void main_main ()
     WriteAsyncStatus status_mpi_post;
     {
         BL_PROFILE_REGION("vismf-async-mpi-post-overlap");
-        auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf9");
+        auto wrt_future = VisMF::WriteAsyncMPIOneSidedPost(mf, "vismfdata/mf9");
         {
             BL_PROFILE_VAR("vismf-async-mpi-post-work", blp2);
             for (int i = 0; i < nwork*2; ++i) {
