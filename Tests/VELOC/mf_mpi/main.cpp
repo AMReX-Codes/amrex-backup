@@ -26,25 +26,42 @@ void main_main ()
 {
     BL_PROFILE("main");
 
-    int n_cell = 512;
-    int max_grid_size = 64;
+    int n_cell = 0;
+    amrex::Vector<int> n_cell_3d (AMREX_SPACEDIM, 512);
+    int max_grid_size = 0;
+    amrex::Vector<int> max_grid_size_3d (AMREX_SPACEDIM, 64);
+
     int n_files = 256;
     int nwork = 50;
+
     {
         ParmParse pp;
         pp.query("n_cell", n_cell);
+        pp.queryarr("n_cell_3d", n_cell_3d, 0, AMREX_SPACEDIM);
         pp.query("max_grid_size", max_grid_size);
+        pp.queryarr("max_grid_size_3d", max_grid_size_3d, 0, AMREX_SPACEDIM);
         pp.query("noutfiles", n_files);
         pp.query("nwork", nwork);
+
+        if (n_cell != 0)
+        {
+            for (int i; i < AMREX_SPACEDIM; ++i)
+            { n_cell_3d[i] = n_cell; }
+        }
+        if (max_grid_size != 0)
+        {
+            for (int i; i < AMREX_SPACEDIM; ++i)
+            { max_grid_size_3d[i] = max_grid_size; }
+        }
     }
 
     VisMF::SetNOutFiles(n_files);
-//    amrex::ResetRandomSeed(33344455666);
-    BoxArray ba(Box(IntVect(0),IntVect(n_cell-1)));
+    BoxArray ba(Box(IntVect(0),IntVect(n_cell_3d)));
     ba.maxSize(max_grid_size);
     DistributionMapping dm(ba);
     MultiFab mf(ba, dm, 1, 0);
 
+//    amrex::ResetRandomSeed(33344455666);
     for (MFIter mfi(mf); mfi.isValid(); ++mfi) {
         const Box& bx = mfi.validbox();
         const auto& arr = mf.array(mfi);
@@ -61,19 +78,48 @@ void main_main ()
         amrex::dtoh_memcpy(mfcpu, mf);
     }
 
-    amrex::Print() << " Printing random box with n_cell = " << n_cell
-                                    << ", max_grid_size = " << max_grid_size
-                                    << ", and noutfiles = " << n_files << std::endl;
+    amrex::Print() << "Printing random box with: "
+                   << "\n dimensions = "     << n_cell_3d[0] << " " << n_cell_3d[1] << " " << n_cell_3d[2]
+                   << "\n  max_grid_size = " << max_grid_size_3d[0] << " " << max_grid_size_3d[1] << " " << max_grid_size_3d[2]
+                   << "\n  noutfiles = "     << n_files
+                   << "\n  and nwork = "     << nwork << std::endl;
 
+    double mf_min = mf.min(0);
+    double mf_max = mf.max(0);
 
     for (int ip = 0; ip < ParallelDescriptor::NProcs(); ++ip) {
         if (ip == ParallelDescriptor::MyProc()) {
             amrex::AllPrint() << "Proc. " << ip << " number of boxes = " << mf.local_size() << std::endl;
         }
+        amrex::USleep(0.001);
         ParallelDescriptor::Barrier();
     }
 
     amrex::UtilCreateDirectoryDestructive("vismfdata");
+
+// ***************************************************************
+
+    amrex::Print() << " Time Write and Work separately. " << std::endl;
+    {
+        BL_PROFILE_REGION("vismf-time");
+        {
+            BL_PROFILE_VAR("vismf-time-write", blp1);
+            VisMF::Write(mf, "vismfdata/mf0");
+            ParallelDescriptor::Barrier();
+        }
+        {
+            BL_PROFILE_VAR("vismf-time-work", blp2);
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
+            }
+        }
+    }
+    ParallelDescriptor::Barrier();
 
 // ***************************************************************
 
@@ -83,14 +129,17 @@ void main_main ()
         VisMF::Write(mf, "vismfdata/mf1");
         {
             BL_PROFILE_VAR("vismf-orig-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
     }
     ParallelDescriptor::Barrier();
-
 
 // ***************************************************************
 
@@ -101,9 +150,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsync(mf, "vismfdata/mf2");
         {
             BL_PROFILE_VAR("vismf-async-file-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -125,9 +178,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPI(mf, "vismfdata/mf3");
         {
             BL_PROFILE_VAR("vismf-async-mpi-basic-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -147,9 +204,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIComm(mf, "vismfdata/mf4");
         {
             BL_PROFILE_VAR("vismf-async-mpi-comm-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -169,9 +230,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIWait(mf, "vismfdata/mf5");
         {
             BL_PROFILE_VAR("vismf-async-mpi-wait-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -191,9 +256,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIBarrier(mf, "vismfdata/mf6");
         {
             BL_PROFILE_VAR("vismf-async-mpi-barrier-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -204,7 +273,6 @@ void main_main ()
     }
     ParallelDescriptor::Barrier();
 
-
 // ***************************************************************
 
     amrex::Print() << " Async-MPI IBarrier w/ Comm " << std::endl; 
@@ -214,9 +282,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIABarrier(mf, "vismfdata/mf7");
         {
             BL_PROFILE_VAR("vismf-async-mpi-ibarrier-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -227,7 +299,6 @@ void main_main ()
     }
     ParallelDescriptor::Barrier();
 
-
 // ***************************************************************
 
     amrex::Print() << " Async-MPI Fence " << std::endl; 
@@ -237,9 +308,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf8");
         {
             BL_PROFILE_VAR("vismf-async-mpi-fence-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -259,9 +334,13 @@ void main_main ()
         auto wrt_future = VisMF::WriteAsyncMPIOneSidedFence(mf, "vismfdata/mf9");
         {
             BL_PROFILE_VAR("vismf-async-mpi-post-work", blp2);
-            for (int i = 0; i < nwork; ++i) {
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
-                amrex::Print() << "mf min = " << mf.min(0) << ",  max = " << mf.max(0) << "\n";
+            for (int i = 0; i < nwork*2; ++i) {
+                double min = mf.min(0);
+                double max = mf.max(0);
+                if (mf_min != min)
+                    { amrex::AllPrint() << "Min failed: " << min << " != " << mf_min << std::endl; }
+                if (mf_max != max)
+                    { amrex::AllPrint() << "Max failed: " << max << " != " << mf_max << std::endl; }
             }
         }
         {
@@ -285,11 +364,12 @@ void main_main ()
             amrex::AllPrint() << "MPI-Comm: "     << status_mpi_comm  << std::endl;
             amrex::AllPrint() << "MPI-Wait: "     << status_mpi_wait  << std::endl;
             amrex::AllPrint() << "MPI-Barrier: "  << status_mpi_barrier  << std::endl;
-            amrex::AllPrint() << "MPI-IBarrier: " << status_mpi_barrier  << std::endl;
+            amrex::AllPrint() << "MPI-IBarrier: " << status_mpi_ibarrier  << std::endl;
             amrex::AllPrint() << "MPI-Fence: "    << status_mpi_fence << std::endl;
             amrex::AllPrint() << "MPI-Post: "     << status_mpi_post  << std::endl;
 #endif
         }
+        amrex::USleep(0.001);
         ParallelDescriptor::Barrier();
     }
 }
