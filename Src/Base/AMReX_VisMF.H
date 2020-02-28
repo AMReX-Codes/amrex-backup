@@ -228,6 +228,9 @@ public:
     WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
     static std::future<WriteAsyncStatus>
+    WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+    static std::future<WriteAsyncStatus>
     WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
     static std::future<WriteAsyncStatus>
