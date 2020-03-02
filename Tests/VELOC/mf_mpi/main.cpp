@@ -27,9 +27,9 @@ void main_main ()
     BL_PROFILE("main");
 
     int n_cell = 0;
+    int n_boxes_per_rank = 0;
     amrex::Vector<int> n_cell_3d (AMREX_SPACEDIM, 512);
-    int max_grid_size = 0;
-    amrex::Vector<int> max_grid_size_3d (AMREX_SPACEDIM, 64);
+    int max_grid_size = 64;
 
     int n_files = 256;
     int nwork = 50;
@@ -38,20 +38,24 @@ void main_main ()
         ParmParse pp;
         pp.query("n_cell", n_cell);
         pp.queryarr("n_cell_3d", n_cell_3d, 0, AMREX_SPACEDIM);
+        pp.query("n_boxes_per_rank", n_boxes_per_rank);
         pp.query("max_grid_size", max_grid_size);
-        pp.queryarr("max_grid_size_3d", max_grid_size_3d, 0, AMREX_SPACEDIM);
         pp.query("noutfiles", n_files);
         pp.query("nwork", nwork);
+
+        // inputs hierarchy: 
+        // n_cell > n_boxes_per_rank > n_cell_3d
 
         if (n_cell != 0)
         {
             for (int i; i < AMREX_SPACEDIM; ++i)
             { n_cell_3d[i] = n_cell; }
         }
-        if (max_grid_size != 0)
+        else if (n_boxes_per_rank != 0)
         {
-            for (int i; i < AMREX_SPACEDIM; ++i)
-            { max_grid_size_3d[i] = max_grid_size; }
+           n_cell_3d[0] = (max_grid_size) - 1;
+           n_cell_3d[1] = (max_grid_size * n_boxes_per_rank) - 1;
+           n_cell_3d[2] = (max_grid_size * ParallelDescriptor::NProcs()) - 1;
         }
     }
 
@@ -78,10 +82,11 @@ void main_main ()
         amrex::dtoh_memcpy(mfcpu, mf);
     }
 
-    amrex::Print() << "Printing random box with: "
-                   << "\n dimensions = "     << n_cell_3d[0] << " " << n_cell_3d[1] << " " << n_cell_3d[2]
-                   << "\n  max_grid_size = " << max_grid_size_3d[0] << " " << max_grid_size_3d[1] << " " << max_grid_size_3d[2]
+    amrex::Print() << "I/O printing randomly filled multifab with: "
+                   << "\n  dimensions = "    << ba.minimalBox() 
+                   << "\n  max_grid_size = " << max_grid_size
                    << "\n  noutfiles = "     << n_files
+                   << "\n  boxes = "         << ba.size()
                    << "\n  and nwork = "     << nwork << std::endl;
 
     double mf_min = mf.min(0);
