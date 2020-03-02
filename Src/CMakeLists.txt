@@ -44,6 +44,10 @@ if (ENABLE_FPE)
       )
 endif ()
 
+
+# CUDA flags
+target_compile_options(amrex PUBLIC $<$<COMPILE_LANGUAGE:CUDA>:--expt-relaxed-constexpr --expt-extended-lambda --use_fast_math -m64 -Wno-deprecated-gpu-targets "SHELL:${NVCC_ARCH_FLAGS}">)
+
 # General configuration
 include ( AMReX_Config )
 configure_amrex ()
