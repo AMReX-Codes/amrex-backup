@@ -200,6 +200,11 @@ public:
 // Async output tests 
 // *****************************
 
+    // Output rank output information for static writing. 
+    static std::array<int,3>
+    StaticWriteInfo (const int &rank);
+
+
 //  File based method, for comparison
     static std::future<WriteAsyncStatus>
     WriteAsync (const FabArray<FArrayBox>& mf, const std::string& mf_name);
