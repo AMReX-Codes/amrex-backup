@@ -43,14 +43,6 @@ function (configure_amrex)
    #
    # Setup compilers
    #
-
-   # Exit if Cray compiler is in use -- Support for Cray is currently broken
-   if ( ("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Cray") OR
-         ("${CMAKE_Fortran_COMPILER_ID}" STREQUAL "Cray") )
-      message(FATAL_ERROR "Support for Cray compiler is currently broken")
-   endif()
-
-
    # Set C++ standard and disable compiler-specific extensions, like "-std=gnu++14" for GNU
    # This will also enforce the same standard with the CUDA compiler
    # Moreover, it will also enforce such standard on all the consuming targets
@@ -141,30 +133,45 @@ function (configure_amrex)
          target_compile_options(amrex PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:-Xcompiler=${_amrex_cxx_flags}>)
       endif ()
 
+      #
+      # Add manually nvToolsExt if tiny profiler or base profiler are on.n
+      # CMake >= 3.17 provides the module FindCUDAToolkit to do this natively.
+      #
+      if (ENABLE_TINY_PROFILE OR ENABLE_BASE_PROFILE )
+          find_library(LIBNVTOOLSEXT nvToolsExt PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
+          target_link_libraries(amrex PUBLIC ${LIBNVTOOLSEXT})
+      endif ()
+
    endif ()
 
    #
-   # GNU-specific defines
+   # Add compiler version defines
    #
-   if ( ${CMAKE_C_COMPILER_ID} STREQUAL "GNU" )
+   string( REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
+   list( GET VERSION_LIST 0 COMP_VERSION_MAJOR )
+   list( GET VERSION_LIST 1 COMP_VERSION_MINOR )
+
+   if ( ${CMAKE_CXX_COMPILER_ID} STREQUAL "GNU" )
 
       if ( CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.8" )
          message( WARNING
-            " Your default GCC is version ${CMAKE_CXX_COMPILER_VERSION}.This might break during build. GCC>=4.8 is recommended.")
+            " Your default GCC is version ${CMAKE_CXX_COMPILER_VERSION}. This might break during build. GCC>=4.8 is recommended.")
       endif ()
 
-      string( REPLACE "." ";" VERSION_LIST ${CMAKE_CXX_COMPILER_VERSION})
-      list( GET VERSION_LIST 0 GCC_VERSION_MAJOR )
-      list( GET VERSION_LIST 1 GCC_VERSION_MINOR )
-
       target_compile_definitions( amrex PUBLIC $<BUILD_INTERFACE:
-         BL_GCC_VERSION=${CMAKE_CXX_COMPILER_VERSION}
-         BL_GCC_MAJOR_VERSION=${GCC_VERSION_MAJOR}
-         BL_GCC_MINOR_VERSION=${GCC_VERSION_MINOR}
-         >
-         )
-   endif ()
-
+          BL_GCC_VERSION=${CMAKE_CXX_COMPILER_VERSION}
+          BL_GCC_MAJOR_VERSION=${COMP_VERSION_MAJOR}
+          BL_GCC_MINOR_VERSION=${COMP_VERSION_MINOR}
+          >
+          )
+  elseif ( ${CMAKE_CXX_COMPILER_ID} STREQUAL "Clang" )
+     target_compile_definitions( amrex PUBLIC $<BUILD_INTERFACE:
+          BL_CLANG_VERSION=${CMAKE_CXX_COMPILER_VERSION}
+          BL_CLANG_MAJOR_VERSION=${COMP_VERSION_MAJOR}
+          BL_CLANG_MINOR_VERSION=${COMP_VERSION_MINOR}
+          >
+          )
+  endif ()
 
    if ( ENABLE_PIC OR BUILD_SHARED_LIBS )
       set_target_properties ( amrex PROPERTIES POSITION_INDEPENDENT_CODE True )
@@ -178,23 +185,10 @@ function (configure_amrex)
       endif()
    endif()
 
-
    #
    # Setup third-party profilers
    #
    set_amrex_profilers()
-
-   #
-   # If CUDA is enabled, add manually libcuda because CMake does not find it
-   # Do the same for nvToolsExt if tiny profiler is on
-   #
-   if (ENABLE_CUDA)
-      target_link_libraries(amrex PUBLIC cuda)
-      if (ENABLE_TINY_PROFILE OR ENABLE_BASE_PROFILE )
-          find_library(LIBNVTOOLSEXT nvToolsExt PATHS ${CMAKE_CUDA_IMPLICIT_LINK_DIRECTORIES})
-          target_link_libraries(amrex PUBLIC ${LIBNVTOOLSEXT})
-      endif ()
-   endif ()
 
 endfunction ()
 

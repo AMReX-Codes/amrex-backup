@@ -4,6 +4,8 @@
 #include <AMReX_GpuQualifiers.H>
 #include <AMReX_ParallelDescriptor.H>
 
+// xxxxx DPCPP todo
+
 namespace amrex
 {
     /**
@@ -18,8 +20,8 @@ namespace amrex
     /**
     * \brief Generate a psuedo-random double using C++11's mt19937.
     *
-    *  Generates one pseudorandom real number (double) from a normal
-    *  distribution with mean 'mean' and standard deviation 'stddev'.
+    *  Generates one pseudorandom real number (double) from a uniform
+    *  distribution between 0.0 and 1.0 (0.0 included, 1.0 excluded)
     *
     */
     AMREX_GPU_HOST_DEVICE Real Random ();
