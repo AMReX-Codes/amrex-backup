@@ -3815,9 +3815,9 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     // const int nfiles = 2; // for testing only
 
     const DistributionMapping& dm = mf.DistributionMap();
-
-    int myproc = ParallelDescriptor::MyProc();
-    int nprocs = ParallelDescriptor::NProcs();
+    const int myproc = ParallelDescriptor::MyProc();
+    const int nprocs = ParallelDescriptor::NProcs();
+    const int header_proc = nprocs-1;
 
     RealDescriptor const& whichRD = []() -> RealDescriptor const& {
         switch (FArrayBox::getFormat())
@@ -3834,7 +3834,8 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
+    hdr.CalculateMinMax(mf, header_proc, ParallelDescriptor::Communicator());
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -3850,12 +3851,12 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     const long n_fab_nums = n_fab_reals*sizeof_int64_over_real + n_fab_int64;
     const long n_local_nums = n_fab_nums * n_local_fabs + 1;
     Vector<int64_t> localdata(n_local_nums);
-
+/*
 #if defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ == 9) && (__CUDACC_VER_MINOR__ == 2)
     constexpr Real value_max = std::numeric_limits<Real>::max();
     constexpr Real value_min = std::numeric_limits<Real>::lowest();
 #endif
-
+*/
     int64_t total_bytes = 0;
     auto pld = (char*)(&(localdata[1]));
     const FABio& fio = FArrayBox::getFABio();
@@ -3907,12 +3908,14 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
 #endif
 
 #else
+        const int idx = mfi.index();
+
         for (int icomp = 0; icomp < ncomp; ++icomp) {
-            Real cmin = fab.min(bx,icomp);
-            Real cmax = fab.max(bx,icomp);
-            std::memcpy(pld, &cmin, sizeof(Real));
+//            Real cmin = fab.min(bx,icomp);
+//            Real cmax = fab.max(bx,icomp);
+//            std::memcpy(pld, &cmin, sizeof(Real));
             pld += sizeof(Real);
-            std::memcpy(pld, &cmax, sizeof(Real));
+//            std::memcpy(pld, &cmax, sizeof(Real));
             pld += sizeof(Real);
         }
 #endif
@@ -3927,7 +3930,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     else {
         const long n_global_nums = n_fab_nums * n_global_fabs + nprocs;
         Vector<int> rcnt, rdsp;
-        if (myproc == nprocs-1) {
+        if (myproc == header_proc) {
             globaldata.resize(n_global_nums);
             rcnt.resize(nprocs,1);
             rdsp.resize(nprocs,0);
@@ -3943,7 +3946,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
         }
         BL_MPI_REQUIRE(MPI_Gatherv(localdata.data(), localdata.size(), MPI_INT64_T,
                                    globaldata.data(), rcnt.data(), rdsp.data(), MPI_INT64_T,
-                                   nprocs-1, ParallelDescriptor::Communicator()));
+                                   header_proc, ParallelDescriptor::Communicator()));
     }
 #endif
 
@@ -3983,8 +3986,9 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
          -> WriteAsyncStatus
     {
         Real tbegin = amrex::second();
-        if (myproc == nprocs-1)
+        if (myproc == header_proc)
         {
+/*
             h.m_fod.resize(n_global_fabs);
             h.m_min.resize(n_global_fabs);
             h.m_max.resize(n_global_fabs);
@@ -3992,7 +3996,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
             h.m_famax.clear();
             h.m_famin.resize(ncomp,std::numeric_limits<Real>::max());
             h.m_famax.resize(ncomp,std::numeric_limits<Real>::lowest());
-
+*/
             Vector<int64_t> nbytes_on_rank(nprocs,-1L);
             Vector<Vector<int> > gidx(nprocs);
             for (int k = 0; k < n_global_fabs; ++k) {
@@ -4016,8 +4020,8 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
                         }
                     } while (k < 0);
 
-                    h.m_min[k].resize(ncomp);
-                    h.m_max[k].resize(ncomp);
+//                    h.m_min[k].resize(ncomp);
+//                    h.m_max[k].resize(ncomp);
 
                     if (nbytes_on_rank[rank] < 0) { // First time for this rank
                         std::memcpy(&(nbytes_on_rank[rank]), pgd, sizeof(int64_t));
@@ -4033,10 +4037,12 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
                         std::memcpy(&cmin, pgd             , sizeof(Real));
                         std::memcpy(&cmax, pgd+sizeof(Real), sizeof(Real));
                         pgd += sizeof(Real)*2;
+/*
                         h.m_min[k][icomp] = cmin;
                         h.m_max[k][icomp] = cmax;
                         h.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
                         h.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
+*/
                     }
 
                     auto info = StaticWriteInfo(rank);

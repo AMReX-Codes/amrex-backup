@@ -103,7 +103,7 @@ void main_main ()
     amrex::UtilCreateDirectoryDestructive("vismfdata");
 
 // ***************************************************************
-
+/*
     amrex::Print() << " Time Write and Work separately. " << std::endl;
     {
         BL_PROFILE_REGION("vismf-time");
@@ -171,11 +171,11 @@ void main_main ()
         }
     }
     ParallelDescriptor::Barrier();
-
+*/
 // ***************************************************************
 
 #ifdef AMREX_MPI_MULTIPLE
-
+/*
     amrex::Print() << " Async-MPI " << std::endl; 
     WriteAsyncStatus status_mpi_basic;
     {
@@ -279,7 +279,7 @@ void main_main ()
     ParallelDescriptor::Barrier();
 
 // ***************************************************************
-
+*/
     amrex::Print() << " Async-MPI IBarrier w/ Comm " << std::endl; 
     WriteAsyncStatus status_mpi_ibarrier;
     {
@@ -329,8 +329,7 @@ void main_main ()
         }
     }
     ParallelDescriptor::Barrier();
-
-
+/*
 
 // ***************************************************************
 
@@ -383,7 +382,7 @@ void main_main ()
         }
     }
     ParallelDescriptor::Barrier();
-
+*/
 // ***************************************************************
 
 #endif
@@ -391,16 +390,16 @@ void main_main ()
     for (int ip = 0; ip < ParallelDescriptor::NProcs(); ++ip) {
         if (ip == ParallelDescriptor::MyProc()) {
             amrex::AllPrint() << "Proc. " << ip << std::endl;
-            amrex::AllPrint() << "File: " << status_file << std::endl;
+//            amrex::AllPrint() << "File: " << status_file << std::endl;
 #ifdef AMREX_MPI_MULTIPLE
-            amrex::AllPrint() << "MPI-Basic: "           << status_mpi_basic             << std::endl;
-            amrex::AllPrint() << "MPI-Comm: "            << status_mpi_comm              << std::endl;
-            amrex::AllPrint() << "MPI-Wait: "            << status_mpi_wait              << std::endl;
-            amrex::AllPrint() << "MPI-Barrier: "         << status_mpi_barrier           << std::endl;
+//            amrex::AllPrint() << "MPI-Basic: "           << status_mpi_basic             << std::endl;
+//            amrex::AllPrint() << "MPI-Comm: "            << status_mpi_comm              << std::endl;
+//            amrex::AllPrint() << "MPI-Wait: "            << status_mpi_wait              << std::endl;
+//            amrex::AllPrint() << "MPI-Barrier: "         << status_mpi_barrier           << std::endl;
             amrex::AllPrint() << "MPI-IBarrier: "        << status_mpi_ibarrier          << std::endl;
-            amrex::AllPrint() << "MPI-IBarrierWaitall: " << status_mpi_ibarrier_waitall  << std::endl;
-            amrex::AllPrint() << "MPI-Fence: "           << status_mpi_fence             << std::endl;
-            amrex::AllPrint() << "MPI-Post: "            << status_mpi_post              << std::endl;
+//            amrex::AllPrint() << "MPI-IBarrierWaitall: " << status_mpi_ibarrier_waitall  << std::endl;
+//            amrex::AllPrint() << "MPI-Fence: "           << status_mpi_fence             << std::endl;
+//            amrex::AllPrint() << "MPI-Post: "            << status_mpi_post              << std::endl;
 #endif
         }
         amrex::USleep(0.001);
