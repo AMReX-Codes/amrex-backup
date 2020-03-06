@@ -2235,7 +2235,7 @@ VisMF::WriteAsync (const FabArray<FArrayBox>& mf, const std::string& mf_name)
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -2563,7 +2563,7 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -2880,7 +2880,7 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -3196,7 +3196,7 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -3515,7 +3515,7 @@ VisMF::WriteAsyncMPIBarrier (const FabArray<FArrayBox>& mf, const std::string& m
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -3835,7 +3835,6 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
     VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
-    hdr.CalculateMinMax(mf, header_proc, ParallelDescriptor::Communicator());
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -3911,11 +3910,11 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
         const int idx = mfi.index();
 
         for (int icomp = 0; icomp < ncomp; ++icomp) {
-//            Real cmin = fab.min(bx,icomp);
-//            Real cmax = fab.max(bx,icomp);
-//            std::memcpy(pld, &cmin, sizeof(Real));
+            Real cmin = fab.min(bx,icomp);
+            Real cmax = fab.max(bx,icomp);
+            std::memcpy(pld, &cmin, sizeof(Real));
             pld += sizeof(Real);
-//            std::memcpy(pld, &cmax, sizeof(Real));
+            std::memcpy(pld, &cmax, sizeof(Real));
             pld += sizeof(Real);
         }
 #endif
@@ -3988,7 +3987,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
         Real tbegin = amrex::second();
         if (myproc == header_proc)
         {
-/*
+
             h.m_fod.resize(n_global_fabs);
             h.m_min.resize(n_global_fabs);
             h.m_max.resize(n_global_fabs);
@@ -3996,7 +3995,7 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
             h.m_famax.clear();
             h.m_famin.resize(ncomp,std::numeric_limits<Real>::max());
             h.m_famax.resize(ncomp,std::numeric_limits<Real>::lowest());
-*/
+
             Vector<int64_t> nbytes_on_rank(nprocs,-1L);
             Vector<Vector<int> > gidx(nprocs);
             for (int k = 0; k < n_global_fabs; ++k) {
@@ -4020,8 +4019,8 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
                         }
                     } while (k < 0);
 
-//                    h.m_min[k].resize(ncomp);
-//                    h.m_max[k].resize(ncomp);
+                    h.m_min[k].resize(ncomp);
+                    h.m_max[k].resize(ncomp);
 
                     if (nbytes_on_rank[rank] < 0) { // First time for this rank
                         std::memcpy(&(nbytes_on_rank[rank]), pgd, sizeof(int64_t));
@@ -4037,12 +4036,12 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
                         std::memcpy(&cmin, pgd             , sizeof(Real));
                         std::memcpy(&cmax, pgd+sizeof(Real), sizeof(Real));
                         pgd += sizeof(Real)*2;
-/*
+
                         h.m_min[k][icomp] = cmin;
                         h.m_max[k][icomp] = cmax;
                         h.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
                         h.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
-*/
+
                     }
 
                     auto info = StaticWriteInfo(rank);
@@ -4164,7 +4163,7 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -4492,7 +4491,7 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
@@ -4819,7 +4818,7 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
-    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, true);
+    VisMF::Header hdr(mf, VisMF::NFiles, VisMF::Header::Version_v1, false);
 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #

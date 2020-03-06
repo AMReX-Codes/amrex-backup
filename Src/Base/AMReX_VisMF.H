@@ -241,14 +241,6 @@ public:
     static std::future<WriteAsyncStatus>
     WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::string& mf_name);
 
-// Non-blocking comm tests 
-// *****************************
-
-/*
-    static std::future<WriteAsyncStatus>
-    WriteAsyncMPICommLight (const FabArray<FArrayBox>& fafab, const std::string& name);
-*/
-
     /**
     * \brief Write only the header-file corresponding to FabArray<FArrayBox> to
     * disk without the corresponding FAB data. This writes BoxArray information
