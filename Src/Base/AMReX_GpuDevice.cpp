@@ -58,6 +58,7 @@ int  Device::max_blocks_per_launch = 640;
 
 std::array<gpuStream_t,Device::max_gpu_streams> Device::gpu_streams;
 gpuStream_t                                     Device::gpu_default_stream;
+gpuStream_t                                     Device::gpu_async_stream;
 gpuStream_t                                     Device::gpu_stream;
 gpuDeviceProp_t                                 Device::device_prop;
 
@@ -393,6 +394,7 @@ Device::initialize_gpu ()
     for (int i = 0; i < max_gpu_streams; ++i) {
         AMREX_HIP_SAFE_CALL(hipStreamCreate(&gpu_streams[i]));
     }
+    AMREX_HIP_SAFE_CALL(hipStreamCreate(&gpu_async_stream));
 
 #elif defined(AMREX_USE_CUDA)
     AMREX_CUDA_SAFE_CALL(cudaGetDeviceProperties(&device_prop, device_id));
@@ -415,6 +417,7 @@ Device::initialize_gpu ()
         acc_set_cuda_stream(i, gpu_streams[i]);
 #endif
     }
+    AMREX_CUDA_SAFE_CALL(cudaStreamCreate(&gpu_async_stream));
 
 #elif defined(AMREX_USE_DPCPP)
     { // create device, context and queues
@@ -425,6 +428,7 @@ Device::initialize_gpu ()
         for (int i = 0; i < max_gpu_streams; ++i) {
             gpu_streams[i].queue = new sycl::ordered_queue(*sycl_context, device_selector);
         }
+        gpu_async_stream.queue = new sycl::ordered_queue(*sycl_context, device_selector);
     }
 
     { // device property

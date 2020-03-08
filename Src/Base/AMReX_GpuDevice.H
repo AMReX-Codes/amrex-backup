@@ -43,6 +43,7 @@ public:
 
 #if defined(AMREX_USE_GPU)
     static gpuStream_t gpuStream () noexcept { return gpu_stream; }
+    static gpuStream_t gpuAsyncStream () noexcept { return gpu_async_stream; }
     static gpuStream_t nullStream () noexcept { return gpu_default_stream; }
 #ifdef AMREX_USE_CUDA
     // for backward compatibility
@@ -146,6 +147,7 @@ private:
 
     static std::array<gpuStream_t,max_gpu_streams> gpu_streams;
     static gpuStream_t gpu_default_stream;
+    static gpuStream_t gpu_async_stream;
     static gpuStream_t gpu_stream;
     static gpuDeviceProp_t device_prop;
     static int max_blocks_per_launch;

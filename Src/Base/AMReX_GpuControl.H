@@ -54,6 +54,17 @@ namespace Gpu {
         return r;
     }
 
+    extern bool in_synchronous_region;
+
+    inline bool inSynchronousRegion () noexcept { return in_synchronous_region; }
+    inline bool notInSynchronousRegion () noexcept { return !in_synchronous_region; }
+
+    inline bool setSynchronousRegion (bool synchronous) noexcept {
+        bool r = in_synchronous_region;
+        in_synchronous_region = synchronous;
+        return r;
+    }
+
     extern bool in_graph_region;
     inline bool inGraphRegion() { return (in_graph_region && in_launch_region); }
     inline bool notInGraphRegion() { return (!in_graph_region || !in_launch_region); }

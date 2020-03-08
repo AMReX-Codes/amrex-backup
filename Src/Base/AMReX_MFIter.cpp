@@ -213,7 +213,7 @@ MFIter::~MFIter ()
 #endif
 
 #ifdef AMREX_USE_GPU
-    if (device_sync) Gpu::synchronize();
+    if (device_sync && Gpu::inSynchronousRegion()) Gpu::synchronize();
 #endif
 
 #ifdef AMREX_USE_GPU
@@ -230,7 +230,9 @@ MFIter::~MFIter ()
 
 #ifdef AMREX_USE_GPU
     AMREX_GPU_ERROR_CHECK();
-    Gpu::Device::resetStreamIndex();
+    if (Gpu::inSynchronousRegion()) {
+        Gpu::Device::resetStreamIndex();
+    }
     Gpu::resetNumCallbacks();
 #endif
 
@@ -332,7 +334,12 @@ MFIter::Initialize ()
 	currentIndex = beginIndex;
 
 #ifdef AMREX_USE_GPU
-	Gpu::Device::setStreamIndex((streams > 0) ? currentIndex%streams : -1);
+        if (Gpu::inSynchronousRegion()) {
+            Gpu::Device::setStreamIndex((streams > 0) ? currentIndex%streams : -1);
+        }
+        else {
+            Gpu::Device::setStream(Gpu::Device::gpuAsyncStream());
+        }
         Gpu::resetNumCallbacks();
 #endif
 
@@ -521,7 +528,12 @@ MFIter::operator++ () noexcept
 
 #ifdef AMREX_USE_GPU
         if (use_gpu) {
-            Gpu::Device::setStreamIndex((streams > 0) ? currentIndex%streams : -1);
+            if (Gpu::inSynchronousRegion()) {
+                Gpu::Device::setStreamIndex((streams > 0) ? currentIndex%streams : -1);
+            }
+            else {
+                Gpu::Device::setStream(Gpu::Device::gpuAsyncStream());
+            }
             AMREX_GPU_ERROR_CHECK();
 #ifdef AMREX_DEBUG
 //            Gpu::synchronize();
