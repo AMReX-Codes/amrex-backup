@@ -17,6 +17,7 @@
 #include <AMReX_NFiles.H>
 #include <AMReX_FPC.H>
 #include <AMReX_FabArrayUtility.H>
+#include <AMReX_MultiFab.H>
 
 namespace amrex {
 
@@ -42,7 +43,6 @@ MPI_Comm VisMF::async_comm;
 MPI_Win VisMF::async_window;
 int VisMF::asyncTag(-1);
 long VisMF::ioBufferSize(VisMF::IO_Buffer_Size);
-
 
 //
 // Set these in Initialize().
@@ -5108,6 +5108,367 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
 
     return af;
 }
+
+std::future<WriteAsyncStatus>
+VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
+                           int nlevels, bool set_ghost_cells)
+{
+    BL_PROFILE("VisMF::WriteAsyncMPIABarrierWaitall()");
+    AMREX_ASSERT(mf_name[mf_name.length() - 1] != '/');
+    static_assert(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
+                  "WriteAsync: unsupported Real size");
+
+#ifdef AMREX_USE_MPI
+    int thread_support = -1;
+    MPI_Query_thread(&thread_support);
+    AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
+#endif
+
+    RealDescriptor const& whichRD = []() -> RealDescriptor const& {
+        switch (FArrayBox::getFormat())
+        {
+        case FABio::FAB_NATIVE:
+            return FPC::NativeRealDescriptor();
+        case FABio::FAB_NATIVE_32:
+            return FPC::Native32RealDescriptor();
+        case FABio::FAB_IEEE_32:
+            return FPC::Ieee32NormalRealDescriptor();
+        default:
+            return FPC::NativeRealDescriptor();
+        }
+    }();
+    bool doConvert = whichRD != FPC::NativeRealDescriptor();
+
+    const int n_reals_per_fab = 2;           // One min, one max.
+    const int myproc = ParallelDescriptor::MyProc();
+    const int nprocs = ParallelDescriptor::NProcs();
+    const int hdr_proc = nprocs-1;           // Proc writing the header. (Make an input?)
+
+    const auto myinfo = StaticWriteInfo(myproc);
+    const int ifile = std::get<0>(myinfo);   // file #
+    const int ispot = std::get<1>(myinfo);   // spot #
+    const int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
+
+    Vector<VisMF::Header> hdrs(nlevels);
+    Vector<DistributionMapping> dms(nlevels);
+    Vector<int64_t> total_bytes_per_level(nlevels);
+
+    long n_all_local_nums = 0;
+    long n_all_global_nums = 0;
+
+    for (int level = 0; level < nlevels; ++level)
+    {
+        const MultiFab& mfl = *mf[level];
+
+        dms[level] = mfl.DistributionMap();
+        hdrs.emplace_back( VisMF::Header(*static_cast<FabArray<FArrayBox> const*>(&mfl),
+                                         VisMF::NFiles, VisMF::Header::Version_v1, false) );
+
+        // Count nums for header data:
+        // "local" = on this rank
+        // "global" = across all ranks
+        // "all" = across all levels
+        constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
+        const int n_local_fabs = mfl.local_size();
+        const int n_global_fabs = mfl.size();
+        const int ncomp = mfl.nComp();
+
+        const long n_fab_reals = n_reals_per_fab*ncomp;
+        const long n_fab_int64 = 1;
+        const long n_fab_nums = n_fab_reals*sizeof_int64_over_real + n_fab_int64;
+        const long n_local_nums = n_fab_nums * n_local_fabs + 1;
+
+        n_all_local_nums += n_local_nums;
+        n_all_global_nums += n_fab_nums*n_global_fabs + nprocs;
+    }
+
+    Vector<int64_t> all_local_hdr_data(n_all_local_nums);
+    Vector<std::unique_ptr<char,DataDeleter> > local_plotfile_data(nlevels);
+
+    auto phdr = (char*)(&(all_local_hdr_data[0]));
+
+    for (int level = 0; level < nlevels; ++level)
+    {
+        const MultiFab& mfl = *mf[level];
+
+        // Setup header data
+        // -----------------------------------
+        int64_t total_bytes = 0;
+        auto ptb = phdr;    // Store location total_bytes for this level will go.
+        phdr += sizeof(int64_t);
+        const FABio& fio = FArrayBox::getFABio();
+
+        for (MFIter mfi(mfl); mfi.isValid(); ++mfi)
+        {
+            std::memcpy(phdr, &total_bytes, sizeof(int64_t));
+            phdr += sizeof(int64_t);
+
+            const FArrayBox& fab = mfl[mfi];
+            const int ncomp = mfl.nComp();
+
+            std::stringstream hss;
+            fio.write_header(hss, fab, ncomp);
+            total_bytes += static_cast<std::streamoff>(hss.tellp());
+            total_bytes += fab.size() * whichRD.numBytes();
+
+            const Box& bx = mfi.validbox();
+
+            for (int icomp = 0; icomp < ncomp; ++icomp) {
+                Real cmin = fab.min(bx,icomp);
+                Real cmax = fab.max(bx,icomp);
+                std::memcpy(phdr, &cmin, sizeof(Real));
+                phdr += sizeof(Real);
+                std::memcpy(phdr, &cmax, sizeof(Real));
+                phdr += sizeof(Real);
+            }
+        }
+
+        std::memcpy(ptb, &total_bytes, sizeof(int64_t));
+        total_bytes_per_level[level] = total_bytes;
+
+
+        // Setup copy of fab data for writing 
+        // -----------------------------------
+        std::unique_ptr<char, DataDeleter> level_data((char*)(The_Pinned_Arena()->alloc(total_bytes)),
+                                                             DataDeleter(The_Pinned_Arena()));
+        char* p = level_data.get();
+        void* ptmp;
+        for (MFIter mfi(mfl); mfi.isValid(); ++mfi)
+        {
+            const FArrayBox& fab = mfl[mfi];
+            const int ncomp = mfl.nComp();
+
+            std::stringstream hss;
+            fio.write_header(hss, fab, ncomp);
+            int nbytes = static_cast<std::streamoff>(hss.tellp());
+            auto tstr = hss.str();
+            std::memcpy(p, tstr.c_str(), nbytes);
+            p += nbytes;
+            long nreals = fab.size();
+            if (doConvert) {
+                ptmp = The_Pinned_Arena()->alloc(nreals*sizeof(Real));
+            } else {
+                ptmp = p;
+            }
+#ifdef AMREX_USE_GPU
+            Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+#else
+            std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+#endif
+            if (doConvert) {
+                RealDescriptor::convertFromNativeFormat(p, nreals, ptmp, whichRD);
+                The_Pinned_Arena()->free(ptmp);
+            }
+            p += nreals * whichRD.numBytes();
+        }
+        local_plotfile_data[level].swap(level_data);  
+
+    }  // nlevels
+
+    // Gather header data on header_proc
+    Vector<int64_t> all_global_hdr_data;
+    if (nprocs == 1) {
+        all_global_hdr_data = std::move(all_local_hdr_data);
+    }
+#ifdef BL_USE_MPI
+    else {
+        Vector<int> rcnt, rdsp;
+        if (myproc == hdr_proc) {
+            all_global_hdr_data.resize(n_all_global_nums);
+            rcnt.resize(nprocs,1);
+            rdsp.resize(nprocs,0);
+            for (int level=0; level<nlevels; ++level) {
+
+                const MultiFab& mfl = *mf[level];
+                const DistributionMapping& dm = mfl.DistributionMap();
+                const int ncomp = mfl.nComp();
+                const int mf_size = mfl.size();
+
+                for (int k = 0; k < mf_size; ++k) {
+                    int rank = dm[k];
+                    rcnt[rank] += n_reals_per_fab*ncomp+1;
+                }
+
+            }
+            std::partial_sum(rcnt.begin(), rcnt.end()-1, rdsp.begin()+1);
+        } else {
+            all_global_hdr_data.resize(1,0);
+            rcnt.resize(1,0);
+            rdsp.resize(1,0);
+        }
+        BL_MPI_REQUIRE(MPI_Gatherv(all_local_hdr_data.data(), all_local_hdr_data.size(), MPI_INT64_T,
+                                   all_global_hdr_data.data(), rcnt.data(), rdsp.data(), MPI_INT64_T,
+                                   hdr_proc, ParallelDescriptor::Communicator()));
+    }
+#endif
+
+
+    auto af = std::async(std::launch::async,
+    [=] (Vector<std::unique_ptr<char,DataDeleter> > fabs, Vector<VisMF::Header> hdr, Vector<int64_t> const& hdata)
+         -> WriteAsyncStatus
+    {
+
+        Real tbegin = amrex::second();
+        if (myproc == hdr_proc)
+        {
+            Vector<Vector<int64_t> > nbytes_on_rank(nprocs,-1L);
+            Vector<Vector<Vector<int> > > gidx(nprocs);
+
+            for (int level=0; level<nlevels; ++level)
+            {
+                VisMF::Header h = hdr[level];
+                const int n_global_fabs = h.m_ba.size();
+                const int ncomp = h.m_ncomp;
+                const DistributionMapping& dm = dms[level]
+
+                h.m_fod.resize(n_global_fabs);
+                h.m_min.resize(n_global_fabs);
+                h.m_max.resize(n_global_fabs);
+                h.m_famin.clear();
+                h.m_famax.clear();
+                h.m_famin.resize(ncomp,std::numeric_limits<Real>::max());
+                h.m_famax.resize(ncomp,std::numeric_limits<Real>::lowest());
+
+                for (int k = 0; k < n_global_fabs; ++k) {
+                    int rank = dm[k];
+                    gidx[rank].push_back(k);
+                }
+            }
+
+//                auto pgd = (char*)(gdata.data());
+                {
+                    int rank = 0, lidx = 0;
+                    for (int j = 0; j < n_global_fabs; ++j)
+                    {
+                        int k = -1;
+                        do {
+                            if (lidx < gidx[rank].size()) {
+                                k = gidx[rank][lidx];
+                                ++lidx;
+                            } else {
+                                ++rank;
+                                lidx = 0;
+                            }
+                        } while (k < 0);
+
+                        h.m_min[k].resize(ncomp);
+                        h.m_max[k].resize(ncomp);
+
+                        if (nbytes_on_rank[rank] < 0) { // First time for this rank
+                            std::memcpy(&(nbytes_on_rank[rank]), pgd, sizeof(int64_t));
+                            pgd += sizeof(int64_t);
+                        }
+
+                        int64_t nbytes;
+                        std::memcpy(&nbytes, pgd, sizeof(int64_t));
+                        pgd += sizeof(int64_t);
+
+                        for (int icomp = 0; icomp < ncomp; ++icomp) {
+                            Real cmin, cmax;
+                            std::memcpy(&cmin, pgd             , sizeof(Real));
+                            std::memcpy(&cmax, pgd+sizeof(Real), sizeof(Real));
+                            pgd += sizeof(Real)*2;
+                            h.m_min[k][icomp] = cmin;
+                            h.m_max[k][icomp] = cmax;
+                            h.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
+                            h.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
+                        }
+
+                        auto info = StaticWriteInfo(rank);
+                        int fno = std::get<0>(info);   // file #
+                        h.m_fod[k].m_name = amrex::Concatenate(VisMF::BaseName(mf_name)+FabFileSuffix, fno, 5);
+                        h.m_fod[k].m_head = nbytes;
+                    }
+                }
+
+            Vector<int64_t> offset(nprocs);
+            for (int ip = 0; ip < nprocs; ++ip) {
+                auto info = StaticWriteInfo(ip);
+                int sno = std::get<1>(info);
+                if (sno == 0) {
+                    offset[ip] = 0;
+                } else {
+                    offset[ip] = offset[ip-1] + nbytes_on_rank[ip-1];
+                }
+            }
+
+            for (int k = 0; k < n_global_fabs; ++k) {
+                h.m_fod[k].m_head += offset[dm[k]];
+            }
+
+            for (int level = 0; level<nlevels; ++level)
+            {
+                VisMF::WriteHeaderDoit(mf_name, h);
+            }
+        }
+//-----------------
+        int barrier_count = 0;
+        int ranks_in_file = ParallelDescriptor::NProcs(async_comm);
+
+        Vector<MPI_Request> waiting_reqs(ispot);
+        Vector<MPI_Status> waiting_status(ispot);
+        Vector<MPI_Request> syncing_reqs(ranks_in_file - ispot);
+        Vector<MPI_Status> syncing_status(ranks_in_file - ispot);
+
+        Real t0 = amrex::second();
+
+        // If not the first MPI writing on this rank,
+        // block until it is your turn.
+        while (barrier_count < ispot)
+        {
+            waiting_reqs[barrier_count++] =
+                ParallelDescriptor::Abarrier(async_comm).req();
+        }
+        barrier_count = 0; // reset while waiting.
+        ParallelDescriptor::Waitall(waiting_reqs, waiting_status);
+
+        Real t1 = amrex::second();
+
+        for (int level=0; level<nlevels; ++level)
+        {
+            int64_t total_bytes = total_bytes_per_level[level];
+
+            if (total_bytes > 0) {
+                std::string file_name = amrex::Concatenate(mf_names[level] + FabFileSuffix, ifile, 5);
+                std::ofstream ofs;
+                ofs.open(file_name.c_str(), (ispot == 0)
+                         ? (std::ios::binary | std::ios::trunc)
+                         : (std::ios::binary | std::ios::app));
+                if (!ofs.good()) amrex::FileOpenFailed(file_name);
+                ofs.write(d[level].get(), total_bytes);
+                ofs.close();
+            }
+        }
+
+        Real t2 = amrex::second();
+
+        // If not the last, release the next rank to write
+        while (barrier_count < ranks_in_file-ispot)
+        {
+            syncing_reqs[barrier_count++] =
+                ParallelDescriptor::Abarrier(async_comm).req();
+        }
+        ParallelDescriptor::Waitall(syncing_reqs, syncing_status);
+
+        Real tend = amrex::second();
+
+        WriteAsyncStatus status;
+        status.nbytes = total_bytes;
+        status.nspins = 0;
+        status.t_total = tend-tbegin;
+        status.t_header = t0-tbegin;
+        status.t_spin = t1-t0;
+        status.t_write = t2-t1;
+        status.t_send = tend-t2;
+
+        return status;
+       
+    },
+    std::move(local_plotfile_data), std::move(hdrs), std::move(all_global_hdr_data));
+
+    return af;
+}
+
 
 std::ostream&
 operator<< (std::ostream& os, const WriteAsyncStatus& status)

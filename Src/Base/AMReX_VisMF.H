@@ -28,6 +28,7 @@ struct WriteAsyncStatus {
 };
 
 class NFilesIter;
+class MultiFab;
 
 /**
 * \brief File I/O for FabArray<FArrayBox>.
@@ -204,7 +205,6 @@ public:
     static std::array<int,3>
     StaticWriteInfo (const int &rank);
 
-
 //  File based method, for comparison
     static std::future<WriteAsyncStatus>
     WriteAsync (const FabArray<FArrayBox>& mf, const std::string& mf_name);
@@ -240,6 +240,13 @@ public:
 
     static std::future<WriteAsyncStatus>
     WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::string& mf_name);
+
+// Async Write Plotfile 
+// *****************************
+
+    static std::future<WriteAsyncStatus>
+    WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
+                        int nlevels, bool set_ghost_cells);
 
     /**
     * \brief Write only the header-file corresponding to FabArray<FArrayBox> to
