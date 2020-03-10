@@ -28,10 +28,10 @@ struct Neighbors
         ParticleType operator* () const { return m_pstruct[m_nbor_list_ptr[m_index]];  }
         
     private:
-        const ParticleType* m_pstruct;
-        const unsigned int* m_nbor_list_ptr;
         int m_index;
         int m_stop;
+        const unsigned int* m_nbor_list_ptr;
+        const ParticleType* m_pstruct;
     };
     
     AMREX_GPU_HOST_DEVICE
