@@ -670,6 +670,8 @@ void
 NeighborParticleContainer<NStructReal, NStructInt>::
 buildNeighborList (CheckPair check_pair, bool sort) 
 {
+    AMREX_ASSERT(numParticlesOutOfRange(*this, m_num_neighbor_cells) == 0);
+
     for (int lev = 0; lev < this->numLevels(); ++lev)
     {
         m_neighbor_list[lev].clear();
@@ -698,8 +700,6 @@ buildNeighborList (CheckPair check_pair, bool sort)
             bx.coarsen(ref_fac);
             bx.grow(m_num_neighbor_cells);
             
-            AMREX_ASSERT(numParticlesOutOfRange(*this, m_num_neighbor_cells) == 0);
-        
             m_neighbor_list[lev][index].build(ptile, bx, geom, check_pair);
         }        
     }
