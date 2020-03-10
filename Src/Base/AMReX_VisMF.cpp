@@ -122,12 +122,12 @@ VisMF::SetNOutFiles (int newoutfiles, MPI_Comm comm)
 {
     AMREX_ASSERT((async_comm == MPI_COMM_NULL) == (async_window == MPI_WIN_NULL));
 
-    const int nranks = ParallelDescriptor::MyProc(comm);
+    const int nranks = ParallelDescriptor::NProcs(comm);
     const int myproc = ParallelDescriptor::MyProc(comm);
 
     // Must be called globally with this change (MPI_Comm_split on m_comm == MPI_COMM_WORLD)
     // So, minimize when it's done?? How?? (Comm / newoutfiles could both change!)
-    nOutFiles = std::max(1, std::min(ParallelDescriptor::NProcs(comm), newoutfiles));
+    nOutFiles = std::max(1, std::min(nranks, newoutfiles));
 
 #ifdef BL_USE_MPI
 
@@ -2182,7 +2182,6 @@ std::array<int,3>
 VisMF::StaticWriteInfo (const int &rank) 
 {
     const int nfiles = nOutFiles;
-    const int myproc = ParallelDescriptor::MyProc();
     const int nprocs = ParallelDescriptor::NProcs();
 
     const int nspots = (nprocs + (nfiles-1)) / nfiles;  // max spots per file
@@ -2212,9 +2211,6 @@ VisMF::WriteAsync (const FabArray<FArrayBox>& mf, const std::string& mf_name)
     AMREX_ASSERT(mf_name[mf_name.length() - 1] != '/');
     static_assert(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
                   "WriteAsync: unsupported Real size");
-
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
 
     const DistributionMapping& dm = mf.DistributionMap();
 
@@ -2541,9 +2537,6 @@ VisMF::WriteAsyncMPI (const FabArray<FArrayBox>& mf, const std::string& mf_name)
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
 
     int myproc = ParallelDescriptor::MyProc();
@@ -2858,9 +2851,6 @@ VisMF::WriteAsyncMPIComm (const FabArray<FArrayBox>& mf, const std::string& mf_n
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
 
     int myproc = ParallelDescriptor::MyProc();
@@ -3173,9 +3163,6 @@ VisMF::WriteAsyncMPIWait (const FabArray<FArrayBox>& mf, const std::string& mf_n
     MPI_Query_thread(&thread_support);
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
-
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
 
     const DistributionMapping& dm = mf.DistributionMap();
 
@@ -3493,9 +3480,6 @@ VisMF::WriteAsyncMPIBarrier (const FabArray<FArrayBox>& mf, const std::string& m
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
 
     int myproc = ParallelDescriptor::MyProc();
@@ -3521,7 +3505,6 @@ VisMF::WriteAsyncMPIBarrier (const FabArray<FArrayBox>& mf, const std::string& m
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
     int ispot = std::get<1>(myinfo);   // spot #
-    int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
 
     constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
     const int n_local_fabs = mf.local_size();
@@ -3812,9 +3795,6 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
     const int myproc = ParallelDescriptor::MyProc();
     const int nprocs = ParallelDescriptor::NProcs();
@@ -3840,7 +3820,6 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
     int ispot = std::get<1>(myinfo);   // spot #
-    int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
 
     constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
     const int n_local_fabs = mf.local_size();
@@ -3908,8 +3887,6 @@ VisMF::WriteAsyncMPIABarrier (const FabArray<FArrayBox>& mf, const std::string& 
 #endif
 
 #else
-        const int idx = mfi.index();
-
         for (int icomp = 0; icomp < ncomp; ++icomp) {
             Real cmin = fab.min(bx,icomp);
             Real cmax = fab.max(bx,icomp);
@@ -4141,9 +4118,6 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
 
     int myproc = ParallelDescriptor::MyProc();
@@ -4169,7 +4143,6 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
     int ispot = std::get<1>(myinfo);   // spot #
-    int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
 
     constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
     const int n_local_fabs = mf.local_size();
@@ -4469,9 +4442,6 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
 
-    const int nfiles = nOutFiles;
-    // const int nfiles = 2; // for testing only
-
     const DistributionMapping& dm = mf.DistributionMap();
 
     int myproc = ParallelDescriptor::MyProc();
@@ -4497,7 +4467,6 @@ VisMF::WriteAsyncMPIOneSidedFence (const FabArray<FArrayBox>& mf, const std::str
     auto myinfo = StaticWriteInfo(myproc);
     int ifile = std::get<0>(myinfo);   // file #
     int ispot = std::get<1>(myinfo);   // spot #
-    int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
 
     constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
     const int n_local_fabs = mf.local_size();
@@ -4795,8 +4764,6 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
     MPI_Query_thread(&thread_support);
     AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
 #endif
-
-    const int nfiles = nOutFiles;
     // const int nfiles = 2; // for testing only
 
     const DistributionMapping& dm = mf.DistributionMap();
@@ -5115,9 +5082,14 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                            int nlevels, bool set_ghost_cells, int hdr_proc)
 {
     BL_PROFILE("VisMF::WriteAsyncMPIABarrierWaitall()");
-    AMREX_ASSERT(mf_name[mf_name.length() - 1] != '/');
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
                                       "WriteAsync: unsupported Real size");
+#if AMREX_DEBUG
+    for (int level=0; level<nlevels; ++level)
+    {
+        AMREX_ASSERT(mf_names[level][mf_names[level].length() - 1] != '/');
+    }
+#endif
 
 #ifdef AMREX_USE_MPI
     int thread_support = -1;
@@ -5151,9 +5123,8 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     const auto myinfo = StaticWriteInfo(myproc);
     const int ifile = std::get<0>(myinfo);   // file #
     const int ispot = std::get<1>(myinfo);   // spot #
-    const int iamlast = std::get<2>(myinfo); // Am I last the process that touches the file?
 
-    Vector<VisMF::Header> hdrs(nlevels);
+    Vector<VisMF::Header> hdrs;
     Vector<DistributionMapping> dms(nlevels);
     Vector<int64_t> all_local_bytes_per_level(nlevels);
     long all_local_bytes_to_write = 0;
@@ -5166,14 +5137,13 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         const MultiFab& mfl = *mf[level];
 
         dms[level] = mfl.DistributionMap();
-        hdrs.emplace_back( VisMF::Header(*static_cast<FabArray<FArrayBox> const*>(&mfl),
-                                         VisMF::NFiles, VisMF::Header::Version_v1, false) );
+        hdrs.emplace_back( *static_cast<FabArray<FArrayBox> const*>(&mfl),
+                                         VisMF::NFiles, VisMF::Header::Version_v1, false );
 
         // Count nums for header data:
         // "local" = on this rank
         // "global" = across all ranks
         // "all" = across all levels
-        constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
         const int n_local_fabs = mfl.local_size();
         const int n_global_fabs = mfl.size();
         const int ncomp = mfl.nComp();
@@ -5306,7 +5276,6 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     }
 #endif
 
-
     auto af = std::async(std::launch::async,
     [=] (Vector<std::unique_ptr<char,DataDeleter> > fabdata, Vector<VisMF::Header> hdr, Vector<int64_t> const& hdata)
          -> WriteAsyncStatus
@@ -5360,7 +5329,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                             k = gidx[level][rank][lidx];
                             ++lidx;
                         } else {
-                            if (level < nlevels) {
+                            if (level < nlevels-1) {
                                 ++level;
                                 lidx = 0;
                             } else {
