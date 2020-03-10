@@ -5141,7 +5141,10 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     }();
     bool doConvert = whichRD != FPC::NativeRealDescriptor();
 
+    constexpr int sizeof_int64_over_real = sizeof(int64_t) / sizeof(Real);
     const int n_reals_per_fab = 2;           // One min, one max.
+    const int n_fab_int64 = 1;               // Offset to this fab in mf.
+    const int n_local_int64 = 1;             // Total local bytes for this mf. 
     const int myproc = ParallelDescriptor::MyProc();
     const int nprocs = ParallelDescriptor::NProcs();
 
@@ -5153,6 +5156,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     Vector<VisMF::Header> hdrs(nlevels);
     Vector<DistributionMapping> dms(nlevels);
     Vector<int64_t> all_local_bytes_per_level(nlevels);
+    long all_local_bytes_to_write = 0;
 
     long n_all_local_nums = 0;
     long n_all_global_nums = 0;
@@ -5175,9 +5179,8 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         const int ncomp = mfl.nComp();
 
         const long n_fab_reals = n_reals_per_fab*ncomp;
-        const long n_fab_int64 = 1;
         const long n_fab_nums = n_fab_reals*sizeof_int64_over_real + n_fab_int64;
-        const long n_local_nums = n_fab_nums * n_local_fabs + 1;
+        const long n_local_nums = n_fab_nums * n_local_fabs + n_local_int64;
 
         n_all_local_nums += n_local_nums;
         n_all_global_nums += n_fab_nums*n_global_fabs + nprocs;
@@ -5226,7 +5229,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
         std::memcpy(ptb, &total_bytes, sizeof(int64_t));
         all_local_bytes_per_level[level] = total_bytes;
-
+        all_local_bytes_to_write += total_bytes;
 
         // Setup copy of fab data for writing 
         // -----------------------------------
@@ -5387,8 +5390,8 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                         phd += sizeof(Real)*2;
                         hl.m_min[k][icomp] = cmin;
                         hl.m_max[k][icomp] = cmax;
-                        hl.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
-                        hl.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
+                        hl.m_famin[icomp] = std::min(hl.m_famin[icomp],cmin);
+                        hl.m_famax[icomp] = std::max(hl.m_famax[icomp],cmax);
                     }
 
                     auto info = StaticWriteInfo(rank);
@@ -5402,6 +5405,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             for (int level=0; level<nlevels; ++level)
             {
                 VisMF::Header &hl = hdr[level];
+                const int n_global_fabs = hl.m_ba.size();
 
                 Vector<int64_t> offset(nprocs);
                 for (int ip = 0; ip < nprocs; ++ip) {
@@ -5415,7 +5419,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                 }
   
                 for (int k = 0; k < n_global_fabs; ++k) {
-                    hl.m_fod[k].m_head += offset[dm[level][k]];
+                    hl.m_fod[k].m_head += offset[dms[level][k]];
                 }
 
                 VisMF::WriteHeaderDoit(mf_names[level], hl);
@@ -5446,16 +5450,16 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
         for (int level=0; level<nlevels; ++level)
         {
-            int64_t total_bytes = all_local_bytes_per_level[level];
+            int64_t bytes_to_write = all_local_bytes_per_level[level];
 
-            if (total_bytes > 0) {
+            if (bytes_to_write > 0) {
                 std::string file_name = amrex::Concatenate(mf_names[level] + FabFileSuffix, ifile, 5);
                 std::ofstream ofs;
                 ofs.open(file_name.c_str(), (ispot == 0)
                          ? (std::ios::binary | std::ios::trunc)
                          : (std::ios::binary | std::ios::app));
                 if (!ofs.good()) amrex::FileOpenFailed(file_name);
-                ofs.write(d[level].get(), total_bytes_per_level[level]);
+                ofs.write(fabdata[level].get(), bytes_to_write);
                 ofs.close();
             }
         }
@@ -5473,7 +5477,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         Real tend = amrex::second();
 
         WriteAsyncStatus status;
-        status.nbytes = total_bytes;
+        status.nbytes = all_local_bytes_to_write;
         status.nspins = 0;
         status.t_total = tend-tbegin;
         status.t_header = t0-tbegin;

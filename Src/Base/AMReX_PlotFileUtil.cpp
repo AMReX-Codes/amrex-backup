@@ -228,7 +228,29 @@ WriteMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
 //    VisMF::SetNOutFiles(saveNFiles);
 }
 
-void
+std::future<WriteAsyncStatus>
+WriteAsyncSingleLevelPlotfile (const std::string& plotfilename,
+                               const MultiFab& mf, const Vector<std::string>& varnames,
+                               const Geometry& geom, Real time, int level_step,
+                               const std::string &versionName,
+                               const std::string &levelPrefix,
+                               const std::string &mfPrefix,
+                               const Vector<std::string>& extra_dirs)
+{
+    Vector<const MultiFab*> mfarr(1,&mf);
+    Vector<Geometry> geomarr(1,geom);
+    Vector<int> level_steps(1,level_step);
+    Vector<IntVect> ref_ratio;
+
+    
+    auto af = WriteAsyncMultiLevelPlotfile(plotfilename, 1, mfarr, varnames, geomarr, time,
+                                           level_steps, ref_ratio, versionName, levelPrefix, mfPrefix, extra_dirs);
+
+    return af;
+}
+
+
+std::future<WriteAsyncStatus>
 WriteAsyncMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
                               const Vector<const MultiFab*>& mf,
                               const Vector<std::string>& varnames,
@@ -289,9 +311,10 @@ WriteAsyncMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
         filePrefixes[level] = MultiFabFileFullPrefix(level, plotfilename, levelPrefix, mfPrefix);
     }
 
-    VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, false, ParallelDescriptor::NProcs()-1);
+    auto af = VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, false, ParallelDescriptor::NProcs()-1);
 
-//    VisMF::SetNOutFiles(saveNFiles);
+    return af;
+
 }
 
 
@@ -392,8 +415,6 @@ WriteMultiLevelPlotfileHeaders (const std::string & plotfilename, int nlevels,
     }
 
 }
-
-
 
 void
 WriteSingleLevelPlotfile (const std::string& plotfilename,
