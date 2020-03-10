@@ -629,7 +629,7 @@ buildNeighborListCPU (CheckPair check_pair, bool sort) {
 #endif
             AoS& particles = pti.GetArrayOfStructs();
 
-            int Np = particles.size();
+            int Np = particles.numRealParticles();
             int Nn = neighbors[lev][index].size();
             int N = Np + Nn;
 
