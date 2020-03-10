@@ -246,7 +246,7 @@ public:
 
     static std::future<WriteAsyncStatus>
     WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
-                        int nlevels, bool set_ghost_cells);
+                        int nlevels, bool set_ghost_cells, int hdr_proc);
 
     /**
     * \brief Write only the header-file corresponding to FabArray<FArrayBox> to

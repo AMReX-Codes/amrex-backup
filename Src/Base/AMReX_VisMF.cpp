@@ -5111,17 +5111,18 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
 
 std::future<WriteAsyncStatus>
 VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
-                           int nlevels, bool set_ghost_cells)
+                           int nlevels, bool set_ghost_cells, int hdr_proc)
 {
     BL_PROFILE("VisMF::WriteAsyncMPIABarrierWaitall()");
     AMREX_ASSERT(mf_name[mf_name.length() - 1] != '/');
-    static_assert(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
-                  "WriteAsync: unsupported Real size");
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
+                                      "WriteAsync: unsupported Real size");
 
 #ifdef AMREX_USE_MPI
     int thread_support = -1;
     MPI_Query_thread(&thread_support);
-    AMREX_ALWAYS_ASSERT(thread_support == MPI_THREAD_MULTIPLE);
+    AMREX_ALWAYS_ASSERT_WITH_MESSAGE(thread_support == MPI_THREAD_MULTIPLE,
+                                      "WriteAsync: MPI_THREAD_MULTIPLE required for Async Writes");
 #endif
 
     RealDescriptor const& whichRD = []() -> RealDescriptor const& {
@@ -5142,7 +5143,6 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     const int n_reals_per_fab = 2;           // One min, one max.
     const int myproc = ParallelDescriptor::MyProc();
     const int nprocs = ParallelDescriptor::NProcs();
-    const int hdr_proc = nprocs-1;           // Proc writing the header. (Make an input?)
 
     const auto myinfo = StaticWriteInfo(myproc);
     const int ifile = std::get<0>(myinfo);   // file #
@@ -5151,7 +5151,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
     Vector<VisMF::Header> hdrs(nlevels);
     Vector<DistributionMapping> dms(nlevels);
-    Vector<int64_t> total_bytes_per_level(nlevels);
+    Vector<int64_t> all_local_bytes_per_level(nlevels);
 
     long n_all_local_nums = 0;
     long n_all_global_nums = 0;
@@ -5185,7 +5185,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     Vector<int64_t> all_local_hdr_data(n_all_local_nums);
     Vector<std::unique_ptr<char,DataDeleter> > local_plotfile_data(nlevels);
 
-    auto phdr = (char*)(&(all_local_hdr_data[0]));
+    auto phdr = (char*)(all_local_hdr_data.data());
 
     for (int level = 0; level < nlevels; ++level)
     {
@@ -5224,7 +5224,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         }
 
         std::memcpy(ptb, &total_bytes, sizeof(int64_t));
-        total_bytes_per_level[level] = total_bytes;
+        all_local_bytes_per_level[level] = total_bytes;
 
 
         // Setup copy of fab data for writing 
@@ -5286,7 +5286,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
                 for (int k = 0; k < mf_size; ++k) {
                     int rank = dm[k];
-                    rcnt[rank] += n_reals_per_fab*ncomp+1;
+                    rcnt[rank] += n_reals_per_fab*ncomp*sizeof_int64_over_real + n_fab_int64;
                 }
 
             }
@@ -5304,104 +5304,123 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
 
     auto af = std::async(std::launch::async,
-    [=] (Vector<std::unique_ptr<char,DataDeleter> > fabs, Vector<VisMF::Header> hdr, Vector<int64_t> const& hdata)
+    [=] (Vector<std::unique_ptr<char,DataDeleter> > fabdata, Vector<VisMF::Header> hdr, Vector<int64_t> const& hdata)
          -> WriteAsyncStatus
     {
 
         Real tbegin = amrex::second();
         if (myproc == hdr_proc)
         {
-            Vector<Vector<int64_t> > nbytes_on_rank(nprocs,-1L);
-            Vector<Vector<Vector<int> > > gidx(nprocs);
+            Vector<Vector<int64_t> > nbytes_on_rank(nlevels);  // [Level] [Proc]
+            Vector<Vector<Vector<int> > > gidx(nprocs);        // [Level] [Rank] [Grid #]
+            long n_all_global_fabs = 0;
 
+            // Setup objects
             for (int level=0; level<nlevels; ++level)
             {
-                VisMF::Header h = hdr[level];
-                const int n_global_fabs = h.m_ba.size();
-                const int ncomp = h.m_ncomp;
-                const DistributionMapping& dm = dms[level]
+                VisMF::Header& hl = hdr[level];
 
-                h.m_fod.resize(n_global_fabs);
-                h.m_min.resize(n_global_fabs);
-                h.m_max.resize(n_global_fabs);
-                h.m_famin.clear();
-                h.m_famax.clear();
-                h.m_famin.resize(ncomp,std::numeric_limits<Real>::max());
-                h.m_famax.resize(ncomp,std::numeric_limits<Real>::lowest());
+                const int n_global_fabs = hl.m_ba.size();
+                const int ncomp = hl.m_ncomp;
+                n_all_global_fabs += n_global_fabs;
 
+                hl.m_fod.resize(n_global_fabs);
+                hl.m_min.resize(n_global_fabs);
+                hl.m_max.resize(n_global_fabs);
+                hl.m_famin.clear();
+                hl.m_famax.clear();
+                hl.m_famin.resize(ncomp, std::numeric_limits<Real>::max());
+                hl.m_famax.resize(ncomp, std::numeric_limits<Real>::lowest());
+
+                nbytes_on_rank[level].resize(nprocs,-1L);
+                gidx[level].resize(nprocs);               
+ 
                 for (int k = 0; k < n_global_fabs; ++k) {
-                    int rank = dm[k];
-                    gidx[rank].push_back(k);
+                    int rank = dms[level][k];
+                    gidx[level][rank].push_back(k);
+
+                    hl.m_min[k].resize(ncomp);
+                    hl.m_max[k].resize(ncomp);
                 }
             }
 
-//                auto pgd = (char*)(gdata.data());
+            // Unpack header data
+            auto phd = (char*)(hdata.data());
+            {
+                int rank = 0, lidx = 0, level = 0;
+                for (int j = 0; j < n_all_global_fabs; ++j)
                 {
-                    int rank = 0, lidx = 0;
-                    for (int j = 0; j < n_global_fabs; ++j)
-                    {
-                        int k = -1;
-                        do {
-                            if (lidx < gidx[rank].size()) {
-                                k = gidx[rank][lidx];
-                                ++lidx;
+                    int k = -1;
+                    do {
+                        if (lidx < gidx[level][rank].size()) {
+                            k = gidx[level][rank][lidx];
+                            ++lidx;
+                        } else {
+                            if (level < nlevels) {
+                                ++level;
+                                lidx = 0;
                             } else {
                                 ++rank;
+                                level = 0;
                                 lidx = 0;
                             }
-                        } while (k < 0);
-
-                        h.m_min[k].resize(ncomp);
-                        h.m_max[k].resize(ncomp);
-
-                        if (nbytes_on_rank[rank] < 0) { // First time for this rank
-                            std::memcpy(&(nbytes_on_rank[rank]), pgd, sizeof(int64_t));
-                            pgd += sizeof(int64_t);
                         }
+                    } while (k < 0);
 
-                        int64_t nbytes;
-                        std::memcpy(&nbytes, pgd, sizeof(int64_t));
-                        pgd += sizeof(int64_t);
+                    VisMF::Header& hl = hdr[level];
+                    int ncomp = hl.m_ncomp;
 
-                        for (int icomp = 0; icomp < ncomp; ++icomp) {
-                            Real cmin, cmax;
-                            std::memcpy(&cmin, pgd             , sizeof(Real));
-                            std::memcpy(&cmax, pgd+sizeof(Real), sizeof(Real));
-                            pgd += sizeof(Real)*2;
-                            h.m_min[k][icomp] = cmin;
-                            h.m_max[k][icomp] = cmax;
-                            h.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
-                            h.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
-                        }
+                    if (nbytes_on_rank[level][rank] < 0) { // First time for this rank
+                        std::memcpy(&(nbytes_on_rank[level][rank]), phd, sizeof(int64_t));
+                        phd += sizeof(int64_t);
+                    }
 
-                        auto info = StaticWriteInfo(rank);
-                        int fno = std::get<0>(info);   // file #
-                        h.m_fod[k].m_name = amrex::Concatenate(VisMF::BaseName(mf_name)+FabFileSuffix, fno, 5);
-                        h.m_fod[k].m_head = nbytes;
+                    int64_t nbytes;
+                    std::memcpy(&nbytes, phd, sizeof(int64_t));
+                    phd += sizeof(int64_t);
+
+                    for (int icomp = 0; icomp < ncomp; ++icomp) {
+                        Real cmin, cmax;
+                        std::memcpy(&cmin, phd             , sizeof(Real));
+                        std::memcpy(&cmax, phd+sizeof(Real), sizeof(Real));
+                        phd += sizeof(Real)*2;
+                        hl.m_min[k][icomp] = cmin;
+                        hl.m_max[k][icomp] = cmax;
+                        hl.m_famin[icomp] = std::min(h.m_famin[icomp],cmin);
+                        hl.m_famax[icomp] = std::max(h.m_famax[icomp],cmax);
+                    }
+
+                    auto info = StaticWriteInfo(rank);
+                    int fno = std::get<0>(info);   // file #
+                    hl.m_fod[k].m_name = amrex::Concatenate(VisMF::BaseName(mf_names[level])+FabFileSuffix, fno, 5);
+                    hl.m_fod[k].m_head = nbytes;
+                }
+            }
+
+            // Add final offsets to header and write.
+            for (int level=0; level<nlevels; ++level)
+            {
+                VisMF::Header &hl = hdr[level];
+
+                Vector<int64_t> offset(nprocs);
+                for (int ip = 0; ip < nprocs; ++ip) {
+                    auto info = StaticWriteInfo(ip);
+                    int sno = std::get<1>(info);   // spot #
+                    if (sno == 0) {
+                        offset[ip] = 0;
+                    } else {
+                        offset[ip] = offset[ip-1] + nbytes_on_rank[level][ip-1];
                     }
                 }
-
-            Vector<int64_t> offset(nprocs);
-            for (int ip = 0; ip < nprocs; ++ip) {
-                auto info = StaticWriteInfo(ip);
-                int sno = std::get<1>(info);
-                if (sno == 0) {
-                    offset[ip] = 0;
-                } else {
-                    offset[ip] = offset[ip-1] + nbytes_on_rank[ip-1];
+  
+                for (int k = 0; k < n_global_fabs; ++k) {
+                    hl.m_fod[k].m_head += offset[dm[level][k]];
                 }
-            }
 
-            for (int k = 0; k < n_global_fabs; ++k) {
-                h.m_fod[k].m_head += offset[dm[k]];
-            }
-
-            for (int level = 0; level<nlevels; ++level)
-            {
-                VisMF::WriteHeaderDoit(mf_name, h);
+                VisMF::WriteHeaderDoit(mf_names[level], hl);
             }
         }
-//-----------------
+
         int barrier_count = 0;
         int ranks_in_file = ParallelDescriptor::NProcs(async_comm);
 
@@ -5426,7 +5445,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
         for (int level=0; level<nlevels; ++level)
         {
-            int64_t total_bytes = total_bytes_per_level[level];
+            int64_t total_bytes = all_local_bytes_per_level[level];
 
             if (total_bytes > 0) {
                 std::string file_name = amrex::Concatenate(mf_names[level] + FabFileSuffix, ifile, 5);
@@ -5435,7 +5454,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                          ? (std::ios::binary | std::ios::trunc)
                          : (std::ios::binary | std::ios::app));
                 if (!ofs.good()) amrex::FileOpenFailed(file_name);
-                ofs.write(d[level].get(), total_bytes);
+                ofs.write(d[level].get(), total_bytes_per_level[level]);
                 ofs.close();
             }
         }

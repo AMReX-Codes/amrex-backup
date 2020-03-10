@@ -289,7 +289,7 @@ WriteAsyncMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
         filePrefixes[level] = MultiFabFileFullPrefix(level, plotfilename, levelPrefix, mfPrefix);
     }
 
-    VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, false);
+    VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, false, ParallelDescriptor::NProcs()-1);
 
 //    VisMF::SetNOutFiles(saveNFiles);
 }
