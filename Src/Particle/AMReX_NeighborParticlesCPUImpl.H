@@ -355,6 +355,22 @@ NeighborParticleContainer<NStructReal, NStructInt>
     BL_PROFILE_VAR_STOP(update);
 
     fillNeighborsMPI(reuse_rcv_counts);
+
+    for (int lev = 0; lev < this->numLevels(); ++lev)
+    {
+        for(MFIter mfi = this->MakeMFIter(lev); mfi.isValid(); ++mfi)
+        {
+            int src_grid = mfi.index();
+            int src_tile = mfi.LocalTileIndex();
+            auto index = std::make_pair(src_grid, src_tile);
+            auto& ptile = this->GetParticles(lev)[index];
+            ptile.setNumNeighbors(neighbors[lev][index].size());
+            auto& aos = ptile.GetArrayOfStructs();
+            std::copy(neighbors[lev][index].begin(), neighbors[lev][index].end(),
+                      aos().begin() + ptile.numRealParticles());
+        }
+    }
+
 }
 
 template <int NStructReal, int NStructInt>
@@ -367,9 +383,17 @@ NeighborParticleContainer<NStructReal, NStructInt>
     resizeContainers(this->numLevels());
     for (int lev = 0; lev < this->numLevels(); ++lev) {
         neighbors[lev].clear();
-        if ( enableInverse() )
-           inverse_tags[lev].clear();
+        if ( enableInverse() ) inverse_tags[lev].clear();
         buffer_tag_cache[lev].clear();
+
+        for(MFIter mfi = this->MakeMFIter(lev); mfi.isValid(); ++mfi)
+        {
+            int src_grid = mfi.index();
+            int src_tile = mfi.LocalTileIndex();
+            auto index = std::make_pair(src_grid, src_tile);
+            auto& ptile = this->GetParticles(lev)[index];
+            ptile.setNumNeighbors(0);
+        }
     }
 
     send_data.clear();
