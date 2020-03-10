@@ -693,7 +693,6 @@ buildNeighborList (CheckPair check_pair, bool sort)
             auto index = std::make_pair(gid, tid);
             
             auto& ptile = plev[index];
-            auto& aos   = ptile.GetArrayOfStructs();
             
             Box bx = mfi.tilebox();
             bx.coarsen(ref_fac);
@@ -701,7 +700,7 @@ buildNeighborList (CheckPair check_pair, bool sort)
             
             AMREX_ASSERT(numParticlesOutOfRange(*this, m_num_neighbor_cells) == 0);
         
-            m_neighbor_list[lev][index].build(aos(), bx, geom, check_pair);
+            m_neighbor_list[lev][index].build(ptile, bx, geom, check_pair);
         }        
     }
 }
