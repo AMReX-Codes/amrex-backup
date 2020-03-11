@@ -149,12 +149,17 @@ public:
             
             pnbor_counts[i] = count;
         });
-    
+
         Gpu::exclusive_scan(m_nbor_counts.begin(), m_nbor_counts.end(), m_nbor_offsets.begin());
 
         // Now we can allocate and build our neighbor list
         unsigned int total_nbors;
-        Gpu::dtoh_memcpy(&total_nbors, m_nbor_offsets.dataPtr() + np_real, sizeof(unsigned int));
+#ifdef AMREX_USE_GPU
+        Gpu::dtoh_memcpy(&total_nbors,m_nbor_offsets.dataPtr()+np_real,sizeof(unsigned int));
+#else
+        std::memcpy(&total_nbors,m_nbor_offsets.dataPtr()+np_real,sizeof(unsigned int));
+#endif
+
         m_nbor_list.resize(total_nbors);
 
         auto pm_nbor_list = m_nbor_list.dataPtr();
@@ -186,7 +191,7 @@ public:
             }
         });
     }
-
+    
     NeighborData<ParticleType> data () 
     { 
         return NeighborData<ParticleType>(m_nbor_offsets, m_nbor_list, m_pstruct); 
