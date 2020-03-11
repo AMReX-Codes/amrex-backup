@@ -672,6 +672,8 @@ buildNeighborList (CheckPair check_pair, bool sort)
 {
     AMREX_ASSERT(numParticlesOutOfRange(*this, m_num_neighbor_cells) == 0);
 
+    resizeContainers(this->numLevels());
+
     for (int lev = 0; lev < this->numLevels(); ++lev)
     {
         m_neighbor_list[lev].clear();
