@@ -1,124 +1,130 @@
-#include <iostream>
 
 #include <AMReX.H>
-#include "NeighborListParticleContainer.H"
+#include <AMReX_ParmParse.H>
+#include <AMReX_MultiFab.H>
+
+#include "CheckPair.H"
+
+#include "MDParticleContainer.H"
 
 using namespace amrex;
 
-int main(int argc, char* argv[])
+struct TestParams
 {
-    amrex::Initialize(argc, argv);
-
-    {
-    
-    ParmParse pp;
-    
     IntVect size;
-    int max_step, max_grid_size, nlevs;
-    bool write_particles, do_nl;
-    Real dt;
+    int max_grid_size;
+    int nsteps;
+    int num_rebuild;
+    int num_ppc;
+    bool print_min_dist;
+    bool print_neighbor_list;
+    bool print_num_particles;
+    bool write_particles;
+    Real cfl;
+};
 
-    pp.get("size", size);
-    pp.get("max_step", max_step);
-    pp.get("max_grid_size", max_grid_size);
-    pp.get("write_particles", write_particles);
-    pp.get("dt", dt);
-    pp.get("do_nl", do_nl);
-    pp.get("nlevs", nlevs);
+void main_main();
+
+int main (int argc, char* argv[])
+{
+    amrex::Initialize(argc,argv);
+    main_main();
+    amrex::Finalize();
+}
+
+void get_test_params(TestParams& params)
+{
+    ParmParse pp;
+    pp.get("size", params.size);
+    pp.get("max_grid_size", params.max_grid_size);
+    pp.get("nsteps", params.nsteps);
+    pp.get("print_minimum_distance", params.print_min_dist);
+    pp.get("print_neighbor_list", params.print_neighbor_list);
+    pp.get("write_particles", params.write_particles);
+    pp.get("num_rebuild", params.num_rebuild);
+    pp.get("num_ppc", params.num_ppc);
+    pp.get("cfl", params.cfl);
+    pp.get("print_num_particles", params.print_num_particles);
+}
+
+void main_main ()
+{
+
+    amrex::Print() << "Running MD benchmark \n";
+
+    TestParams params;
+    get_test_params(params);
 
     RealBox real_box;
-    for (int n = 0; n < BL_SPACEDIM; n++) {
-        real_box.setLo(n, 0.0);
-        real_box.setHi(n, size[n]);
-    }
-
-    RealBox fine_box;
     for (int n = 0; n < BL_SPACEDIM; n++)
     {
-       fine_box.setLo(n,0.25*size[n]);
-       fine_box.setHi(n,0.75*size[n]);
+        real_box.setLo(n, 0.0);
+        real_box.setHi(n, params.size[n]);
     }
-    
+
     IntVect domain_lo(AMREX_D_DECL(0, 0, 0));
-    IntVect domain_hi(AMREX_D_DECL(size[0] - 1, size[1] - 1, size[2] - 1));
+    IntVect domain_hi(AMREX_D_DECL(params.size[0]-1,params.size[1]-1,params.size[2]-1));
     const Box domain(domain_lo, domain_hi);
 
-    Vector<int> rr(nlevs-1);
-    for (int lev = 1; lev < nlevs; lev++)
-        rr[lev-1] = 2;
-    
+    int coord = 0;
     int is_per[BL_SPACEDIM];
-    for (int i = 0; i < BL_SPACEDIM; i++) 
+    for (int i = 0; i < BL_SPACEDIM; i++)
         is_per[i] = 0;
-
-    // This defines a Geometry object which is useful for writing the plotfiles  
-    Vector<Geometry> geom(nlevs);
-    geom[0].define(domain, &real_box, CoordSys::cartesian, is_per);
-    for (int lev = 1; lev < nlevs; lev++) {
-	geom[lev].define(amrex::refine(geom[lev-1].Domain(), rr[lev-1]),
-			 &real_box, CoordSys::cartesian, is_per);
-    }
-
-    Vector<BoxArray> ba(nlevs);
-    ba[0].define(domain);
-
-    // Now we make the refined level be the center eighth of the domain
-    if (nlevs > 1) {
-        IntVect n_fine = size*rr[0];
-        IntVect refined_lo(D_DECL(n_fine[0]/4,n_fine[1]/4,n_fine[2]/4)); 
-        IntVect refined_hi(D_DECL(3*n_fine[0]/4-1,3*n_fine[1]/4-1,3*n_fine[2]/4-1));
-
-        // Build a box for the level 1 domain
-        Box refined_patch(refined_lo, refined_hi);
-        ba[1].define(refined_patch);
-    }
+    Geometry geom(domain, &real_box, coord, is_per);
     
-    // break the BoxArrays at both levels into max_grid_size^3 boxes
-    for (int lev = 0; lev < nlevs; lev++) {
-        ba[lev].maxSize(max_grid_size);
-    }
+    BoxArray ba(domain);
+    ba.maxSize(params.max_grid_size);
+    DistributionMapping dm(ba);
 
-    Vector<DistributionMapping> dmap(nlevs);
-    for (int lev = 0; lev < nlevs; lev++) {
-        dmap[lev] = DistributionMapping{ba[lev]};
-    }
+    const int ncells = 1;
+    MDParticleContainer pc(geom, dm, ba, ncells);
+
+    int npc = params.num_ppc;
+    IntVect nppc = IntVect(AMREX_D_DECL(npc, npc, npc));
+
+    pc.InitParticles(nppc, 1.0, 0.0);
+
+    if (params.print_num_particles) 
+      amrex::Print() << "Num particles after init is " << pc.TotalNumberOfParticles() << "\n";
+
+    int num_rebuild = params.num_rebuild;
+
+    Real cfl = params.cfl;
     
-    int num_neighbor_cells = 1;
+    Real min_d = std::numeric_limits<Real>::max();
 
-    NeighborListParticleContainer myPC(geom, dmap, ba, rr, num_neighbor_cells);
+    for (int step = 0; step < params.nsteps; ++step) {
 
-    myPC.InitParticles();
+	Real dt = pc.computeStepSize(cfl);
 
-    myPC.setEnableInverse(true);
+	if (step % num_rebuild == 0)
+	{
+	  if (step > 0) pc.RedistributeLocal();
 
-    for (int i = 0; i < max_step; i++) {
+	  pc.fillNeighbors();
 
-        amrex::Print() << "Taking step " << i << "\n";
+	  pc.buildNeighborList(CheckPair());
+	} 
+	else
+	{
+	  pc.updateNeighbors();
+	}
 
-        if (write_particles) myPC.writeParticles(i);
-        
-        myPC.fillNeighbors();
+        if (params.print_min_dist) 
+	   min_d = std::min(min_d, pc.minDistance());
 
-        if (do_nl) { myPC.computeForcesNL(); } 
-        else {       myPC.computeForces();   }
+        if (params.print_neighbor_list) 
+           pc.printNeighborList();
 
-        int real_start_comp = 2*BL_SPACEDIM;
-        int real_num_comp = 1;
+	pc.computeForces();
 
-        int int_start_comp = 0;
-        int int_num_comp = 1;
-        myPC.sumNeighbors(real_start_comp, real_num_comp, int_start_comp, int_num_comp);
-        
-        myPC.clearNeighbors();
-
-        myPC.moveParticles(dt);
-
-        myPC.Redistribute();
+	pc.moveParticles(dt);
     }
 
-    if (write_particles) myPC.writeParticles(max_step);
+    pc.RedistributeLocal();
 
-    }
-    
-    amrex::Finalize();
+    if (params.print_min_dist     ) amrex::Print() << "Min distance  is " << min_d << "\n";
+    if (params.print_num_particles) amrex::Print() << "Num particles is " << pc.TotalNumberOfParticles() << "\n";
+
+    if (params.write_particles) pc.writeParticles(params.nsteps);
 }

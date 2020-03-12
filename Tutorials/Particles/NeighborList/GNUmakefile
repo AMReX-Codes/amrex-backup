@@ -1,22 +1,16 @@
 AMREX_HOME ?= ../../../
 
-DEBUG	= TRUE
+DEBUG	= FALSE
 
-DIM	= 2
+DIM	= 3
 
 COMP    = gcc
 
-TINY_PROFILE = FALSE
-USE_PARTICLES = TRUE
-
-PRECISION = DOUBLE
-
 USE_MPI   = TRUE
 USE_OMP   = FALSE
+USE_CUDA  = TRUE
 
-###################################################
-
-EBASE     = main
+TINY_PROFILE = TRUE
 
 include $(AMREX_HOME)/Tools/GNUMake/Make.defs
 
