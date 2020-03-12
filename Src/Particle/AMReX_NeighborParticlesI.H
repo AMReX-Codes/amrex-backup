@@ -701,10 +701,12 @@ buildNeighborList (CheckPair check_pair, bool sort)
         for(MFIter mfi = this->MakeMFIter(lev,TilingIfNotGPU()); mfi.isValid(); ++mfi)
         {
             int gid = mfi.index();
-            int tid = mfi.LocalTileIndex();        
+            int tid = mfi.LocalTileIndex();
             auto index = std::make_pair(gid, tid);
             
             auto& ptile = plev[index];
+
+            if (ptile.numParticles() == 0) continue;
             
             Box bx = mfi.tilebox();
             bx.coarsen(ref_fac);
@@ -716,11 +718,14 @@ buildNeighborList (CheckPair check_pair, bool sort)
             const auto& list   = m_neighbor_list[lev][index].GetList();
             
             int li = 0;
-            for (auto& cnt : counts)
+            for (int i = 0; i < ptile.numParticles(); ++i)
             {
+                auto cnt = counts[i];
                 neighbor_list[lev][index].push_back(cnt);
                 for (int j = 0; j < cnt; ++j)
+                {
                     neighbor_list[lev][index].push_back(list[li++]);
+                }
             }
 #endif
         }        
