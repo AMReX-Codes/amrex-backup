@@ -199,6 +199,15 @@ public:
 
     int numParticles () { return m_nbor_offsets.size() - 1; }
 
+    Gpu::DeviceVector<unsigned int>&       GetOffsets ()       { return m_nbor_offsets; }
+    const Gpu::DeviceVector<unsigned int>& GetOffsets () const { return m_nbor_offsets; }
+
+    Gpu::DeviceVector<unsigned int>&       GetCounts ()       { return m_nbor_counts; }
+    const Gpu::DeviceVector<unsigned int>& GetCounts () const { return m_nbor_counts; }
+
+    Gpu::DeviceVector<unsigned int>&       GetList ()       { return m_nbor_list; }
+    const Gpu::DeviceVector<unsigned int>& GetList () const { return m_nbor_list; }
+    
     void print ()
     {
         BL_PROFILE("NeighborList::print");

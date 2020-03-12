@@ -338,6 +338,7 @@ protected:
 
     Vector<std::map<PairIndex, Vector<InverseCopyTag> > > inverse_tags;
     Vector<std::map<PairIndex, ParticleVector> > neighbors;
+    Vector<std::map<PairIndex, IntVector> >      neighbor_list;
     const size_t pdata_size = sizeof(ParticleType);
 
     static constexpr int num_mask_comps = 3;  //!< grid, tile, level

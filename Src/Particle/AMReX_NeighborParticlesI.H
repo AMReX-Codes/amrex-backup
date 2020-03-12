@@ -677,12 +677,20 @@ buildNeighborList (CheckPair check_pair, bool sort)
     for (int lev = 0; lev < this->numLevels(); ++lev)
     {
         m_neighbor_list[lev].clear();
-
+                
         for (MyParIter pti(*this, lev); pti.isValid(); ++pti) {
             PairIndex index(pti.index(), pti.LocalTileIndex());
             m_neighbor_list[lev][index];
         }
 
+#ifndef AMREX_USE_GPU        
+        neighbor_list[lev].clear();                
+        for (MyParIter pti(*this, lev); pti.isValid(); ++pti) {
+            PairIndex index(pti.index(), pti.LocalTileIndex());
+            neighbor_list[lev][index];
+        }
+#endif
+        
         IntVect ref_fac = computeRefFac(0, lev);
               auto& plev = this->GetParticles(lev);
         const auto& geom = this->Geom(lev);
@@ -703,6 +711,18 @@ buildNeighborList (CheckPair check_pair, bool sort)
             bx.grow(m_num_neighbor_cells);
             
             m_neighbor_list[lev][index].build(ptile, bx, geom, check_pair);
+#ifndef AMREX_USE_GPU
+            const auto& counts = m_neighbor_list[lev][index].GetCounts();
+            const auto& list   = m_neighbor_list[lev][index].GetList();
+            
+            int li = 0;
+            for (auto& cnt : counts)
+            {
+                neighbor_list[lev][index].push_back(cnt);
+                for (int j = 0; j < cnt; ++j)
+                    neighbor_list[lev][index].push_back(list[li++]);
+            }
+#endif
         }        
     }
 }
@@ -735,6 +755,7 @@ resizeContainers (const int num_levels)
     {
         neighbors.resize(num_levels);
         m_neighbor_list.resize(num_levels);
+        neighbor_list.resize(num_levels);
         mask_ptr.resize(num_levels);
         buffer_tag_cache.resize(num_levels);
         local_neighbor_sizes.resize(num_levels);
