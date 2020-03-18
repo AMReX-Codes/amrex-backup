@@ -556,7 +556,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::MoveRandom (i
 
     for (auto& kv : pmap) {
         auto& aos = kv.second.GetArrayOfStructs();
-        const int n = aos.size();
+        const int n = aos.numParticles();
 #ifdef _OPENMP
 #pragma omp parallel for
 #endif
@@ -623,7 +623,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::IncrementWith
       int gid = kv.first.first;
       const auto& pbox = kv.second.GetArrayOfStructs();
       FArrayBox&  fab  = (*mf_pointer)[gid];
-      for (int k = 0; k < pbox.size(); ++ k) {
+      for (int k = 0; k < pbox.numParticles(); ++ k) {
 	const ParticleType& p = pbox[k];
           if (p.m_idata.id > 0) {
               Where(p, pld);
@@ -661,7 +661,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::sumParticleMa
   const auto& pmap = m_particles[lev];
   for (const auto& kv : pmap) {
       const auto& pbox = kv.second.GetArrayOfStructs();
-      for (int k = 0; k < pbox.size(); ++k) {
+      for (int k = 0; k < pbox.numParticles(); ++k) {
 	  const ParticleType& p = pbox[k];
 	  if (p.m_idata.id > 0) {
 	      msum += p.m_rdata.arr[AMREX_SPACEDIM+rho_index];
@@ -701,7 +701,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>::RemoveParticl
       if (!pmap.empty()) {
           for (auto& kv : pmap) {
               const auto& pbx = kv.second;
-              cnt += pbx.size();
+              cnt += pbx.numParticles();
           }
           ParticleLevel().swap(pmap);
       }
@@ -1219,7 +1219,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
         auto index = std::make_pair(gid, tid);
         auto& particles = plev[index];
 
-        const int np = particles.size();
+        const int np = particles.numParticles();
         ParticleType* pstruct = &(particles.GetArrayOfStructs()[0]);
         AMREX_FOR_1D ( np, i,
         {
@@ -1969,7 +1969,7 @@ ParticleContainer<NStructReal,NStructInt,NArrayReal, NArrayInt>::AddParticlesAtL
 
     ParticleLocData pld;
 
-    for (int i = 0; i < particles.size(); ++i) {
+    for (int i = 0; i < particles.numParticles(); ++i) {
         ParticleType& p = particles[i];
 
         if (p.id() > 0)
@@ -2159,7 +2159,7 @@ InterpolateSingleLevel (MultiFab& mesh_data, int lev)
         FArrayBox& fab = mesh_data[pti];
         const auto fabarr = fab.array();
         const Box& box = fab.box();
-        const long np = particles.size();
+        const long np = particles.numParticles();
         
         int nComp = fab.nComp();
         AMREX_FOR_1D( np, i,
@@ -2207,7 +2207,7 @@ ParticleContainer<NStructReal, NStructInt, NArrayReal, NArrayInt>
     for (auto& kv : pmap) {
       auto& pbox = kv.second.GetArrayOfStructs();
       const int grid = kv.first.first;
-      const int n = pbox.size();
+      const int n = pbox.numParticles();
       const FArrayBox& gfab = (*ac_pointer)[grid];
 
 #ifdef _OPENMP
