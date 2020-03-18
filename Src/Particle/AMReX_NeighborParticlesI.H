@@ -724,7 +724,7 @@ buildNeighborList (CheckPair check_pair, bool sort)
                 neighbor_list[lev][index].push_back(cnt);
                 for (int j = 0; j < cnt; ++j)
                 {
-                    neighbor_list[lev][index].push_back(list[li++]);
+                    neighbor_list[lev][index].push_back(list[li++]+1);
                 }
             }
 #endif
