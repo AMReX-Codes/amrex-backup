@@ -261,7 +261,7 @@ WriteAsyncMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
                               const std::string &mfPrefix,
                               const Vector<std::string>& extra_dirs)
 {
-    BL_PROFILE("WriteMultiLevelPlotfile()");
+    BL_PROFILE("WriteAsyncMultiLevelPlotfile()");
 
     BL_ASSERT(nlevels <= mf.size());
     BL_ASSERT(nlevels <= geom.size());
@@ -311,7 +311,7 @@ WriteAsyncMultiLevelPlotfile (const std::string& plotfilename, int nlevels,
         filePrefixes[level] = MultiFabFileFullPrefix(level, plotfilename, levelPrefix, mfPrefix);
     }
 
-    auto af = VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, false, ParallelDescriptor::NProcs()-1);
+    auto af = VisMF::WriteAsyncPlotfile(mf, filePrefixes, nlevels, true, ParallelDescriptor::NProcs()-1);
 
     return af;
 

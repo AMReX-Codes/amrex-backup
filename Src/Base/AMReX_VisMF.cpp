@@ -5079,7 +5079,7 @@ VisMF::WriteAsyncMPIOneSidedPost (const FabArray<FArrayBox>& mf, const std::stri
 
 std::future<WriteAsyncStatus>
 VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
-                           int nlevels, bool set_ghost_cells, int hdr_proc)
+                           int nlevels, bool strip_ghost_cells, int hdr_proc)
 {
     BL_PROFILE("VisMF::WriteAsyncMPIABarrierWaitall()");
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
@@ -5127,7 +5127,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     Vector<VisMF::Header> hdrs;
     Vector<DistributionMapping> dms(nlevels);
     Vector<int64_t> all_local_bytes_per_level(nlevels);
-    long all_local_bytes_to_write = 0;
+    long all_local_written_bytes = 0;        // Only needed for the WriteAsyncStatus output.
 
     long n_all_local_nums = 0;
     long n_all_global_nums = 0;
@@ -5139,6 +5139,10 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         dms[level] = mfl.DistributionMap();
         hdrs.emplace_back( *static_cast<FabArray<FArrayBox> const*>(&mfl),
                                          VisMF::NFiles, VisMF::Header::Version_v1, false );
+
+        if (strip_ghost_cells) {
+            hdrs[level].m_ngrow = IntVect::Zero;
+        }
 
         // Count nums for header data:
         // "local" = on this rank
@@ -5178,18 +5182,24 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             phdr += sizeof(int64_t);
 
             const FArrayBox& fab = mfl[mfi];
+            const Box& vbx = mfi.validbox();
             const int ncomp = mfl.nComp();
 
             std::stringstream hss;
-            fio.write_header(hss, fab, ncomp);
-            total_bytes += static_cast<std::streamoff>(hss.tellp());
-            total_bytes += fab.size() * whichRD.numBytes();
+            if (strip_ghost_cells) {
+                fio.write_header(hss, {vbx, ncomp, fab.dataPtr()}, ncomp);
+                total_bytes += static_cast<std::streamoff>(hss.tellp());
+                total_bytes += vbx.numPts() * ncomp * whichRD.numBytes();
+            } else {
+                fio.write_header(hss, fab, ncomp);
+                total_bytes += static_cast<std::streamoff>(hss.tellp());
+                total_bytes += fab.size() * whichRD.numBytes();
+            }
 
-            const Box& bx = mfi.validbox();
-
+            // todo : "runon" change
             for (int icomp = 0; icomp < ncomp; ++icomp) {
-                Real cmin = fab.min(bx,icomp);
-                Real cmax = fab.max(bx,icomp);
+                Real cmin = fab.min(vbx,icomp);
+                Real cmax = fab.max(vbx,icomp);
                 std::memcpy(phdr, &cmin, sizeof(Real));
                 phdr += sizeof(Real);
                 std::memcpy(phdr, &cmax, sizeof(Real));
@@ -5199,7 +5209,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
         std::memcpy(ptb, &total_bytes, sizeof(int64_t));
         all_local_bytes_per_level[level] = total_bytes;
-        all_local_bytes_to_write += total_bytes;
+        all_local_written_bytes += total_bytes;
 
         // Setup copy of fab data for writing 
         // -----------------------------------
@@ -5211,24 +5221,56 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         {
             const FArrayBox& fab = mfl[mfi];
             const int ncomp = mfl.nComp();
-
             std::stringstream hss;
-            fio.write_header(hss, fab, ncomp);
+
+            if (strip_ghost_cells)
+            {
+                const Box& vbx = mfi.validbox();
+                fio.write_header(hss, {vbx, ncomp, fab.dataPtr()} ,ncomp);
+            } else {
+                fio.write_header(hss, fab, ncomp);
+            }
             int nbytes = static_cast<std::streamoff>(hss.tellp());
+
             auto tstr = hss.str();
             std::memcpy(p, tstr.c_str(), nbytes);
             p += nbytes;
-            long nreals = fab.size();
+            long nreals;
+
+            if (strip_ghost_cells) {
+                const Box &vbx = mfi.validbox();
+                nreals = vbx.numPts() * ncomp; 
+            } else {
+                nreals = fab.size();
+            }
+
             if (doConvert) {
                 ptmp = The_Pinned_Arena()->alloc(nreals*sizeof(Real));
             } else {
                 ptmp = p;
             }
+
+            // todo : "runon" change
+            if (strip_ghost_cells) {
+
+                const Box& vbx = mfi.validbox();
+                const auto& fab_array = fab.array();
+                const auto& buffer = makeArray4(static_cast<Real*>(ptmp), vbx, ncomp);
+
+                amrex::ParallelFor(vbx, ncomp,
+                [=] (int i, int j, int k, int n) noexcept
+                {
+                    buffer(i,j,k,n) = fab_array(i,j,k,n); 
+                });
+
+            } else {
 #ifdef AMREX_USE_GPU
             Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
 #else
             std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
 #endif
+            }
+
             if (doConvert) {
                 RealDescriptor::convertFromNativeFormat(p, nreals, ptmp, whichRD);
                 The_Pinned_Arena()->free(ptmp);
@@ -5446,7 +5488,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
         Real tend = amrex::second();
 
         WriteAsyncStatus status;
-        status.nbytes = all_local_bytes_to_write;
+        status.nbytes = all_local_written_bytes;
         status.nspins = 0;
         status.t_total = tend-tbegin;
         status.t_header = t0-tbegin;
