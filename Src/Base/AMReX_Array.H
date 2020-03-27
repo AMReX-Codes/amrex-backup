@@ -93,6 +93,18 @@ namespace amrex {
             return arr[i+j*(XHI-XLO+1)-(YLO*(XHI-XLO+1)+XLO)];
         }
 
+        template <int XSLICE>
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        auto slice_x() noexcept {
+            return [&] AMREX_GPU_HOST_DEVICE (int j) -> Real& { return arr[XSLICE+j*(XHI-XLO+1)-(YLO*(XHI-XLO+1)+XLO)]; };
+        }
+
+        template <int YSLICE>
+        AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
+        auto slice_y() noexcept {
+            return [&] AMREX_GPU_HOST_DEVICE (int i) -> Real& { return arr[i+YSLICE*(XHI-XLO+1)-(YLO*(XHI-XLO+1)+XLO)]; };
+        }
+
         T arr[(XHI-XLO+1)*(YHI-YLO+1)];
     };
 
