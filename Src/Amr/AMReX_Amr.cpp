@@ -872,8 +872,48 @@ Amr::writePlotFile ()
       return;
     }
 
-    BL_PROFILE_REGION_START("Amr::writePlotFile()");
-    BL_PROFILE("Amr::writePlotFile()");
+#ifdef AMREX_USE_HDF5
+    writePlotFileHDF5();
+#else
+    writePlotFileNative();
+#endif
+}
+
+#ifdef AMREX_USE_HDF5
+void
+Amr::writePlotFileHDF5 ()
+{
+    BL_PROFILE("Amr::writePlotFileHDF5()");
+    
+    if (first_plotfile) {
+        first_plotfile = false;
+        amr_level[0]->setPlotVariables();
+    }
+    
+    if (statePlotVars().size() == 0) {
+        return;
+    }
+    
+    const std::string& pltfile = amrex::Concatenate(plot_file_root,level_steps[0],
+                                                    file_name_digits);
+    const int nlevels = finest_level + 1;
+
+    Vector<std::unique_ptr<MultiFab> > mf;
+    for (int k(0); k <= finest_level; ++k) {
+        mf.push_back(amr_level[k]->getPlotMF());
+    }
+    
+    WriteMultiLevelPlotfileHDF5(pltfile, nlevels, GetVecOfConstPtrs(mf), 
+                                amr_level[0]->getPlotNames(),
+                                geom, cumtime, level_steps, ref_ratio);
+}
+#endif
+
+void
+Amr::writePlotFileNative ()
+{
+    BL_PROFILE_REGION_START("Amr::writePlotFileNative()");
+    BL_PROFILE("Amr::writePlotFileNative()");
 
     VisMF::SetNOutFiles(plot_nfiles);
     VisMF::Header::Version currentVersion(VisMF::GetHeaderVersion());
@@ -883,8 +923,6 @@ Amr::writePlotFile ()
         first_plotfile = false;
         amr_level[0]->setPlotVariables();
     }
-
-    // Don't continue if we have no variables to plot.
 
     if (statePlotVars().size() == 0) {
       return;

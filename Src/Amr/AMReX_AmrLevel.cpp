@@ -145,6 +145,120 @@ AmrLevel::AmrLevel (Amr&            papa,
     finishConstructor();
 }
 
+void AmrLevel::getPlotVariables (std::vector<std::pair<int, int> >& plot_var_map,
+                                 std::vector<std::string>& derive_names)
+{
+    //
+    // The list of indices of State to write to plotfile.
+    // first component of pair is state_type,
+    // second component of pair is component # within the state_type
+    //
+    for (int typ = 0; typ < desc_lst.size(); typ++)
+    {
+        for (int comp = 0; comp < desc_lst[typ].nComp();comp++)
+	{
+            if (parent->isStatePlotVar(desc_lst[typ].name(comp)) &&
+                desc_lst[typ].getType() == IndexType::TheCellType())
+	    {
+                plot_var_map.push_back(std::pair<int,int>(typ,comp));
+	    }
+	}
+    }
+
+    const std::list<DeriveRec>& dlist = derive_lst.dlist();
+    for (std::list<DeriveRec>::const_iterator it = dlist.begin();
+	 it != dlist.end();
+	 ++it)
+    {
+        if (parent->isDerivePlotVar(it->name()))
+        {
+            derive_names.push_back(it->name());
+	}
+    }
+}
+
+Vector<std::string> AmrLevel::getPlotNames ()
+{
+    BL_PROFILE("AmrLevel::getPlotNames()");
+
+    Vector<std::string> plot_names;
+
+    std::vector<std::pair<int,int> > plot_var_map;
+    std::vector<std::string> derive_names;
+    getPlotVariables(plot_var_map, derive_names);
+    
+    for (int i =0; i < static_cast<int>(plot_var_map.size()); i++)
+    {
+        int typ = plot_var_map[i].first;
+        int comp = plot_var_map[i].second;
+        plot_names.push_back(desc_lst[typ].name(comp));
+    }
+    
+    for (auto const& dname : derive_names) {
+        plot_names.push_back(derive_lst.get(dname)->variableName(0));
+    }
+
+#ifdef AMREX_USE_EB
+    plot_names.push_back("vfrac");
+#endif    
+    
+    return plot_names;
+}
+
+std::unique_ptr<MultiFab> AmrLevel::getPlotMF ()
+{
+    BL_PROFILE("AmrLevel::getPlotMF()");
+    
+    std::unique_ptr<MultiFab> plotMF;
+
+    std::vector<std::pair<int,int> > plot_var_map;
+    std::vector<std::string> derive_names;
+    getPlotVariables(plot_var_map, derive_names);
+
+    int n_data_items = plot_var_map.size() + derive_names.size();
+#ifdef AMREX_USE_EB
+    n_data_items += 1;
+#endif
+
+    //
+    // We combine all of the multifabs -- state, derived, etc -- into one
+    // multifab -- plotMF.
+    int       cnt   = 0;
+    const int nGrow = 0;
+    plotMF.reset( new MultiFab(grids,dmap,n_data_items,nGrow,MFInfo(),Factory()));
+    MultiFab* this_dat = 0;
+    //
+    // Cull data from state variables -- use no ghost cells.
+    //
+    for (int i = 0; i < static_cast<int>(plot_var_map.size()); i++)
+    {
+	int typ  = plot_var_map[i].first;
+	int comp = plot_var_map[i].second;
+	this_dat = &state[typ].newData();
+	MultiFab::Copy(*plotMF,*this_dat,comp,cnt,1,nGrow);
+	cnt++;
+    }
+
+    // derived
+    Real cur_time = state[0].curTime();
+    if (derive_names.size() > 0)
+    {
+	for (auto const& dname : derive_names)
+	{
+            derive(dname, cur_time, *plotMF, cnt);
+	    cnt++;
+	}
+    }
+
+#ifdef AMREX_USE_EB
+    plotMF->setVal(0.0, cnt, 1, nGrow);
+    auto factory = static_cast<EBFArrayBoxFactory*>(m_factory.get());
+    MultiFab::Copy(*plotMF,factory->getVolFrac(),0,cnt,1,nGrow);
+#endif    
+
+    return plotMF;
+}
+
 void
 AmrLevel::writePlotFile (const std::string& dir,
                          std::ostream&      os,

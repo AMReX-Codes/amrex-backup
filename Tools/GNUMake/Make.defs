@@ -63,6 +63,18 @@ else
   USE_CUDA := FALSE
 endif
 
+ifdef USE_HDF5
+  USE_HDF5 := $(strip $(USE_HDF5))
+else
+  USE_HDF5 := FALSE
+endif
+
+ifeq ($(USE_HDF5),TRUE)
+  DEFINES += -DAMREX_USE_HDF5
+  INCLUDE_LOCATIONS += $(HDF5_HOME)/include
+  LIBRARIES         += -lhdf5 -lz -ldl -L$(HDF5_HOME)/lib
+endif
+
 ifdef BL_NO_FORT
   BL_NO_FORT := $(strip $(BL_NO_FORT))
   ifeq ($(BL_NO_FORT),TRUE)

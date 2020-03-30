@@ -431,6 +431,12 @@ protected:
     //! Common code used by all constructors.
     void finishConstructor (); 
 
+    //! Common code used for writing plotfiles
+    std::unique_ptr<MultiFab> getPlotMF ();
+    Vector<std::string>  getPlotNames ();
+    void getPlotVariables (std::vector<std::pair<int, int> >& plot_var_map,
+                           std::vector<std::string>& derive_names);
+
     //
     // The Data.
     //
@@ -443,10 +449,10 @@ protected:
     IntVect               fine_ratio;   // Refinement ratio to finer level.
     static DeriveList     derive_lst;   // List of derived quantities.
     static DescriptorList desc_lst;     // List of state variables.
-    Vector<StateData>      state;        // Array of state data.
+    Vector<StateData>     state;        // Array of state data.
 
-    BoxArray              m_AreaNotToTag; //Area which shouldn't be tagged on this level.
-    Box                   m_AreaToTag;    //Area which is allowed to be tagged on this level.
+    BoxArray              m_AreaNotToTag; // Area which shouldn't be tagged on this level.
+    Box                   m_AreaToTag;    // Area which is allowed to be tagged on this level.
 
     int                   post_step_regrid; // Whether or not to do a regrid after the timestep.
 

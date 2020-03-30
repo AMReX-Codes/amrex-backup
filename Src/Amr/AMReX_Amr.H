@@ -249,6 +249,11 @@ public:
 
     //! Write the plot file to be used for visualization.
     virtual void writePlotFile ();
+    virtual void writePlotFileNative ();
+#ifdef AMREX_USE_HDF5
+    virtual void writePlotFileHDF5 ();
+#endif
+
     int stepOfLastPlotFile () const noexcept {return last_plotfile;}
     //! Write the small plot file to be used for visualization.
     virtual void writeSmallPlotFile ();
