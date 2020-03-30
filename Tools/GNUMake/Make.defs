@@ -63,6 +63,19 @@ else
   USE_CUDA := FALSE
 endif
 
+ifdef USE_HDF5
+  USE_HDF5 := $(strip $(USE_HDF5))
+else
+  USE_HDF5 := FALSE
+endif
+
+ifeq ($(USE_HDF5),TRUE)
+  DEFINES += -DAMREX_USE_HDF5
+  INCLUDE_LOCATIONS += $(HDF5_HOME)/include
+  LIBRARIES += -lhdf5 -lz -ldl -L$(HDF5_HOME)/lib
+  HDF5Suffix := .HDF5
+endif
+
 ifdef BL_NO_FORT
   BL_NO_FORT := $(strip $(BL_NO_FORT))
   ifeq ($(BL_NO_FORT),TRUE)
@@ -798,7 +811,7 @@ ifeq ($(USE_RPATH),TRUE)
 endif
 LDFLAGS	+= -L. $(addprefix -L, $(LIBRARY_LOCATIONS))
 
-machineSuffix	= $(lowercase_comp)$(archSuffix)$(PrecisionSuffix)$(DebugSuffix)$(ProfSuffix)$(MProfSuffix)$(BTSuffix)$(MPISuffix)$(UPCXXSuffix)$(OMPSuffix)$(ACCSuffix)$(GPUSuffix)$(USERSuffix)
+machineSuffix	= $(lowercase_comp)$(archSuffix)$(PrecisionSuffix)$(DebugSuffix)$(ProfSuffix)$(MProfSuffix)$(BTSuffix)$(MPISuffix)$(UPCXXSuffix)$(OMPSuffix)$(ACCSuffix)$(GPUSuffix)$(HDF5Suffix)$(USERSuffix)
 
 optionsSuffix	= $(DIM)d.$(machineSuffix)
 
