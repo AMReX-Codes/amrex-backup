@@ -4154,11 +4154,6 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
     const long n_local_nums = n_fab_nums * n_local_fabs + 1;
     Vector<int64_t> localdata(n_local_nums);
 
-#if defined(__CUDACC__) && (__CUDACC_VER_MAJOR__ == 9) && (__CUDACC_VER_MINOR__ == 2)
-    constexpr Real value_max = std::numeric_limits<Real>::max();
-    constexpr Real value_min = std::numeric_limits<Real>::lowest();
-#endif
-
     int64_t total_bytes = 0;
     auto pld = (char*)(&(localdata[1]));
     const FABio& fio = FArrayBox::getFABio();
@@ -4177,39 +4172,6 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
         // compute min and max
         const Box& bx = mfi.validbox();
 
-#ifdef AMREX_USE_GPU
-#if 0
-        // xxxxx todo
-        AsyncArray<Real> mm(ncomp*2);
-        const auto& arr = fab.array();
-        const auto ec = amrex::Gpu::ExecutionConfig(bx.numPts()/Gpu::Device::warp_size);
-        amrex::launch_global<<<ec.numBlocks, ec.numThreads, (ec.numThreads.x+1)*sizeof(Real), 0>>>(
-        [=] AMREX_GPU_DEVICE () noexcept {
-            Gpu::SharedMemory<Real> gsm;
-                Real* block_r = gsm.dataPtr();
-                Real* sdata = block_r + 1;
-
-                const FAB fab(arr,bx.ixType());
-
-#if !defined(__CUDACC__) || (__CUDACC_VER_MAJOR__ != 9) || (__CUDACC_VER_MINOR__ != 2)
-                Real tmin = std::numeric_limits<Real>::max();
-#else
-                Real tmin = value_max;
-#endif
-                for (auto const tbx : Gpu::Range(bx)) {
-                    Real local_tmin = f(tbx, fab);
-                    tmin = amrex::min(tmin, local_tmin);
-                }
-                sdata[threadIdx.x] = tmin;
-                __syncthreads();
-
-                Gpu::blockReduceMin<AMREX_GPU_MAX_THREADS,Gpu::Device::warp_size>(sdata, *block_r);
-
-                if (threadIdx.x == 0) Gpu::Atomic::Min(d_r, *block_r);
-        });
-#endif
-
-#else
         for (int icomp = 0; icomp < ncomp; ++icomp) {
             Real cmin = fab.min(bx,icomp);
             Real cmax = fab.max(bx,icomp);
@@ -4218,7 +4180,6 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
             std::memcpy(pld, &cmax, sizeof(Real));
             pld += sizeof(Real);
         }
-#endif
     }
     localdata[0] = total_bytes;
 
@@ -5081,7 +5042,7 @@ std::future<WriteAsyncStatus>
 VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::string>& mf_names,
                            int nlevels, bool strip_ghost_cells, int hdr_proc)
 {
-    BL_PROFILE("VisMF::WriteAsyncMPIABarrierWaitall()");
+    BL_PROFILE("VisMF::WriteAsyncPlotfile");
     AMREX_ALWAYS_ASSERT_WITH_MESSAGE(sizeof(int64_t) == sizeof(Real)*2 or sizeof(int64_t) == sizeof(Real),
                                       "WriteAsync: unsupported Real size");
 #if AMREX_DEBUG
@@ -5169,6 +5130,24 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
     {
         const MultiFab& mfl = *mf[level];
 
+        // If you don't have ghost cells, use the simple method.
+        bool do_strip = strip_ghost_cells && (mfl.nGrowVect() != IntVect::Zero);
+
+        RunOn runon;
+#ifdef AMREX_USE_GPU
+        if (Gpu::inLaunchRegion() &&
+            mfl.arena() == The_Arena() ||
+            mfl.arena() == The_Device_Arena()
+            mfl.arena() == The_Pinned_Arena())
+        {
+            runon = RunOn::Device;
+        } else {
+            runon = RunOn::Host;
+        }
+#else
+        runon = RunOn::Host;
+#endif
+
         // Setup header data
         // -----------------------------------
         int64_t total_bytes = 0;
@@ -5186,7 +5165,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             const int ncomp = mfl.nComp();
 
             std::stringstream hss;
-            if (strip_ghost_cells) {
+            if (do_strip) {
                 fio.write_header(hss, {vbx, ncomp, fab.dataPtr()}, ncomp);
                 total_bytes += static_cast<std::streamoff>(hss.tellp());
                 total_bytes += vbx.numPts() * ncomp * whichRD.numBytes();
@@ -5198,8 +5177,8 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
             // todo : "runon" change
             for (int icomp = 0; icomp < ncomp; ++icomp) {
-                Real cmin = fab.min(vbx,icomp);
-                Real cmax = fab.max(vbx,icomp);
+                Real cmin = fab.min<runon>(vbx,icomp);
+                Real cmax = fab.max<runon>(vbx,icomp);
                 std::memcpy(phdr, &cmin, sizeof(Real));
                 phdr += sizeof(Real);
                 std::memcpy(phdr, &cmax, sizeof(Real));
@@ -5223,7 +5202,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             const int ncomp = mfl.nComp();
             std::stringstream hss;
 
-            if (strip_ghost_cells)
+            if (do_strip)
             {
                 const Box& vbx = mfi.validbox();
                 fio.write_header(hss, {vbx, ncomp, fab.dataPtr()} ,ncomp);
@@ -5237,7 +5216,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             p += nbytes;
             long nreals;
 
-            if (strip_ghost_cells) {
+            if (do_strip) {
                 const Box &vbx = mfi.validbox();
                 nreals = vbx.numPts() * ncomp; 
             } else {
@@ -5251,23 +5230,27 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             }
 
             // todo : "runon" change
-            if (strip_ghost_cells) {
+            if (do_strip) {
 
                 const Box& vbx = mfi.validbox();
                 const auto& fab_array = fab.array();
                 const auto& buffer = makeArray4(static_cast<Real*>(ptmp), vbx, ncomp);
 
-                amrex::ParallelFor(vbx, ncomp,
-                [=] (int i, int j, int k, int n) noexcept
+                AMREX_HOST_DEVICE_PARALLEL_FOR_4D_FLAG(runon, vbx, ncomp, i, j, k, n,
                 {
                     buffer(i,j,k,n) = fab_array(i,j,k,n); 
                 });
 
             } else {
 #ifdef AMREX_USE_GPU
-            Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+                if (runon = RunOn::Gpu)
+                {
+                    Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+                } else
 #else
-            std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+                {
+                  std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+                }
 #endif
             }
 
