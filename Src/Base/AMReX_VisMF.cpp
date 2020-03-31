@@ -4173,8 +4173,8 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
         const Box& bx = mfi.validbox();
 
         for (int icomp = 0; icomp < ncomp; ++icomp) {
-            Real cmin = fab.min(bx,icomp);
-            Real cmax = fab.max(bx,icomp);
+            Real cmin = fab.min<RunOn::Host>(bx,icomp);
+            Real cmax = fab.max<RunOn::Host>(bx,icomp);
             std::memcpy(pld, &cmin, sizeof(Real));
             pld += sizeof(Real);
             std::memcpy(pld, &cmax, sizeof(Real));
@@ -5137,7 +5137,7 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 #ifdef AMREX_USE_GPU
         if (Gpu::inLaunchRegion() &&
             mfl.arena() == The_Arena() ||
-            mfl.arena() == The_Device_Arena()
+            mfl.arena() == The_Device_Arena() ||
             mfl.arena() == The_Pinned_Arena())
         {
             runon = RunOn::Device;
@@ -5167,22 +5167,43 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             std::stringstream hss;
             if (do_strip) {
                 fio.write_header(hss, {vbx, ncomp, fab.dataPtr()}, ncomp);
-                total_bytes += static_cast<std::streamoff>(hss.tellp());
+
+                total_bytes += amrex::aligned_size(sizeof(Real),
+                                                   static_cast<std::streamoff>(hss.tellp())); 
+//                total_bytes += static_cast<std::streamoff>(hss.tellp());
                 total_bytes += vbx.numPts() * ncomp * whichRD.numBytes();
             } else {
                 fio.write_header(hss, fab, ncomp);
-                total_bytes += static_cast<std::streamoff>(hss.tellp());
+
+                total_bytes += amrex::aligned_size(sizeof(Real),
+                                                   static_cast<std::streamoff>(hss.tellp())); 
+//                total_bytes += static_cast<std::streamoff>(hss.tellp());
                 total_bytes += fab.size() * whichRD.numBytes();
             }
 
-            // todo : "runon" change
             for (int icomp = 0; icomp < ncomp; ++icomp) {
-                Real cmin = fab.min<runon>(vbx,icomp);
-                Real cmax = fab.max<runon>(vbx,icomp);
-                std::memcpy(phdr, &cmin, sizeof(Real));
-                phdr += sizeof(Real);
-                std::memcpy(phdr, &cmax, sizeof(Real));
-                phdr += sizeof(Real);
+                if (runon == RunOn::Host)
+                {
+                    Real cmin = fab.min<RunOn::Host>(vbx,icomp);
+                    Real cmax = fab.max<RunOn::Host>(vbx,icomp);
+                    std::memcpy(phdr, &cmin, sizeof(Real));
+                    phdr += sizeof(Real);
+                    std::memcpy(phdr, &cmax, sizeof(Real));
+                    phdr += sizeof(Real);
+                }
+                else if (runon == RunOn::Device)
+                {
+                    Real cmin = fab.min<RunOn::Device>(vbx,icomp);
+                    Real cmax = fab.max<RunOn::Device>(vbx,icomp);
+                    std::memcpy(phdr, &cmin, sizeof(Real));
+                    phdr += sizeof(Real);
+                    std::memcpy(phdr, &cmax, sizeof(Real));
+                    phdr += sizeof(Real);
+                }
+                else
+                {
+                    amrex::Abort("VisMF::WriteAsyncPlotfile() -- Invalid RunOn");
+                }
             }
         }
 
@@ -5209,13 +5230,15 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             } else {
                 fio.write_header(hss, fab, ncomp);
             }
-            int nbytes = static_cast<std::streamoff>(hss.tellp());
-
+            std::size_t nbytes = static_cast<std::streamoff>(hss.tellp());
+            std::size_t nbytes_padded = amrex::aligned_size(sizeof(Real),
+                                                            static_cast<std::streamoff>(hss.tellp()));
             auto tstr = hss.str();
             std::memcpy(p, tstr.c_str(), nbytes);
-            p += nbytes;
-            long nreals;
+//            p += nbytes;
+            p += nbytes_padded;
 
+            long nreals;
             if (do_strip) {
                 const Box &vbx = mfi.validbox();
                 nreals = vbx.numPts() * ncomp; 
@@ -5243,15 +5266,14 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
 
             } else {
 #ifdef AMREX_USE_GPU
-                if (runon = RunOn::Gpu)
+                if (runon == RunOn::Gpu)
                 {
                     Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
                 } else
-#else
-                {
-                  std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
-                }
 #endif
+                {
+                    std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+                }
             }
 
             if (doConvert) {
