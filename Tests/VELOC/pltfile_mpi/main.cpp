@@ -49,7 +49,7 @@ void main_main ()
 
         if (n_cell != 0)
         {
-            for (int i; i < AMREX_SPACEDIM; ++i)
+            for (int i = 0; i < AMREX_SPACEDIM; ++i)
             { n_cell_3d[i] = n_cell; }
         }
         else if (n_boxes_per_rank != 0)
