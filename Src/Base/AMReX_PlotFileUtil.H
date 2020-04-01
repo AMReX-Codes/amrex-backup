@@ -93,6 +93,11 @@ namespace amrex
                                   const Vector<std::string>& extra_dirs = Vector<std::string>());
 
 #ifdef AMREX_USE_HDF5
+
+    void writeLevelAttrHDF5 (H5& h5, int level, const Geometry& geom, const IntVect& rr,
+                             Real time, Real dt, Real min_dt, int n_cycle, int level_steps,
+                             int level_count, const BoxArray& ba, const DistributionMapping& dmap);
+
     void WriteGenericPlotfileHeaderHDF5 (hid_t fid,
                                          int nlevels,
 				         const Vector<BoxArray> &bArray,
@@ -117,17 +122,17 @@ namespace amrex
                                        const Vector<std::string>& extra_dirs = Vector<std::string>());
 
     void WriteMultiLevelPlotfileHDF5 (const std::string &plotfilename,
-                                  int nlevels,
-				  const Vector<const MultiFab*> &mf,
-				  const Vector<std::string> &varnames,
-				  const Vector<Geometry> &geom,
-				  Real time,
-				  const Vector<int> &level_steps,
-				  const Vector<IntVect> &ref_ratio,
-                                  const std::string &versionName = "HyperCLaw-V1.1",
-                                  const std::string &levelPrefix = "Level_",
-                                  const std::string &mfPrefix = "Cell",
-                                  const Vector<std::string>& extra_dirs = Vector<std::string>());
+                                      int nlevels,
+                                      const Vector<const MultiFab*> &mf,
+                                      const Vector<std::string> &varnames,
+                                      const Vector<Geometry> &geom,
+                                      Real time,
+                                      const Vector<int> &level_steps,
+                                      const Vector<IntVect> &ref_ratio,
+                                      const std::string &versionName = "HyperCLaw-V1.1",
+                                      const std::string &levelPrefix = "Level_",
+                                      const std::string &mfPrefix = "Cell",
+                                      const Vector<std::string>& extra_dirs = Vector<std::string>());
 #endif
 
     /**

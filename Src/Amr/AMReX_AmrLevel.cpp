@@ -14,6 +14,7 @@
 #include <AMReX_BLProfiler.H>
 #include <AMReX_Print.H>
 #include <AMReX_VisMF.H>
+#include <AMReX_PlotFileUtil.H>
 
 #ifdef AMREX_USE_EB
 #include <AMReX_EBFabFactory.H>
@@ -340,133 +341,63 @@ AmrLevel::writePlotFile (const std::string& dir,
 
 #ifdef AMREX_USE_HDF5
 
-void AmrLevel::writeLevelAttrHDF5(H5& h5)
+void AmrLevel::writeLevelAttrHDF5 (H5& h5)
 {
-
-  // level
-  h5.writeAttribute("level", level, H5T_NATIVE_INT);
-
-  // cell spacing
-  const Real* a_dx = geom.CellSize();
-  hid_t realvect_id = makeH5RealVec();
-  real_h5_t vec_dx = writeH5RealVec(a_dx);
-  h5.writeAttribute("vec_dx", vec_dx, realvect_id);
-  h5.writeAttribute("dx", vec_dx.x, H5T_NATIVE_DOUBLE);
-  H5Tclose(realvect_id);
-
-  // refinement ratio
-  hid_t intvect_id = makeH5IntVec();
-  int rr[BL_SPACEDIM];
-  if (level < parent->finestLevel()) {
-    IntVect ref_ratio = parent->refRatio(level);
-    int* vrr = ref_ratio.getVect();
-    for (int i = 0; i < BL_SPACEDIM; ++i) {
-      rr[i] = vrr[i];
-    }
-  } else {
-    for (int i = 0; i < BL_SPACEDIM; ++i) {
-      rr[i] = 1;
-    }
-  }
-  h5.writeAttribute("vec_ref_ratio", rr, intvect_id);
-  h5.writeAttribute("ref_ratio", rr[0], H5T_NATIVE_INT);
-
-  // data time stamp
-  double time = parent->cumTime();
-  h5.writeAttribute("time", time, H5T_NATIVE_DOUBLE);
-
-  // time step for level
-  h5.writeAttribute("time", time, H5T_NATIVE_DOUBLE);
-
-  // time step size
-  Real a_dt(parent->dtLevel(level));
-  h5.writeAttribute("dt", a_dt, H5T_NATIVE_DOUBLE);
-
-  Real a_min_dt(parent->dtMin(level));
-  h5.writeAttribute("min_dt", a_min_dt, H5T_NATIVE_DOUBLE);
-
-  // cycles
-  int nc = parent->nCycle(level);
-  h5.writeAttribute("n_cycle", nc, H5T_NATIVE_INT);
-
-  // steps
-  int steps = parent->levelSteps(level);
-  h5.writeAttribute("level_steps", steps, H5T_NATIVE_INT);
-
-  // count
-  int count = parent->levelCount(level);
-  h5.writeAttribute("level_count", count, H5T_NATIVE_INT);
-
-  // logical problem domain
-  writeBoxOnHDF5(geom.Domain(), h5, "prob_domain");
-
-  // real problem domain
-  writeRealBoxOnHDF5(geom.ProbDomain(), h5, "real_domain");
-
-  // box layout etc
-  SortedGrids sg(grids, dmap);
-  sg.sortedGrids.writeOnHDF5(h5, "boxes");
-
-  // data_attributes (for yt)
-  H5 attr = h5.createGroup("data_attributes");
-  IntVect nGrow(0);
-  int_h5_t gint = writeH5IntVec(nGrow.getVect());
-  attr.writeAttribute("outputGhost", gint, intvect_id);
-  H5Tclose(intvect_id);
-  attr.closeGroup();
-
+    IntVect rr = (level < parent->finestLevel()) ? parent->refRatio(level) : IntVect(1, 1, 1); 
+    amrex::writeLevelAttrHDF5(h5, level, geom, rr, parent->cumTime(), parent->dtLevel(level), 
+                              parent->dtMin(level), parent->nCycle(level), parent->levelSteps(level),
+                              parent->levelCount(level), grids, dmap);
 }
 
-void AmrLevel::writePlotHDF5(MultiFab& data_mf,
-                                 const std::vector<std::string> data_names) {
-  // generate an H5 instance from the parents file object
-  H5& h5 = parent->getOutputHDF5();
+void AmrLevel::writePlotHDF5 (MultiFab& data_mf, const std::vector<std::string> data_names)
+{
+    H5& h5 = parent->getOutputHDF5();
 
-  Real a_time(parent->cumTime());
-  int a_numLevels(parent->finestLevel() + 1);
-  int nComp = data_names.size();
-
-  if (level == 0) {
-    std::map<std::string, int> vMInt;
-    std::map<std::string, Real> vMReal;
-    std::map<std::string, std::string> vMString;
-
-    // generate and populate Chombo_global (required for visIt)
-    vMInt["SpaceDim"] = amrex::SpaceDim;
-    vMReal["testReal"] = 0.0;
-    vMString["testString"] = "test string";
-    H5 global = h5.createGroup("Chombo_global");
-    global.writeAttribute(vMInt, vMReal, vMString);
-    global.closeGroup();
-
-    vMInt.clear();
-    vMReal.clear();
-    vMString.clear();
-
-    // populate the root folder
-    vMReal["time"] = a_time;
-    vMInt["iteration"] = parent->levelSteps(level);
-    vMInt["max_level"] = parent->finestLevel();
-    vMInt["num_levels"] = parent->maxLevel();
-
-    vMString["filetype"] = "VanillaAMRFileType";
-    vMInt["num_levels"] = a_numLevels;
-    vMInt["num_components"] = nComp;
-    for (int ivar(0); ivar < nComp; ++ivar) {
-      char labelChSt[100];
-      sprintf(labelChSt, "component_%d", ivar);
-      std::string label(labelChSt);
-      vMString[label] = data_names[ivar];
+    Real a_time(parent->cumTime());
+    int a_numLevels(parent->finestLevel() + 1);
+    int nComp = data_names.size();
+    
+    if (level == 0) {
+        std::map<std::string, int> vMInt;
+        std::map<std::string, Real> vMReal;
+        std::map<std::string, std::string> vMString;
+        
+        // generate and populate Chombo_global (required for visIt)
+        vMInt["SpaceDim"] = amrex::SpaceDim;
+        vMReal["testReal"] = 0.0;
+        vMString["testString"] = "test string";
+        H5 global = h5.createGroup("Chombo_global");
+        global.writeAttribute(vMInt, vMReal, vMString);
+        global.closeGroup();
+        
+        vMInt.clear();
+        vMReal.clear();
+        vMString.clear();
+        
+        // populate the root folder
+        vMReal["time"] = a_time;
+        vMInt["iteration"] = parent->levelSteps(level);
+        vMInt["max_level"] = parent->finestLevel();
+        vMInt["num_levels"] = parent->maxLevel();
+        
+        vMString["filetype"] = "VanillaAMRFileType";
+        vMInt["num_levels"] = a_numLevels;
+        vMInt["num_components"] = nComp;
+        for (int ivar(0); ivar < nComp; ++ivar) {
+            char labelChSt[100];
+            sprintf(labelChSt, "component_%d", ivar);
+            std::string label(labelChSt);
+            vMString[label] = data_names[ivar];
+        }
+        h5.writeAttribute(vMInt, vMReal, vMString);
     }
-    h5.writeAttribute(vMInt, vMReal, vMString);
-  }
 
-  // create a group for all of the levels data
-  H5 level_grp = h5.createGroup("/level_" + num2str(level));
-
-  writeLevelAttrHDF5(level_grp);
-  writeMultiFab(level_grp, &data_mf, parent->cumTime());
-  level_grp.closeGroup();
+    // create a group for all of the levels data
+    H5 level_grp = h5.createGroup("/level_" + num2str(level));
+    
+    writeLevelAttrHDF5(level_grp);
+    writeMultiFab(level_grp, &data_mf, parent->cumTime());
+    level_grp.closeGroup();
 }
 
 void AmrLevel::writePlotHDF5Pre() {}

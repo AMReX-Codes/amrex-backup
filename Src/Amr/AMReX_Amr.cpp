@@ -1009,7 +1009,7 @@ Amr::writePlotFile ()
 }
 
 #ifdef AMREX_USE_HDF5
-void Amr::writePlotFileHDF5() {
+void Amr::writePlotFileHDF5 () {
   BL_PROFILE_REGION_START("Amr::writePlotFileHDF5()");
   BL_PROFILE("Amr::writePlotFileHDF5()");
 

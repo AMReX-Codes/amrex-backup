@@ -324,10 +324,10 @@ void average_down_nodal (const FabArray<FAB>& fine, FabArray<FAB>& crse,
 
     };
 
-    void writeMultiFab(H5& obj, MultiFab* data_mf, const Real time,
-                       const std::vector<std::string> data_names=std::vector<std::string>());
+    void writeMultiFab (H5& obj, const MultiFab* data_mf, const Real time,
+                        const std::vector<std::string> data_names=std::vector<std::string>());
 
-    void readMultiFab(H5& obj, MultiFab* data_mf);
+    void readMultiFab (H5& obj, MultiFab* data_mf);
 #endif
 }
 

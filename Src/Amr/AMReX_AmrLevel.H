@@ -95,8 +95,8 @@ public:
                                 VisMF::How         how = VisMF::NFiles);
 
 #ifdef AMREX_USE_HDF5
-    void writeLevelAttrHDF5(H5& h5);
-    void writePlotHDF5(MultiFab& data_mf, const std::vector<std::string> data_names);
+    void writeLevelAttrHDF5 (H5& h5);
+    void writePlotHDF5 (MultiFab& data_mf, const std::vector<std::string> data_names);
     virtual void writePlotHDF5Pre ();
     virtual void writePlotHDF5Post ();
 #endif

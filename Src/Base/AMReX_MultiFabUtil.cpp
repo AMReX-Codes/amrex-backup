@@ -931,8 +931,8 @@ namespace amrex
       return;
     }
 
-    void writeMultiFab(H5& h5, MultiFab* data_mf, const Real time,
-                           const std::vector<std::string> data_names)
+    void writeMultiFab (H5& h5, const MultiFab* data_mf, const Real time,
+                        const std::vector<std::string> data_names)
     {
 
       int myProc(ParallelDescriptor::MyProc());
