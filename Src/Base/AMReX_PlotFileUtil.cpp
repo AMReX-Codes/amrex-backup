@@ -578,12 +578,14 @@ void WriteMultiLevelPlotfileHDF5 (const std::string& plotfilename,
     }
     output_h5.writeAttribute(vMInt, vMReal, vMString);
 
-    for (int level = 0; level <= nlevels; ++level)
+    for (int level = 0; level < nlevels; ++level)
     {
         // create a group for all of the levels data
         H5 level_grp = output_h5.createGroup("/level_" + num2str(level));
     
-        writeLevelAttrHDF5(level_grp, level, geom[level], ref_ratio[level], time, 0.0,
+        IntVect rr = (level == nlevels-1) ? IntVect(AMREX_D_DECL(1, 1, 1)) : ref_ratio[level];
+
+        writeLevelAttrHDF5(level_grp, level, geom[level], rr, time, 0.0,
                            0.0, 0, level_steps[level], 0, mf[level]->boxArray(),
                            mf[level]->DistributionMap());
         writeMultiFab(level_grp, mf[level], time);
