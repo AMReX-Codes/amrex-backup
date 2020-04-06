@@ -97,6 +97,7 @@ void main_main ()
     amrex::Print() << "I/O printing randomly filled plotfile with: "
                    << "\n  dimensions = "    << ba.minimalBox() 
                    << "\n  max_grid_size = " << max_grid_size
+                   << "\n  nghost = "        << n_ghost
                    << "\n  noutfiles = "     << n_files
                    << "\n  boxes = "         << ba.size()
                    << "\n  and nwork = "     << nwork << std::endl;
@@ -212,25 +213,18 @@ void main_main ()
 
 #endif
 
-/*
+
+#ifdef AMREX_MPI_MULTIPLE
     for (int ip = 0; ip < ParallelDescriptor::NProcs(); ++ip) {
         if (ip == ParallelDescriptor::MyProc()) {
             amrex::AllPrint() << "Proc. " << ip << std::endl;
-            amrex::AllPrint() << "File: " << status_file << std::endl;
-#ifdef AMREX_MPI_MULTIPLE
-            amrex::AllPrint() << "MPI-Basic: "           << status_mpi_basic             << std::endl;
-            amrex::AllPrint() << "MPI-Comm: "            << status_mpi_comm              << std::endl;
-            amrex::AllPrint() << "MPI-Wait: "            << status_mpi_wait              << std::endl;
-            amrex::AllPrint() << "MPI-Barrier: "         << status_mpi_barrier           << std::endl;
-            amrex::AllPrint() << "MPI-IBarrier: "        << status_mpi_ibarrier          << std::endl;
-            amrex::AllPrint() << "MPI-IBarrierWaitall: " << status_mpi_ibarrier_waitall  << std::endl;
-            amrex::AllPrint() << "MPI-Fence: "           << status_mpi_fence             << std::endl;
-            amrex::AllPrint() << "MPI-Post: "            << status_mpi_post              << std::endl;
-#endif
+
+            amrex::AllPrint() << "MPI-Async-Timing: " << status_pltfile_async_timing << std::endl;
+            amrex::AllPrint() << "MPI-Async: "        << status_pltfile_async        << std::endl;
         }
         amrex::USleep(0.001);
         ParallelDescriptor::Barrier();
     }
-*/
+#endif
 
 }

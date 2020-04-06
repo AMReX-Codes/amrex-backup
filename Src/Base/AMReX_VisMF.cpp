@@ -5167,17 +5167,11 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
             std::stringstream hss;
             if (do_strip) {
                 fio.write_header(hss, {vbx, ncomp, fab.dataPtr()}, ncomp);
-
-                total_bytes += amrex::aligned_size(sizeof(Real),
-                                                   static_cast<std::streamoff>(hss.tellp())); 
-//                total_bytes += static_cast<std::streamoff>(hss.tellp());
+                total_bytes += static_cast<std::streamoff>(hss.tellp());
                 total_bytes += vbx.numPts() * ncomp * whichRD.numBytes();
             } else {
                 fio.write_header(hss, fab, ncomp);
-
-                total_bytes += amrex::aligned_size(sizeof(Real),
-                                                   static_cast<std::streamoff>(hss.tellp())); 
-//                total_bytes += static_cast<std::streamoff>(hss.tellp());
+                total_bytes += static_cast<std::streamoff>(hss.tellp());
                 total_bytes += fab.size() * whichRD.numBytes();
             }
 
@@ -5231,12 +5225,9 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                 fio.write_header(hss, fab, ncomp);
             }
             std::size_t nbytes = static_cast<std::streamoff>(hss.tellp());
-            std::size_t nbytes_padded = amrex::aligned_size(sizeof(Real),
-                                                            static_cast<std::streamoff>(hss.tellp()));
             auto tstr = hss.str();
             std::memcpy(p, tstr.c_str(), nbytes);
-//            p += nbytes;
-            p += nbytes_padded;
+            p += nbytes;
 
             long nreals;
             if (do_strip) {
@@ -5252,12 +5243,12 @@ VisMF::WriteAsyncPlotfile (const Vector<const MultiFab*>& mf, const Vector<std::
                 ptmp = p;
             }
 
-            // todo : "runon" change
             if (do_strip) {
 
                 const Box& vbx = mfi.validbox();
-                const auto& fab_array = fab.array();
-                const auto& buffer = makeArray4(static_cast<Real*>(ptmp), vbx, ncomp);
+            //  Re-align fab_array for GPU alignement requirements, given header size many not conform.
+                const auto& fab_array = makeArray4((const aligner*)(fab.dataPtr()), fab.box(), fab.nComp());
+                const auto& buffer = makeArray4(static_cast<aligner*>(ptmp), vbx, ncomp);
 
                 AMREX_HOST_DEVICE_PARALLEL_FOR_4D_FLAG(runon, vbx, ncomp, i, j, k, n,
                 {

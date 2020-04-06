@@ -38,6 +38,8 @@ class MultiFab;
 class VisMF
 {
 public:
+    struct aligner { char data[sizeof(Real)]; };
+
     //! We try to do I/O with buffers of this size.
     enum { IO_Buffer_Size = 262144 * 8 };
     //! The type of a char buffer required by [p]setbuf().
