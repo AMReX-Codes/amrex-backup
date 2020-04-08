@@ -1,0 +1,13 @@
+CEXE_headers += PersonContainer.H 
+CEXE_sources += PersonContainer.cpp
+
+CEXE_headers += PlaceContainer.H 
+CEXE_sources += PlaceContainer.cpp
+
+CEXE_headers += AssignPeopleToPlaces.H
+CEXE_sources += AssignPeopleToPlaces.cpp
+
+CEXE_sources += main.cpp
+
+
+

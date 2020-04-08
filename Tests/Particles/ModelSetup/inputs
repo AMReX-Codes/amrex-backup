@@ -1,0 +1,5 @@
+npeople = 3000000
+nplaces = 100000
+
+max_passes = 100
+place_capacity = 8
