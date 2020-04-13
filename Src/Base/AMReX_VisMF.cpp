@@ -4154,6 +4154,23 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
     const long n_local_nums = n_fab_nums * n_local_fabs + 1;
     Vector<int64_t> localdata(n_local_nums);
 
+    RunOn runon;
+#ifdef AMREX_USE_GPU
+    if (Gpu::inLaunchRegion() &&
+        mf.arena() == The_Arena() ||
+        mf.arena() == The_Device_Arena() ||
+        mf.arena() == The_Pinned_Arena())
+    {
+        runon = RunOn::Device;
+    } else {
+        runon = RunOn::Host;
+    }
+#else
+    runon = RunOn::Host;
+#endif
+
+
+
     int64_t total_bytes = 0;
     auto pld = (char*)(&(localdata[1]));
     const FABio& fio = FArrayBox::getFABio();
@@ -4173,12 +4190,28 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
         const Box& bx = mfi.validbox();
 
         for (int icomp = 0; icomp < ncomp; ++icomp) {
-            Real cmin = fab.min<RunOn::Host>(bx,icomp);
-            Real cmax = fab.max<RunOn::Host>(bx,icomp);
-            std::memcpy(pld, &cmin, sizeof(Real));
-            pld += sizeof(Real);
-            std::memcpy(pld, &cmax, sizeof(Real));
-            pld += sizeof(Real);
+            if (runon == RunOn::Host)
+            {
+                Real cmin = fab.min<RunOn::Host>(bx,icomp);
+                Real cmax = fab.max<RunOn::Host>(bx,icomp);
+                std::memcpy(pld, &cmin, sizeof(Real));
+                pld += sizeof(Real);
+                std::memcpy(pld, &cmax, sizeof(Real));
+                pld += sizeof(Real);
+            }
+            else if (runon == RunOn::Device)
+            {
+                Real cmin = fab.min<RunOn::Device>(bx,icomp);
+                Real cmax = fab.max<RunOn::Device>(bx,icomp);
+                std::memcpy(pld, &cmin, sizeof(Real));
+                pld += sizeof(Real);
+                std::memcpy(pld, &cmax, sizeof(Real));
+                pld += sizeof(Real);
+            }
+            else
+            {
+                amrex::Abort("VisMF::WriteAsyncMPIABarrierWaitall -- Invalid RunOn");
+            }
         }
     }
     localdata[0] = total_bytes;
@@ -4225,16 +4258,23 @@ VisMF::WriteAsyncMPIABarrierWaitall (const FabArray<FArrayBox>& mf, const std::s
         std::memcpy(p, tstr.c_str(), nbytes);
         p += nbytes;
         long nreals = fab.size();
+
         if (doConvert) {
             ptmp = The_Pinned_Arena()->alloc(nreals*sizeof(Real));
         } else {
             ptmp = p;
         }
+
 #ifdef AMREX_USE_GPU
-        Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
-#else
-        std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+        if (runon == RunOn::Gpu)
+        {
+            Gpu::dtoh_memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+        } else
 #endif
+        {
+            std::memcpy(ptmp, fab.dataPtr(), nreals*sizeof(Real));
+        }
+
         if (doConvert) {
             RealDescriptor::convertFromNativeFormat(p, nreals, ptmp, whichRD);
             The_Pinned_Arena()->free(ptmp);
