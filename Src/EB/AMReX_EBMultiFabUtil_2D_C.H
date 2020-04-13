@@ -427,19 +427,21 @@ void eb_interp_centroid2facecent (Box const& box,
           int ii = i - 1;
           int jj = (fcx(i,j,k) < 0.0) ? j - 1 : j + 1;
 
-          Real d0 = 0.5 + ccent( i,j,k,0); // distance in x-dir from centroid(i  ,j) to face(i,j)
-          Real d1 = 0.5 - ccent(ii,j,k,0); // distance in x-dir from centroid(i-1,j) to face(i,j)
+          Real d0    = 0.5 + ccent( i,j,k,0);                                 // distance in x-dir from centroid(i  ,j) to face(i,j)
+          Real d1    = 0.5 - ccent(ii,j,k,0);                                 // distance in x-dir from centroid(i-1,j) to face(i,j)
 
-          Real a0    = d1 / (d0 + d1);                              // coefficient of phi(i  ,j,k,n)
-          Real a1    = d0 / (d0 + d1);                              // coefficient of phi(i-1,j,k,n)
-          Real phi01 = a0 *   phi(i,j,k,n)  + a1 *   phi(ii,j,k,n); // interpolation of phi   in x-direction
-          Real y01   = a0 * ccent(i,j,k,1)  + a1 * ccent(ii,j,k,1); // interpolation of y-loc in x-direction
+          Real d0_jj = 0.5 + ccent( i,jj,k,0);                                 // distance in x-dir from centroid(i  ,jj) to face(i,jj)
+          Real d1_jj = 0.5 - ccent(ii,jj,k,0);                                 // distance in x-dir from centroid(i-1,jj) to face(i,jj)
 
-          Real d0_jj = 0.5 + ccent( i,jj,k,0); // distance in x-dir from centroid(i  ,jj) to face(i,jj)
-          Real d1_jj = 0.5 - ccent(ii,jj,k,0); // distance in x-dir from centroid(i-1,jj) to face(i,jj)
+          Real a0    = d1 / (d0 + d1);                                         // coefficient of phi(i  ,j,k,n)
+          Real a1    = d0 / (d0 + d1);                                         // coefficient of phi(i-1,j,k,n)
 
-          Real a0_jj    = d1_jj / (d0_jj + d1_jj);                             // coefficient of phi(i  ,jj,k,n)
-          Real a1_jj    = d0_jj / (d0_jj + d1_jj);                             // coefficient of phi(i-1,jj,k,n)
+          Real a0_jj = d1_jj / (d0_jj + d1_jj);                                // coefficient of phi(i  ,jj,k,n)
+          Real a1_jj = d0_jj / (d0_jj + d1_jj);                                // coefficient of phi(i-1,jj,k,n)
+
+          Real phi01    = a0    *   phi(i, j,k,n)  + a1    *   phi(ii, j,k,n); // interpolation of phi   in x-direction
+          Real y01      = a0    * ccent(i, j,k,1)  + a1    * ccent(ii, j,k,1); // interpolation of y-loc in x-direction
+
           Real phi01_jj = a0_jj *   phi(i,jj,k,n)  + a1_jj *   phi(ii,jj,k,n); // interpolation of phi   in x-direction
           Real y01_jj   = a0_jj * ccent(i,jj,k,1)  + a1_jj * ccent(ii,jj,k,1); // interpolation of y-loc in x-direction
           
@@ -475,19 +477,21 @@ void eb_interp_centroid2facecent (Box const& box,
           int jj = j - 1;
           int ii = (fcy(i,j,k) < 0.0) ? i - 1 : i + 1;
 
-          Real d0 = 0.5 + ccent(i, j,k,1); // distance in y-dir from centroid(i,j  ) to face(i,j)
-          Real d1 = 0.5 - ccent(i,jj,k,1); // distance in y-dir from centroid(i,j-1) to face(i,j)
+          Real d0    = 0.5 + ccent(i, j,k,1);                                 // distance in y-dir from centroid(i,j  ) to face(i,j)
+          Real d1    = 0.5 - ccent(i,jj,k,1);                                 // distance in y-dir from centroid(i,j-1) to face(i,j)
 
-          Real a0    = d1 / (d0 + d1);                              // coefficient of phi(i,j  ,k,n)
-          Real a1    = d0 / (d0 + d1);                              // coefficient of phi(i,j-1,k,n)
-          Real phi01 = a0 *   phi(i,j,k,n)  + a1 *   phi(i,jj,k,n); // interpolation of phi   in y-direction
-          Real x01   = a0 * ccent(i,j,k,0)  + a1 * ccent(i,jj,k,0); // interpolation of x-loc in y-direction
+          Real d0_ii = 0.5 + ccent(ii, j,k,0);                                 // distance from centroid(ii,j  ) to face(ii,j)
+          Real d1_ii = 0.5 - ccent(ii,jj,k,0);                                 // distance from centroid(ii,j-1) to face(ii,j)
 
-          Real d0_ii = 0.5 + ccent(ii, j,k,0); // distance from centroid(ii,j  ) to face(ii,j)
-          Real d1_ii = 0.5 - ccent(ii,jj,k,0); // distance from centroid(ii,j-1) to face(ii,j)
+          Real a0    = d1 / (d0 + d1);                                         // coefficient of phi(i,j  ,k,n)
+          Real a1    = d0 / (d0 + d1);                                         // coefficient of phi(i,j-1,k,n)
 
-          Real a0_ii    = d1_ii / (d0_ii + d1_ii);                             // coefficient of phi(i  ,jj,k,n)
-          Real a1_ii    = d0_ii / (d0_ii + d1_ii);                             // coefficient of phi(i-1,jj,k,n)
+          Real a0_ii = d1_ii / (d0_ii + d1_ii);                                // coefficient of phi(i  ,jj,k,n)
+          Real a1_ii = d0_ii / (d0_ii + d1_ii);                                // coefficient of phi(i-1,jj,k,n)
+
+          Real phi01    = a0    *   phi( i,j,k,n)  + a1    *   phi( i,jj,k,n); // interpolation of phi   in y-direction
+          Real x01      = a0    * ccent( i,j,k,0)  + a1    * ccent( i,jj,k,0); // interpolation of x-loc in y-direction
+
           Real phi01_ii = a0_ii *   phi(ii,j,k,n)  + a1_ii *   phi(ii,jj,k,n); // interpolation of phi   in y-direction
           Real x01_ii   = a0_ii * ccent(ii,j,k,0)  + a1_ii * ccent(ii,jj,k,0); // interpolation of x-loc in y-direction
           
