@@ -56,24 +56,24 @@ namespace amrex
                                        const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                                 const Array<MultiFab *,AMREX_SPACEDIM>& fc,
+    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                                 const Array<MultiFab *,AMREX_SPACEDIM>& phi_faces,
                                                  int scomp, int dcomp, int nc,
                                                  const Geometry& geom,
                                                  const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                                 const Vector<MultiFab*>& fc,
+    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                                 const Vector<MultiFab*>& phi_faces,
                                                  int scomp, int dcomp, int nc,
                                                  const Geometry& geom,
                                                  const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                                 AMREX_D_DECL( MultiFab& fcx,
-                                                               MultiFab& fcy,
-                                                               MultiFab& fcz),
+    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                                 AMREX_D_DECL( MultiFab& phi_xface,
+                                                               MultiFab& phi_yface,
+                                                               MultiFab& phi_zface),
                                                  int scomp, int dcomp, int nc,
                                                  const Geometry& geom,
                                                  const amrex::Vector<amrex::BCRec>& a_bcs);

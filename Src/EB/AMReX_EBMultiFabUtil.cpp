@@ -942,37 +942,37 @@ EB_interp_CC_to_FaceCentroid (MultiFab& cc,
 }
 
 // Cell centroids to face centroids
-void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                             const Array<MultiFab*, AMREX_SPACEDIM>& fc,
+void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                             const Array<MultiFab*, AMREX_SPACEDIM>& phi_faces,
                                              int scomp, int dcomp, int nc,
                                              const Geometry& geom,
                                              const amrex::Vector<amrex::BCRec>& a_bcs) 
 {
-    EB_interp_CellCentroid_to_FaceCentroid (cc, AMREX_D_DECL( *fc[0], *fc[1], *fc[2] ), 
+    EB_interp_CellCentroid_to_FaceCentroid (phi_centroid, AMREX_D_DECL( *phi_faces[0], *phi_faces[1], *phi_faces[2] ), 
                                             scomp, dcomp, nc, geom, a_bcs);
 }
 
 // Cell centroids to face centroids
-void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                             const Vector<MultiFab*>& fc, 
+void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                             const Vector<MultiFab*>& phi_faces, 
                                              int scomp, int dcomp, int nc,
                                              const Geometry& geom,
                                              const amrex::Vector<amrex::BCRec>& a_bcs) 
 {
-    EB_interp_CellCentroid_to_FaceCentroid (cc, AMREX_D_DECL( *fc[0], *fc[1], *fc[2] ), 
+    EB_interp_CellCentroid_to_FaceCentroid (phi_centroid, AMREX_D_DECL( *phi_faces[0], *phi_faces[1], *phi_faces[2] ), 
                                             scomp, dcomp, nc, geom, a_bcs);
 }
 
 void
-EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
-                                        AMREX_D_DECL( MultiFab& fc_x,
-                                                      MultiFab& fc_y,
-                                                      MultiFab& fc_z),
+EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+                                        AMREX_D_DECL( MultiFab& phi_xface,
+                                                      MultiFab& phi_yface,
+                                                      MultiFab& phi_zface),
                                         int scomp, int dcomp, int ncomp,
                                         const Geometry& a_geom,
                                         const Vector<BCRec>& a_bcs)
 {
-    const auto& factory = dynamic_cast<EBFArrayBoxFactory const&>(cc.Factory());
+    const auto& factory = dynamic_cast<EBFArrayBoxFactory const&>(phi_centroid.Factory());
     const auto& flags = factory.getMultiEBCellFlagFab();
     const auto& vfrac = factory.getVolFrac();
     const auto& area  = factory.getAreaFrac();
@@ -987,9 +987,9 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
     const int nghost(4);
     
    // Initialize edge state
-    AMREX_D_TERM(fc_x.setVal(1e40,dcomp,ncomp);,
-                 fc_y.setVal(1e40,dcomp,ncomp);,
-                 fc_z.setVal(1e40,dcomp,ncomp));
+    AMREX_D_TERM(phi_xface.setVal(1e40,dcomp,ncomp);,
+                 phi_yface.setVal(1e40,dcomp,ncomp);,
+                 phi_zface.setVal(1e40,dcomp,ncomp));
 
     BCRec const* d_bcs;
 #ifdef AMREX_USE_GPU
@@ -1011,19 +1011,19 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
 #ifdef _OPENMP
 #pragma omp parallel if (Gpu::notInLaunchRegion())
 #endif
-    for (MFIter mfi(cc, mfi_info);  mfi.isValid(); ++mfi)
+    for (MFIter mfi(phi_centroid, mfi_info);  mfi.isValid(); ++mfi)
     {
 
         const Box& vbx = mfi.tilebox();
-        const auto& ccfab = cc.array(mfi,scomp);
+        const auto& ccfab = phi_centroid.array(mfi,scomp);
         const auto fabtyp = flags[mfi].getType(amrex::grow(vbx,0));
         const auto fabtyp_ghost = flags[mfi].getType(amrex::grow(vbx,nghost));
 
         if (fabtyp != FabType::covered)
         {
-            AMREX_D_TERM(Array4<Real> const& edg_x = fc_x.array(mfi,dcomp);,
-                         Array4<Real> const& edg_y = fc_y.array(mfi,dcomp);,
-                         Array4<Real> const& edg_z = fc_z.array(mfi,dcomp););
+            AMREX_D_TERM(Array4<Real> const& phi_x = phi_xface.array(mfi,dcomp);,
+                         Array4<Real> const& phi_y = phi_yface.array(mfi,dcomp);,
+                         Array4<Real> const& phi_z = phi_zface.array(mfi,dcomp););
           
             if (fabtyp_ghost == FabType::regular )
             {
@@ -1031,7 +1031,7 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
                 AMREX_LAUNCH_HOST_DEVICE_LAMBDA ( vbx, thread_box,
                 {
                     eb_interp_cc2face(thread_box, ccfab,
-                                      AMREX_D_DECL(edg_x,edg_y,edg_z),
+                                      AMREX_D_DECL(phi_x,phi_y,phi_z),
                                       ncomp,
                                       domain, d_bcs);
                 });
@@ -1043,6 +1043,7 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
                 AMREX_D_TERM(Array4<Real const> const& apxfab = area[0]->const_array(mfi);,
                              Array4<Real const> const& apyfab = area[1]->const_array(mfi);,
                              Array4<Real const> const& apzfab = area[2]->const_array(mfi););
+
                 AMREX_D_TERM(Array4<Real const> const& fcx = fcent[0]->const_array(mfi);,
                              Array4<Real const> const& fcy = fcent[1]->const_array(mfi);,
                              Array4<Real const> const& fcz = fcent[2]->const_array(mfi););
@@ -1058,7 +1059,7 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
                                                 cvol,
                                                 cct,
                                                 AMREX_D_DECL(fcx,fcy,fcz),
-                                                AMREX_D_DECL(edg_x,edg_y,edg_z),
+                                                AMREX_D_DECL(phi_x,phi_y,phi_z),
                                                 ncomp,
                                                 domain, d_bcs);
                 });
@@ -1066,10 +1067,10 @@ EB_interp_CellCentroid_to_FaceCentroid (MultiFab& cc,
         }
     }
     
-    fc_x.FillBoundary(a_geom.periodicity());
-    fc_y.FillBoundary(a_geom.periodicity());
+    phi_xface.FillBoundary(a_geom.periodicity());
+    phi_yface.FillBoundary(a_geom.periodicity());
 #if ( AMREX_SPACEDIM == 3 )
-    fc_z.FillBoundary(a_geom.periodicity());
+    phi_zface.FillBoundary(a_geom.periodicity());
 #endif
 
 }
