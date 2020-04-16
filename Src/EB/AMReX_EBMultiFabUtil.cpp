@@ -838,7 +838,7 @@ EB_interp_CC_to_Centroid (MultiFab& cent, const MultiFab& cc, int scomp, int dco
 }
 
 void
-EB_interp_CC_to_FaceCentroid (MultiFab& cc,
+EB_interp_CC_to_FaceCentroid (const MultiFab& cc,
                               AMREX_D_DECL( MultiFab& fc_x,
                                             MultiFab& fc_y,
                                             MultiFab& fc_z),
@@ -942,7 +942,7 @@ EB_interp_CC_to_FaceCentroid (MultiFab& cc,
 }
 
 // Cell centroids to face centroids
-void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+void EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                              const Array<MultiFab*, AMREX_SPACEDIM>& phi_faces,
                                              int scomp, int dcomp, int nc,
                                              const Geometry& geom,
@@ -953,7 +953,7 @@ void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
 }
 
 // Cell centroids to face centroids
-void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+void EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                              const Vector<MultiFab*>& phi_faces, 
                                              int scomp, int dcomp, int nc,
                                              const Geometry& geom,
@@ -964,7 +964,7 @@ void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
 }
 
 void
-EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                         AMREX_D_DECL( MultiFab& phi_xface,
                                                       MultiFab& phi_yface,
                                                       MultiFab& phi_zface),

@@ -47,7 +47,7 @@ namespace amrex
     void EB_interp_CC_to_Centroid (MultiFab& cntrd, const MultiFab& cc, int scomp, int dcomp, int ncomp, const Geometry& geom);
     
     // Cell centers to face centroids
-    void EB_interp_CC_to_FaceCentroid (MultiFab& cc,
+    void EB_interp_CC_to_FaceCentroid (const MultiFab& cc,
                                        AMREX_D_DECL( MultiFab& fcx,
                                                      MultiFab& fcy,
                                                      MultiFab& fcz),
@@ -56,21 +56,21 @@ namespace amrex
                                        const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+    void EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                                  const Array<MultiFab *,AMREX_SPACEDIM>& phi_faces,
                                                  int scomp, int dcomp, int nc,
                                                  const Geometry& geom,
                                                  const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+    void EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                                  const Vector<MultiFab*>& phi_faces,
                                                  int scomp, int dcomp, int nc,
                                                  const Geometry& geom,
                                                  const amrex::Vector<amrex::BCRec>& a_bcs);
 
     // Cell centroids to face centroids
-    void EB_interp_CellCentroid_to_FaceCentroid (MultiFab& phi_centroid,
+    void EB_interp_CellCentroid_to_FaceCentroid (const MultiFab& phi_centroid,
                                                  AMREX_D_DECL( MultiFab& phi_xface,
                                                                MultiFab& phi_yface,
                                                                MultiFab& phi_zface),

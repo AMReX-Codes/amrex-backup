@@ -418,7 +418,7 @@ void eb_interp_cc2cent (Box const& box,
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_cc2facecent (Box const& box,
-                            Array4<Real> const& phi,
+                            Array4<Real const> const& phi,
                             Array4<EBCellFlag const> const& flag,
                             Array4<Real const> const& apx,
                             Array4<Real const> const& apy,
@@ -602,7 +602,7 @@ void eb_interp_cc2facecent (Box const& box,
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_centroid2facecent (Box const& bx,
-                                  Array4<Real> const& phi,
+                                  Array4<Real const> const& phi,
                                   Array4<EBCellFlag const> const& flag,
                                   Array4<Real const> const& apx,
                                   Array4<Real const> const& apy,
@@ -625,17 +625,6 @@ void eb_interp_centroid2facecent (Box const& bx,
   const Box ubx = amrex::surroundingNodes(bx,0);
   const Box vbx = amrex::surroundingNodes(bx,1);
   const Box wbx = amrex::surroundingNodes(bx,2);
-
-  Box gbx(amrex::grow(bx,1));
-
-  amrex::Loop(gbx, ncomp, [=] (int i, int j, int k, int n) noexcept
-    {
-       Real dx = 0.1;
-       Real x = (i+.5+ccent(i,j,k,0))*dx;
-       Real y = (j+.5+ccent(i,j,k,1))*dx;
-       Real z = (k+.5+ccent(i,j,k,2))*dx;
-       phi(i,j,k) = x + y + z; 
-    });
 
   // Note that ccent holds (x,y,z) of the cell centroids  as components (0/1/2)
   //           fcx   holds (  y,z) of the x-face centroid as components ( /0/1)
@@ -817,16 +806,6 @@ void eb_interp_centroid2facecent (Box const& bx,
           {
               amrex::Abort("Bad option in interpolation from cell centroid to x-face centroid!");
           }
-          Real dx = 0.1;
-          Real xx = (i+   ccent(i,j,k,0))*dx;
-          Real yy = (j+.5+ccent(i,j,k,1))*dx;
-          Real zz = (k+.5+ccent(i,j,k,2))*dx;
-          Real phi_exact = xx + yy + zz;  
-          if (abs(phi_x(i,j,k,n) - phi_exact) > 1.e-10)
-          {
-             amrex::Print() <<" ERR IN X-FLUX " << i << " " << j << " " << k << " " << abs(phi_x(i,j,k,n) - phi_exact)  << " " << 
-                               phi_x(i,j,k,n) << " " << phi_exact << std::endl;
-          }
        }
     });
   
@@ -1001,16 +980,6 @@ void eb_interp_centroid2facecent (Box const& bx,
           else 
           {
               amrex::Abort("Bad option in interpolation from cell centroid to y-face centroid!");
-          }
-          Real dx = 0.1;
-          Real xx = (i+.5+ccent(i,j,k,0))*dx;
-          Real yy = (j+   ccent(i,j,k,1))*dx;
-          Real zz = (k+.5+ccent(i,j,k,2))*dx;
-          Real phi_exact = xx + yy + zz;  
-          if (abs(phi_y(i,j,k,n) - phi_exact) > 1.e-12)
-          {
-             amrex::Print() <<" ERR IN Y-FLUX " << i << " " << j << " " << k << " " <<  abs(phi_y(i,j,k,n) - phi_exact)  << " " << 
-                                phi_y(i,j,k,n) << " " << phi_exact << std::endl;
           }
         }
     });
@@ -1187,23 +1156,13 @@ void eb_interp_centroid2facecent (Box const& bx,
           {
               amrex::Abort("Bad option in interpolation from cell centroid to z-face centroid!");
           }
-          Real dx = 0.1;
-          Real xx = (i+.5+ccent(i,j,k,0))*dx;
-          Real yy = (j+.5+ccent(i,j,k,1))*dx;
-          Real zz = (k+   ccent(i,j,k,2))*dx;
-          Real phi_exact = xx + yy + zz;  
-          if (abs(phi_z(i,j,k,n) - phi_exact) > 1.e-12)
-          {
-             amrex::Print() <<" ERR IN Z-FLUX " << i << " " << j << " " << k << " " <<  abs(phi_z(i,j,k,n) - phi_exact)  << " " << 
-                                phi_z(i,j,k,n) << " " << phi_exact << std::endl;
-          }
         }
     });
 }
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_cc2face (Box const& box,
-                        Array4<Real> const& phi,
+                        Array4<Real const> const& phi,
                         Array4<Real> const& edg_x,
                         Array4<Real> const& edg_y,
                         Array4<Real> const& edg_z,
