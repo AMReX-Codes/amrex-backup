@@ -279,7 +279,7 @@ void eb_interp_cc2cent (Box const& box,
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_cc2facecent (Box const& box,
-                            Array4<Real> const& phi,
+                            Array4<Real const> const& phi,
                             Array4<EBCellFlag const> const& flag,
                             Array4<Real const> const& apx, Array4<Real const> const& apy,
                             Array4<Real const> const& fcx,
@@ -382,7 +382,7 @@ void eb_interp_cc2facecent (Box const& box,
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_centroid2facecent (Box const& box,
-                                  Array4<Real> const& phi,
+                                  Array4<Real const> const& phi,
                                   Array4<EBCellFlag const> const& flag,
                                   Array4<Real const> const& apx, Array4<Real const> const& apy,
                                   Array4<Real const> const& cvol,
@@ -503,7 +503,7 @@ void eb_interp_centroid2facecent (Box const& box,
 
 AMREX_GPU_HOST_DEVICE AMREX_FORCE_INLINE
 void eb_interp_cc2face (Box const& box,
-                        Array4<Real> const& phi,
+                        Array4<Real const> const& phi,
                         Array4<Real> const& edg_x,
                         Array4<Real> const& edg_y,
                         int ncomp,
