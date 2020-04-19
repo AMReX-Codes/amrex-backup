@@ -27,7 +27,7 @@ using gpuDeviceProp_t = cudaDeviceProp;
         int maxThreadsDim[3];
         int maxGridSize[3];
         int warpSize;
-        long maxMemAllocSize; // oneAPI only
+        Long maxMemAllocSize; // oneAPI only
     };
 #endif
 
@@ -93,7 +93,7 @@ public:
 
 #ifdef AMREX_USE_GPU
     static void setNumThreadsMin (int nx, int ny, int nz) noexcept;
-    static void n_threads_and_blocks (const long N, dim3& numBlocks, dim3& numThreads) noexcept;
+    static void n_threads_and_blocks (const Long N, dim3& numBlocks, dim3& numThreads) noexcept;
     static void c_comps_threads_and_blocks (const int* lo, const int* hi, const int comps,
                                             dim3& numBlocks, dim3& numThreads) noexcept;
     static void c_threads_and_blocks (const int* lo, const int* hi, dim3& numBlocks, dim3& numThreads) noexcept;
@@ -113,12 +113,12 @@ public:
     static std::size_t freeMemAvailable ();
 
 #ifdef AMREX_USE_GPU
-    static constexpr int warp_size = AMREX_HIP_OR_CUDA_OR_DPCPP(64,32,32);
+    static constexpr int warp_size = AMREX_HIP_OR_CUDA_OR_DPCPP(64,32,16);
 
     static int maxBlocksPerLaunch () noexcept { return max_blocks_per_launch; }
 
 #ifdef AMREX_USE_DPCPP
-    static long maxMemAllocSize () noexcept { return device_prop.maxMemAllocSize; }
+    static Long maxMemAllocSize () noexcept { return device_prop.maxMemAllocSize; }
     static sycl::context& syclContext () { return *sycl_context; }
     static sycl::device& syclDevice () { return *sycl_device; }
 #endif
